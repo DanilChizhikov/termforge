@@ -1,0 +1,24 @@
+<Solution>
+  <Folder Name="/Api/">
+    <Project Path="src/Api/Core/Core.csproj" />
+    <Project Path="src/Api/Entrypoint/Entrypoint.csproj" />
+  </Folder>
+  <Folder Name="/Infrastructure/">
+    <Project Path="src/Infrastructure/Credentials/Credentials.csproj" />
+    <Project Path="src/Infrastructure/Persistence/Persistence.csproj" />
+    <Project Path="src/Infrastructure/Persistence.Migrations/Persistence.Migrations.csproj" />
+    <Project Path="src/Infrastructure/Ssh/Ssh.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="src/Tests/Core.Tests/Core.Tests.csproj" />
+    <Project Path="src/Tests/Entrypoint.Tests/Entrypoint.Tests.csproj" />
+    <Project Path="src/Tests/Persistence.Tests/Persistence.Tests.csproj" />
+    <Project Path="src/Tests/Ssh.IntegrationTests/Ssh.IntegrationTests.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="global.json" />
+    <File Path="src/Tests/Directory.Build.props" />
+  </Folder>
+</Solution>

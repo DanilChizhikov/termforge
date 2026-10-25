@@ -1,0 +1,2 @@
+**/Migrations/*.Designer.cs -diff linguist-generated=true
+**/Migrations/*ModelSnapshot.cs -diff linguist-generated=true

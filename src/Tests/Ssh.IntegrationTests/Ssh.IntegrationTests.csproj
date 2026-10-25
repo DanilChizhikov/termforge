@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../../Infrastructure/Ssh/Ssh.csproj" />
+  </ItemGroup>
+
+</Project>

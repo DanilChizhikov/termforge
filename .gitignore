@@ -434,3 +434,8 @@ scripts/postgres-data/18
 .codex/
 .claude/
 .agents/
+
+# SQLite
+*.db
+*.db-shm
+*.db-wal

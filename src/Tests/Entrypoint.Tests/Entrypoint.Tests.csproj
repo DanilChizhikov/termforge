@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../../Api/Entrypoint/Entrypoint.csproj" />
+  </ItemGroup>
+
+</Project>
