@@ -38,6 +38,8 @@ internal sealed class TermForgeApplicationFactory : WebApplicationFactory<Progra
 
     public CapturingLoggerProvider Logs { get; } = new();
 
+    public Action<IServiceCollection>? ConfigureServices { get; init; }
+
     public string BootstrapTokenValue => Services.GetRequiredService<BootstrapToken>().Value;
 
     public CancellationToken ApplicationStopping => Services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping;
@@ -105,6 +107,7 @@ internal sealed class TermForgeApplicationFactory : WebApplicationFactory<Progra
         services.AddSingleton(BrowserLauncher);
         services.AddTransient<IStartupFilter, WebSocketProbeStartupFilter>();
         UseWebRootOverride(services);
+        ConfigureServices?.Invoke(services);
     }
 
     private void UseWebRootOverride(IServiceCollection services)

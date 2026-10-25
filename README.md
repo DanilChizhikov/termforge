@@ -24,6 +24,7 @@ src/
   Web/                          React + TypeScript frontend (Vite)
   Tests/
     Core.Tests/
+    Credentials.Tests/
     Entrypoint.Tests/
     Persistence.Tests/
     Ssh.IntegrationTests/
@@ -88,6 +89,12 @@ npm run build          # builds into src/Api/Entrypoint/wwwroot
 ```
 
 Development: start the backend (`dotnet run --project src/Api/Entrypoint`), which bootstraps the browser session on `127.0.0.1`, then open `http://127.0.0.1:5173` in the same browser. Use `127.0.0.1`, not `localhost`, so the session cookie is shared. The browser contract (session cookie, CSRF header, same-origin WebSockets) is described in `docs/security.md`.
+
+## Credentials
+
+Secrets are stored in the OS credential store (Windows Credential Manager, macOS Keychain, Linux Secret Service). When that store is unavailable, they are stored in an encrypted vault file instead, which is unlocked with a master password through `POST /api/credentials/vault/unlock`. Like every `/api` endpoint, it requires the browser session and CSRF token described in `docs/security.md`. `GET /api/credentials/status` shows which backend is active and why. Usage, configuration and troubleshooting are in `docs/credentials.md`. The design is in `docs/decisions/0002-credential-store.md`.
+
+The OS store round-trip tests run against the real store of the current machine. When that store is unusable (for example no Secret Service on a headless Linux runner), they are reported as skipped and the reason is printed.
 
 ## CI and releases
 
