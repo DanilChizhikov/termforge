@@ -13,6 +13,7 @@
     <ProjectReference Include="../Core/Core.csproj" />
     <ProjectReference Include="../../Infrastructure/Ssh/Ssh.csproj" />
     <ProjectReference Include="../../Infrastructure/Persistence/Persistence.csproj" />
+    <ProjectReference Include="../../Infrastructure/Persistence.Migrations/Persistence.Migrations.csproj" />
     <ProjectReference Include="../../Infrastructure/Credentials/Credentials.csproj" />
   </ItemGroup>
 

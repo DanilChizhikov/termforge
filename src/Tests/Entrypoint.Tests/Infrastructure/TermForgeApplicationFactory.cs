@@ -1,5 +1,6 @@
 using DTech.Entrypoint.Lifecycle;
 using DTech.Entrypoint.Security;
+using Microsoft.Data.Sqlite;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -18,6 +19,7 @@ internal sealed class TermForgeApplicationFactory : WebApplicationFactory<Progra
     private static readonly Dictionary<string, string?> NoSettings = new();
 
     private readonly IReadOnlyDictionary<string, string?> _settings;
+    private readonly string _databaseDirectory = Path.Combine(Path.GetTempPath(), $"termforge-entrypoint-tests-{Guid.NewGuid():N}");
 
     public TermForgeApplicationFactory()
         : this(NoSettings)
@@ -62,6 +64,8 @@ internal sealed class TermForgeApplicationFactory : WebApplicationFactory<Progra
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("Lifecycle:OpenBrowser", "false");
+        var databasePath = Path.Combine(_databaseDirectory, "termforge.db");
+        builder.UseSetting("Persistence:DatabasePath", databasePath);
         foreach (var setting in _settings)
         {
             builder.UseSetting(setting.Key, setting.Value);
@@ -69,6 +73,21 @@ internal sealed class TermForgeApplicationFactory : WebApplicationFactory<Progra
 
         builder.ConfigureLogging(ConfigureLogging);
         builder.ConfigureTestServices(ConfigureTestServices);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+        if (!disposing)
+        {
+            return;
+        }
+
+        SqliteConnection.ClearAllPools();
+        if (Directory.Exists(_databaseDirectory))
+        {
+            Directory.Delete(_databaseDirectory, true);
+        }
     }
 
     private void ConfigureLogging(ILoggingBuilder logging)
