@@ -1,3 +1,4 @@
+using DTech.Core.Operations;
 using DTech.Persistence.Settings;
 using DTech.Persistence.Time;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,8 @@ public sealed class TermForgeDbContext : DbContext
     }
 
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
+
+    public DbSet<Operation> Operations => Set<Operation>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
