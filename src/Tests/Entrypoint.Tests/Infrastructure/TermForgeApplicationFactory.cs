@@ -1,0 +1,86 @@
+using DTech.Entrypoint.Lifecycle;
+using DTech.Entrypoint.Security;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using NSubstitute;
+
+namespace DTech.Entrypoint.Tests.Infrastructure;
+
+internal sealed class TermForgeApplicationFactory : WebApplicationFactory<Program>
+{
+    public const string ApplicationOrigin = "http://localhost";
+
+    private static readonly Dictionary<string, string?> NoSettings = new();
+
+    private readonly IReadOnlyDictionary<string, string?> _settings;
+
+    public TermForgeApplicationFactory()
+        : this(NoSettings)
+    {
+    }
+
+    public TermForgeApplicationFactory(IReadOnlyDictionary<string, string?> settings)
+    {
+        _settings = settings;
+    }
+
+    public IBrowserLauncher BrowserLauncher { get; } = Substitute.For<IBrowserLauncher>();
+
+    public CapturingLoggerProvider Logs { get; } = new();
+
+    public string BootstrapTokenValue => Services.GetRequiredService<BootstrapToken>().Value;
+
+    public CancellationToken ApplicationStopping => Services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping;
+
+    public HttpClient CreateClientWithoutCookies()
+    {
+        var clientOptions = new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = false,
+        };
+        return CreateClient(clientOptions);
+    }
+
+    public HttpClient CreateClientFor(string baseAddress)
+    {
+        var baseAddressUri = new Uri(baseAddress);
+        var clientOptions = new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = false,
+            BaseAddress = baseAddressUri,
+        };
+        return CreateClient(clientOptions);
+    }
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.UseSetting("Lifecycle:OpenBrowser", "false");
+        foreach (var setting in _settings)
+        {
+            builder.UseSetting(setting.Key, setting.Value);
+        }
+
+        builder.ConfigureLogging(ConfigureLogging);
+        builder.ConfigureTestServices(ConfigureTestServices);
+    }
+
+    private void ConfigureLogging(ILoggingBuilder logging)
+    {
+        logging.AddProvider(Logs);
+        logging.AddFilter<CapturingLoggerProvider>(null, LogLevel.Trace);
+    }
+
+    private void ConfigureTestServices(IServiceCollection services)
+    {
+        services.RemoveAll<IBrowserLauncher>();
+        services.AddSingleton(BrowserLauncher);
+        services.AddTransient<IStartupFilter, WebSocketProbeStartupFilter>();
+    }
+}
