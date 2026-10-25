@@ -10,6 +10,7 @@ builder.Services.AddPersistence(builder.Configuration);
 builder.Services.AddCredentialStore(builder.Configuration);
 builder.Services.AddOperationJournal();
 builder.Services.AddUpdateCheck(builder.Configuration);
+builder.Services.AddSavedConnections();
 
 var app = builder.Build();
 await app.MigrateDatabaseAsync();
@@ -19,6 +20,7 @@ app.MapCredentialEndpoints();
 app.MapRealtimeEndpoints();
 app.MapOperationEndpoints();
 app.MapUpdateEndpoints();
+app.MapSavedConnectionEndpoints();
 app.UseSpaHosting();
 
 app.Run();
