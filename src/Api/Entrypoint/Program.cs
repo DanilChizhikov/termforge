@@ -8,12 +8,15 @@ builder.AddLocalHostSecurity();
 builder.AddApplicationLifecycle();
 builder.Services.AddPersistence(builder.Configuration);
 builder.Services.AddCredentialStore(builder.Configuration);
+builder.Services.AddOperationJournal();
 
 var app = builder.Build();
 await app.MigrateDatabaseAsync();
 app.UseLocalHostSecurity();
 app.MapApplicationLifecycle();
 app.MapCredentialEndpoints();
+app.MapRealtimeEndpoints();
+app.MapOperationEndpoints();
 app.UseSpaHosting();
 
 app.Run();
