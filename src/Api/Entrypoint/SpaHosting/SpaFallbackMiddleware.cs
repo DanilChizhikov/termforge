@@ -34,6 +34,11 @@ internal sealed class SpaFallbackMiddleware
             return false;
         }
 
+        if (context.WebSockets.IsWebSocketRequest)
+        {
+            return false;
+        }
+
         if (context.GetEndpoint() is not null)
         {
             return false;
