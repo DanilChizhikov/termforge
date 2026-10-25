@@ -111,6 +111,8 @@ Tests in `Entrypoint.Tests/Credentials` run against the full pipeline and cover 
 | Linux arm64 (Docker `mcr.microsoft.com/dotnet/sdk:10.0`, Debian, gnome-keyring), local | no D-Bus session | round-trip skipped with the "No D-Bus session bus" diagnostic |
 | same | D-Bus + gnome-keyring without an unlocked collection | skipped with "Object does not exist at path /org/freedesktop/secrets/collection/login" diagnostic, no hang |
 | same | D-Bus + unlocked gnome-keyring | all tests passed, repeated 5 times, no leftover items |
-| CI `ubuntu-latest`, `macos-latest`, `windows-latest` | see PR checks | recorded in the PR description |
+| CI `macos-latest` | GitHub Actions | 43/43 passed, 0 skipped: the real Keychain round-trip ran |
+| CI `windows-latest` | GitHub Actions | 42 passed, 1 skipped (Unix file mode test): the real Credential Manager round-trip ran |
+| CI `ubuntu-latest` | GitHub Actions | 41 passed, 2 skipped: the runner has no Secret Service, so the OS round-trip tests are skipped with their diagnostic |
 
-Linux x64 and Windows were not tested locally.
+Windows was verified on CI only. A real Secret Service on Linux x64 was not tested; only Linux arm64 in Docker was.
