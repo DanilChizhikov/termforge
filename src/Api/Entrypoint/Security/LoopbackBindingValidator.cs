@@ -7,6 +7,7 @@ internal static class LoopbackBindingValidator
     private const string UrlsKey = "urls";
     private const string HttpPortsKey = "http_ports";
     private const string HttpsPortsKey = "https_ports";
+    private const string PreferHostingUrlsKey = "preferHostingUrls";
     private const string KestrelEndpointsSection = "Kestrel:Endpoints";
     private const string KestrelEndpointUrlKey = "Url";
     private const char UrlSeparator = ';';
@@ -14,20 +15,46 @@ internal static class LoopbackBindingValidator
     public static IReadOnlyList<string> FindNonLoopbackBindings(IConfiguration configuration)
     {
         var violations = new List<string>();
-        AddPortViolation(configuration, HttpPortsKey, violations);
-        AddPortViolation(configuration, HttpsPortsKey, violations);
+        var hasKestrelEndpoints = AddKestrelEndpointViolations(configuration, violations);
+        var preferHostingUrls = configuration.GetValue<bool>(PreferHostingUrlsKey);
+        if (!hasKestrelEndpoints || preferHostingUrls)
+        {
+            AddHostingAddressViolations(configuration, violations);
+        }
 
-        var configuredUrls = configuration[UrlsKey];
-        AddUrlViolations(configuredUrls, violations);
+        return violations;
+    }
 
+    private static bool AddKestrelEndpointViolations(IConfiguration configuration, List<string> violations)
+    {
+        var hasKestrelEndpoints = false;
         var endpoints = configuration.GetSection(KestrelEndpointsSection).GetChildren();
         foreach (var endpoint in endpoints)
         {
             var endpointUrl = endpoint[KestrelEndpointUrlKey];
+            if (string.IsNullOrWhiteSpace(endpointUrl))
+            {
+                continue;
+            }
+
+            hasKestrelEndpoints = true;
             AddUrlViolations(endpointUrl, violations);
         }
 
-        return violations;
+        return hasKestrelEndpoints;
+    }
+
+    private static void AddHostingAddressViolations(IConfiguration configuration, List<string> violations)
+    {
+        var configuredUrls = configuration[UrlsKey];
+        if (!string.IsNullOrWhiteSpace(configuredUrls))
+        {
+            AddUrlViolations(configuredUrls, violations);
+            return;
+        }
+
+        AddPortViolation(configuration, HttpPortsKey, violations);
+        AddPortViolation(configuration, HttpsPortsKey, violations);
     }
 
     private static void AddPortViolation(IConfiguration configuration, string key, List<string> violations)
@@ -39,13 +66,8 @@ internal static class LoopbackBindingValidator
         }
     }
 
-    private static void AddUrlViolations(string? urls, List<string> violations)
+    private static void AddUrlViolations(string urls, List<string> violations)
     {
-        if (string.IsNullOrWhiteSpace(urls))
-        {
-            return;
-        }
-
         var separatedUrls = urls.Split(UrlSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         for (var i = 0; i < separatedUrls.Length; i++)
         {
