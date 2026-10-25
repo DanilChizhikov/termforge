@@ -1,0 +1,8 @@
+feature:
+- head-branch: [ '^feature/' ]
+
+bug:
+- head-branch: [ '^bugfix/', '^hotfix/' ]
+
+release:
+- head-branch: [ '^release/' ]

@@ -1,0 +1,168 @@
+name: release
+
+on:
+  pull_request:
+    types: [ closed ]
+    branches: [ master ]
+
+concurrency: release
+
+jobs:
+  Version:
+    if: ${{ github.event.pull_request.merged && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/')) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      build: ${{ steps.build.outputs.build }}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.merge_commit_sha }}
+        fetch-depth: 0
+
+    - name: Read version
+      id: version
+      run: |
+        version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)
+        if git rev-parse -q --verify "refs/tags/$version" >/dev/null; then
+          echo "::error::Tag $version already exists, bump the version in Directory.Build.props"; exit 1
+        fi
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+
+    - name: Read build number
+      id: build
+      run: |
+        for _ in $(seq 30); do
+          build=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$SHA" --event push \
+            --json number --jq '.[0].number // empty')
+          if [ -n "$build" ]; then break; fi
+          sleep 10
+        done
+        if [ -z "$build" ]; then
+          echo "::error::No ci run found for $SHA"; exit 1
+        fi
+        echo "build=$build" >> "$GITHUB_OUTPUT"
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SHA: ${{ github.event.pull_request.merge_commit_sha }}
+
+  Publish:
+    needs: Version
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        include:
+        - rid: linux-x64
+          os: ubuntu-latest
+        - rid: linux-arm64
+          os: ubuntu-latest
+        - rid: win-x64
+          os: windows-latest
+        - rid: win-arm64
+          os: windows-latest
+        # osx builds run on macOS so the SDK signs the apphost.
+        - rid: osx-x64
+          os: macos-latest
+        - rid: osx-arm64
+          os: macos-latest
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Publish
+      run: |
+        dotnet publish src/Api/Entrypoint/Entrypoint.csproj -c Release -r "$RID" --self-contained true \
+          -o "publish/termforge-$VERSION-$RID" -p:Version="$VERSION" -p:BuildNumber="$BUILD"
+      env:
+        RID: ${{ matrix.rid }}
+        VERSION: ${{ needs.Version.outputs.version }}
+        BUILD: ${{ needs.Version.outputs.build }}
+
+    - name: Archive
+      run: |
+        cd publish
+        name="termforge-$VERSION-$RID"
+        if [[ "$RID" == win-* ]]; then
+          7z a "$name.zip" "$name" >/dev/null
+        else
+          tar -czf "$name.tar.gz" "$name"
+        fi
+      env:
+        RID: ${{ matrix.rid }}
+        VERSION: ${{ needs.Version.outputs.version }}
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: termforge-${{ matrix.rid }}
+        path: |
+          publish/*.zip
+          publish/*.tar.gz
+
+  GitHub-Release:
+    needs: [ Version, Publish ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        path: dist
+        pattern: termforge-*
+        merge-multiple: true
+
+    - name: Create release
+      run: |
+        gh release create "$VERSION" dist/* \
+          --repo "$GITHUB_REPOSITORY" \
+          --target "$SHA" \
+          --title "$VERSION" \
+          --generate-notes
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        VERSION: ${{ needs.Version.outputs.version }}
+        SHA: ${{ github.event.pull_request.merge_commit_sha }}
+
+  Back-Merge:
+    needs: [ Version, GitHub-Release ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+    - name: Merge master into develop
+      run: |
+        # 201 merged, 204 nothing to merge, 409 conflict.
+        if gh api "repos/$GITHUB_REPOSITORY/merges" \
+            -f base=develop -f head=master \
+            -f commit_message="merged release $VERSION into develop" >/dev/null 2>err.txt; then
+          echo "master merged into develop"; exit 0
+        fi
+        cat err.txt
+        if ! grep -q "409" err.txt; then exit 1; fi
+
+        pr_url=$(gh pr create --repo "$GITHUB_REPOSITORY" --base develop --head master \
+          --title "merged release $VERSION into develop" \
+          --body "Back-merge after release $VERSION has conflicts, resolve them by hand.")
+        gh api "repos/$GITHUB_REPOSITORY/issues/${pr_url##*/}/labels" -f "labels[]=release" >/dev/null
+        echo "::warning::Back-merge conflicts, resolve $pr_url"
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        VERSION: ${{ needs.Version.outputs.version }}

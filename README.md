@@ -42,3 +42,10 @@ dotnet run --project src/Api/Entrypoint
 ```
 
 The backend listens on `http://127.0.0.1:5023` only.
+
+## CI and releases
+
+- `ci` builds and tests the solution on Linux, macOS and Windows for every push and PR to `develop` and `master`.
+- `release-start` (manual run) bumps `<Version>` in `Directory.Build.props`, pushes `release/X.Y.Z` (from `develop`) or `hotfix/X.Y.Z` (from `master`) and opens a PR to `master`. Needs the `RELEASE_TOKEN` secret (PAT with `contents` and `pull-requests` write access).
+- `release` runs when that PR is merged: publishes self-contained builds for `linux-x64`, `linux-arm64`, `win-x64`, `win-arm64`, `osx-x64`, `osx-arm64`, creates the GitHub release `X.Y.Z` with the archives and merges `master` back into `develop`.
+- `pr-labeler` labels PRs by branch prefix (`feature/`, `bugfix/`, `hotfix/`, `release/`), labels group the release notes.
