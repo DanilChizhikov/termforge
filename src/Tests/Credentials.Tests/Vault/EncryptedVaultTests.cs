@@ -310,6 +310,7 @@ public sealed class EncryptedVaultTests
         if (OperatingSystem.IsWindows())
         {
             Assert.Inconclusive("Unix file modes do not apply on Windows; the vault inherits the ACL of the user profile directory.");
+            return;
         }
 
         var key = TestKeys.Create("tokens/mode");
