@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { EmptyState } from './EmptyState';
 import { MainWorkspace } from './MainWorkspace';
+import { OperationHistory } from './OperationHistory';
 
 interface WorkspaceTabDefinition {
   id: string;
@@ -46,9 +47,16 @@ export function WorkspaceTabs() {
           hidden={tab.id !== activeId}
           className="tab-panel"
         >
-          {tab.emptyMessage === null ? <MainWorkspace /> : <EmptyState message={tab.emptyMessage} />}
+          {renderPanel(tab, tab.id === activeId)}
         </div>
       ))}
     </div>
   );
+}
+
+function renderPanel(tab: WorkspaceTabDefinition, isActive: boolean) {
+  if (tab.id === 'history') {
+    return isActive ? <OperationHistory /> : null;
+  }
+  return tab.emptyMessage === null ? <MainWorkspace /> : <EmptyState message={tab.emptyMessage} />;
 }

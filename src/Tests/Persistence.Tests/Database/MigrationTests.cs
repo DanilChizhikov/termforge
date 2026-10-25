@@ -33,7 +33,8 @@ public sealed class MigrationTests
         await database.MigrateAsync();
 
         var applied = database.Query("SELECT migration_id FROM \"__EFMigrationsHistory\"");
-        applied.Should().HaveCount(1);
+        using var context = database.CreateContext();
+        applied.Should().HaveCount(context.Database.GetMigrations().Count());
     }
 
     [TestMethod]

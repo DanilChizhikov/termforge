@@ -1,4 +1,6 @@
+using DTech.Core.Operations;
 using DTech.Persistence.Database;
+using DTech.Persistence.Operations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +17,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddSingleton<DatabasePathResolver>();
         services.AddSingleton<DatabaseMigrator>();
         services.AddDbContext<TermForgeDbContext>(ConfigureContext);
+        services.AddScoped<IOperationRepository, OperationRepository>();
         return services;
     }
 
