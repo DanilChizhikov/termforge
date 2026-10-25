@@ -7,11 +7,13 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddLocalHostSecurity();
 builder.AddApplicationLifecycle();
 builder.Services.AddPersistence(builder.Configuration);
+builder.Services.AddCredentialStore(builder.Configuration);
 
 var app = builder.Build();
 await app.MigrateDatabaseAsync();
 app.UseLocalHostSecurity();
 app.MapApplicationLifecycle();
+app.MapCredentialEndpoints();
 app.UseSpaHosting();
 
 app.Run();
