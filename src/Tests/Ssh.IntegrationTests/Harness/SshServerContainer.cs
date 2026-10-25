@@ -8,9 +8,12 @@ internal sealed class SshServerContainer : IAsyncDisposable
     public const string UserName = "tester";
     public const string Password = "tester-password";
     public const string HomeDirectory = "/home/tester";
+    public const string PrivateKeyPassphrase = "tester-key-passphrase";
     public const int SshPort = 22;
 
     private const string UserPrivateKeyPath = "/keys/tester_ed25519";
+    private const string UserEncryptedPrivateKeyPath = "/keys/tester_ed25519_encrypted";
+    private const string UserRsaPrivateKeyPath = "/keys/tester_rsa";
     private const string HostPublicKeyPath = "/etc/ssh/ssh_host_ed25519_key.pub";
 
     private readonly IContainer _container;
@@ -32,9 +35,9 @@ internal sealed class SshServerContainer : IAsyncDisposable
     public static async Task<SshServerContainer> StartAsync(IContainer container, SshServerIdentityRequest request, CancellationToken cancellationToken)
     {
         await container.StartAsync(cancellationToken);
-        var privateKey = await container.ReadFileAsync(UserPrivateKeyPath, cancellationToken);
-        var privateKeyPath = Path.Combine(request.KeyDirectory, $"{request.NetworkAlias}_ed25519");
-        await TestKeyFiles.WritePrivateKeyAsync(privateKeyPath, privateKey, cancellationToken);
+        var privateKeyPath = await CopyKeyAsync(container, request, UserPrivateKeyPath);
+        var encryptedPrivateKeyPath = await CopyKeyAsync(container, request, UserEncryptedPrivateKeyPath);
+        var rsaPrivateKeyPath = await CopyKeyAsync(container, request, UserRsaPrivateKeyPath);
         var hostPublicKeyBytes = await container.ReadFileAsync(HostPublicKeyPath, cancellationToken);
         var hostPublicKeyLine = System.Text.Encoding.ASCII.GetString(hostPublicKeyBytes).Trim();
         var hostKey = OpenSshPublicKey.ToHostKey(hostPublicKeyLine);
@@ -43,6 +46,8 @@ internal sealed class SshServerContainer : IAsyncDisposable
         {
             HostKey = hostKey,
             HostPublicKeyLine = hostPublicKeyLine,
+            EncryptedPrivateKeyPath = encryptedPrivateKeyPath,
+            RsaPrivateKeyPath = rsaPrivateKeyPath,
         };
         return new SshServerContainer(container, identity);
     }
@@ -72,6 +77,15 @@ internal sealed class SshServerContainer : IAsyncDisposable
     public ValueTask DisposeAsync()
     {
         return _container.DisposeAsync();
+    }
+
+    private static async Task<string> CopyKeyAsync(IContainer container, SshServerIdentityRequest request, string remoteKeyPath)
+    {
+        var privateKey = await container.ReadFileAsync(remoteKeyPath);
+        var keyFileName = Path.GetFileName(remoteKeyPath);
+        var localKeyPath = Path.Combine(request.KeyDirectory, $"{request.NetworkAlias}_{keyFileName}");
+        await TestKeyFiles.WritePrivateKeyAsync(localKeyPath, privateKey, CancellationToken.None);
+        return localKeyPath;
     }
 
     private static async Task<string> ExecuteAsync(IContainer container, string command, CancellationToken cancellationToken)

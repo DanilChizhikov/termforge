@@ -22,6 +22,45 @@ public sealed class AuthenticationTests
     }
 
     [TestMethod]
+    public async Task Connect_WithRsaPrivateKeyFile_Succeeds()
+    {
+        var cluster = await SshTestEnvironment.RequireClusterAsync();
+        var rsaKey = new PrivateKeyAuthentication(cluster.Target.Identity.RsaPrivateKeyPath, null);
+        var target = cluster.Target.CreateTarget(rsaKey);
+
+        var result = await ConnectAsync(cluster, target);
+        await using var client = result.IsSuccess ? result.Value : null;
+
+        result.IsSuccess.Should().BeTrue(result.Error?.Message);
+    }
+
+    [TestMethod]
+    public async Task Connect_WithEncryptedPrivateKeyAndPassphrase_Succeeds()
+    {
+        var cluster = await SshTestEnvironment.RequireClusterAsync();
+        var encryptedKey = new PrivateKeyAuthentication(cluster.Target.Identity.EncryptedPrivateKeyPath, SshServerContainer.PrivateKeyPassphrase);
+        var target = cluster.Target.CreateTarget(encryptedKey);
+
+        var result = await ConnectAsync(cluster, target);
+        await using var client = result.IsSuccess ? result.Value : null;
+
+        result.IsSuccess.Should().BeTrue(result.Error?.Message);
+    }
+
+    [TestMethod]
+    public async Task Connect_WithEncryptedPrivateKeyWithoutPassphrase_ReturnsPrivateKeyUnusable()
+    {
+        var cluster = await SshTestEnvironment.RequireClusterAsync();
+        var encryptedKey = new PrivateKeyAuthentication(cluster.Target.Identity.EncryptedPrivateKeyPath, null);
+        var target = cluster.Target.CreateTarget(encryptedKey);
+
+        var result = await ConnectAsync(cluster, target);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error!.Kind.Should().Be(SshErrorKind.PrivateKeyUnusable);
+    }
+
+    [TestMethod]
     public async Task Connect_WithUnauthorizedPrivateKeyFile_FailsAuthentication()
     {
         var cluster = await SshTestEnvironment.RequireClusterAsync();
