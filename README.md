@@ -41,7 +41,15 @@ dotnet test termforge.slnx
 dotnet run --project src/Api/Entrypoint
 ```
 
-The backend listens on `http://127.0.0.1:5023` only.
+The backend listens on `http://127.0.0.1:5023` only and refuses to start with a non-loopback binding. After start it opens the default browser with a one-time launch link that creates the browser session; closing the tab does not stop the backend. Exit with `Ctrl+C` or `POST /api/lifecycle/exit` from the UI.
+
+Lifecycle settings (`appsettings.json` or `--Lifecycle:<key>=<value>`):
+
+- `Lifecycle:OpenBrowser` (default `true`) opens the browser after start.
+- `Lifecycle:BrowserCommand` (optional) executable that receives the launch URL instead of the default browser.
+- `Lifecycle:ShutdownTimeoutSeconds` (default `10`) graceful shutdown timeout.
+
+Threat model, browser session and CSRF contract: `docs/security.md`.
 
 ## CI and releases
 
