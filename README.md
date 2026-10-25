@@ -35,6 +35,12 @@ dotnet build termforge.slnx
 dotnet test termforge.slnx
 ```
 
+### SSH integration tests
+
+`src/Tests/Ssh.IntegrationTests` starts disposable OpenSSH servers in Docker through Testcontainers, so it needs a running Docker engine that can run Linux containers. The agent tests also need `ssh-agent` and `ssh-add` on `PATH`, and the system ssh probe needs `ssh`. Without Docker, the tests are skipped (inconclusive) with a reason. Set `TERMFORGE_SKIP_DOCKER_TESTS=true` to skip them explicitly, as CI does on macOS and Windows.
+
+SSH transport decision and supported features: `docs/decisions/0001-ssh-transport.md`, `docs/ssh-capabilities.md`.
+
 ## Run
 
 ```sh

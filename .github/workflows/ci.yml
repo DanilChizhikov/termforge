@@ -46,6 +46,8 @@ jobs:
 
     - name: Run Tests
       run: dotnet test termforge.slnx --no-build --configuration Release --logger trx --results-directory TestResults
+      env:
+        TERMFORGE_SKIP_DOCKER_TESTS: ${{ matrix.os != 'ubuntu-latest' }}
 
     - name: Upload test results
       uses: actions/upload-artifact@v4
