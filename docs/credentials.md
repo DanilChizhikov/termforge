@@ -12,22 +12,27 @@ Design and trade-offs: [decisions/0002-credential-store.md](decisions/0002-crede
 3. If the check fails, secrets go to the encrypted vault file. The vault must be unlocked with a master password after every application start. The first unlock creates the vault (master password of at least 8 characters).
 4. Once a vault file exists it stays in use, even if the OS store becomes available later, so no secret becomes unreachable.
 
-Check which backend is active and why:
+| Endpoint | Result |
+|---|---|
+| `GET /api/credentials/status` | `200` with the active backend, the reason it was selected, the OS store availability and diagnostic, and the vault state (`NotCreated`, `Locked`, `Unlocked`) |
+| `POST /api/credentials/vault/unlock` with `{"masterPassword":"..."}` | `204`, or a problem response with `code` (`InvalidMasterPassword` and `WeakMasterPassword` → `400`; `VaultNotInUse`, `VaultCorrupted` and `UnsupportedVaultVersion` → `409`) |
+| `POST /api/credentials/vault/lock` | `204` |
 
-```sh
-curl http://127.0.0.1:5023/api/credentials/status
+Like every `/api` endpoint, these are protected by the browser session described in [security.md](security.md):
+
+- Each request needs the `termforge_session` cookie (`401` without it).
+- `POST` requests also need a matching `Origin` and the `X-CSRF-Token` header (`403` without it).
+
+So a plain `curl` call from another process is rejected. Until there is a UI, unlock the vault from the browser tab that TermForge opened, using the developer console:
+
+```js
+const { csrfToken } = await (await fetch('/api/session')).json();
+await fetch('/api/credentials/vault/unlock', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+  body: JSON.stringify({ masterPassword: '...' }),
+});
 ```
-
-Unlock or lock the vault (there is no UI yet):
-
-```sh
-curl -X POST http://127.0.0.1:5023/api/credentials/vault/unlock \
-  -H 'Content-Type: application/json' \
-  -d '{"masterPassword":"..."}'
-curl -X POST http://127.0.0.1:5023/api/credentials/vault/lock
-```
-
-These endpoints are not authenticated yet. Once the Secure Local Host and Lifecycle work is merged they will require the local browser session, Origin and CSRF checks.
 
 ## Configuration
 

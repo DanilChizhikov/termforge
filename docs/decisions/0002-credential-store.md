@@ -88,7 +88,13 @@ All integers are big-endian.
 - `POST /api/credentials/vault/unlock` with `{ "masterPassword": "..." }`: `204`, or a problem response with `code` (`InvalidMasterPassword`, `WeakMasterPassword` → 400; `VaultNotInUse`, `VaultCorrupted`, `UnsupportedVaultVersion` → 409).
 - `POST /api/credentials/vault/lock`: `204`.
 
-These endpoints are not authenticated by this change. For now they are protected only by the localhost binding and `AllowedHosts`. They must be covered by the session, Origin and CSRF middleware from the Secure Local Host and Lifecycle task once that branch is merged. Until then, any local process or a DNS-rebinding page could reach them. The KDF cost (about 90 ms per attempt, measured on an Apple Silicon laptop) is the only brute-force throttle. Rate limiting is a follow-up.
+The endpoints live under `/api`, so the local host security middleware ([../security.md](../security.md)) protects them:
+
+- Host header allow-list.
+- The `termforge_session` cookie (`401` without it).
+- Exact `Origin` and `X-CSRF-Token` on `POST` (`403` without them).
+
+Tests in `Entrypoint.Tests/Credentials` run against the full pipeline and cover the missing-session and missing-CSRF cases for unlock, lock and status. Within an authenticated session, the only brute-force throttle is the KDF cost (about 90 ms per attempt, measured on an Apple Silicon laptop). Rate limiting is a follow-up.
 
 ## Consequences
 
