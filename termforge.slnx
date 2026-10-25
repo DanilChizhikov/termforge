@@ -11,6 +11,7 @@
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="src/Tests/Core.Tests/Core.Tests.csproj" />
+    <Project Path="src/Tests/Credentials.Tests/Credentials.Tests.csproj" />
     <Project Path="src/Tests/Entrypoint.Tests/Entrypoint.Tests.csproj" />
     <Project Path="src/Tests/Persistence.Tests/Persistence.Tests.csproj" />
     <Project Path="src/Tests/Ssh.IntegrationTests/Ssh.IntegrationTests.csproj" />
