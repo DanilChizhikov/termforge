@@ -55,3 +55,34 @@ jobs:
       with:
         name: test-results-${{ matrix.os }}
         path: TestResults/
+
+  Frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/Web
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: npm
+        cache-dependency-path: src/Web/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Lint
+      run: npm run lint
+
+    - name: Typecheck
+      run: npm run typecheck
+
+    - name: Test
+      run: npm test
+
+    - name: Build
+      run: npm run build

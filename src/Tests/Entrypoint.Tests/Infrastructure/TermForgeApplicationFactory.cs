@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -30,6 +31,8 @@ internal sealed class TermForgeApplicationFactory : WebApplicationFactory<Progra
     {
         _settings = settings;
     }
+
+    public string? WebRootPath { get; init; }
 
     public IBrowserLauncher BrowserLauncher { get; } = Substitute.For<IBrowserLauncher>();
 
@@ -101,5 +104,19 @@ internal sealed class TermForgeApplicationFactory : WebApplicationFactory<Progra
         services.RemoveAll<IBrowserLauncher>();
         services.AddSingleton(BrowserLauncher);
         services.AddTransient<IStartupFilter, WebSocketProbeStartupFilter>();
+        UseWebRootOverride(services);
+    }
+
+    private void UseWebRootOverride(IServiceCollection services)
+    {
+        if (WebRootPath is null)
+        {
+            return;
+        }
+
+        var descriptor = services.First(service => service.ServiceType == typeof(IWebHostEnvironment) && service.ImplementationInstance is not null);
+        var environment = (IWebHostEnvironment)descriptor.ImplementationInstance!;
+        environment.WebRootPath = WebRootPath;
+        environment.WebRootFileProvider = new PhysicalFileProvider(WebRootPath);
     }
 }

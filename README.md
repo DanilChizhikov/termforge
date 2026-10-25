@@ -7,6 +7,7 @@ Specification: `.codex/docs/PROJECT_SPEC.md`.
 ## Requirements
 
 - .NET SDK 10.0.110 or newer feature band (see `global.json`)
+- Node.js 22 or newer, only to build or develop the frontend (`dotnet build` and `dotnet test` do not need it)
 
 ## Layout
 
@@ -20,6 +21,7 @@ src/
     Persistence/                SQLite storage
     Persistence.Migrations/     database migrations
     Credentials/                OS credential store and encrypted fallback vault
+  Web/                          React + TypeScript frontend (Vite)
   Tests/
     Core.Tests/
     Entrypoint.Tests/
@@ -69,6 +71,23 @@ Lifecycle settings (`appsettings.json` or `--Lifecycle:<key>=<value>`):
 - `Lifecycle:ShutdownTimeoutSeconds` (default `10`) graceful shutdown timeout.
 
 Threat model, browser session and CSRF contract: `docs/security.md`.
+
+`dotnet run` serves the frontend from `src/Api/Entrypoint/wwwroot` (git-ignored build output): static files, and `index.html` for any other non-`/api` path so deep links work. Build the frontend first (see below); without a build, `/` answers with a short hint and the API still works. `/api/*` is never answered with `index.html`.
+
+## Frontend
+
+Located in `src/Web` (Vite, React, TypeScript, Vitest). Run from `src/Web`:
+
+```sh
+npm ci                 # install exact locked dependencies
+npm run dev            # dev server on http://127.0.0.1:5173, proxies /api and WebSockets to http://127.0.0.1:5023
+npm run lint
+npm run typecheck
+npm test
+npm run build          # builds into src/Api/Entrypoint/wwwroot
+```
+
+Development: start the backend (`dotnet run --project src/Api/Entrypoint`), which bootstraps the browser session on `127.0.0.1`, then open `http://127.0.0.1:5173` in the same browser. Use `127.0.0.1`, not `localhost`, so the session cookie is shared. The browser contract (session cookie, CSRF header, same-origin WebSockets) is described in `docs/security.md`.
 
 ## CI and releases
 
