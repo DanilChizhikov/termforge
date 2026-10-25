@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using System.Text.Unicode;
 using DTech.Core.Credentials;
 
 namespace DTech.Credentials.Native.Linux;
@@ -67,10 +68,10 @@ public sealed unsafe class LinuxSecretServiceStore : IOperatingSystemCredentialS
     private static CredentialResult StorePassword(CredentialKey key, Secret secret)
     {
         var secretBytes = secret.AsSpan();
-        if (secretBytes.Contains((byte)0))
+        if (secretBytes.Contains((byte)0) || !Utf8.IsValid(secretBytes))
         {
-            var nulError = CredentialErrors.InvalidSecret("Secret Service text secrets cannot contain NUL bytes.");
-            return CredentialResult.Failure(nulError);
+            var textError = CredentialErrors.InvalidSecret("Secret Service stores text secrets only: the value must be valid UTF-8 without NUL characters.");
+            return CredentialResult.Failure(textError);
         }
 
         var schema = LinuxSecretSchema.Instance;

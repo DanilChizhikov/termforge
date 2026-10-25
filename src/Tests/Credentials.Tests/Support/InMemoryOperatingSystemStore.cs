@@ -12,6 +12,8 @@ public sealed class InMemoryOperatingSystemStore : IOperatingSystemCredentialSto
 
     public int StoreCallCount { get; private set; }
 
+    public byte[] LastStoredValue { get; private set; } = [];
+
     public IReadOnlyCollection<string> Keys => _items.Keys.ToArray();
 
     public CredentialStoreAvailability CheckPrerequisites()
@@ -24,6 +26,7 @@ public sealed class InMemoryOperatingSystemStore : IOperatingSystemCredentialSto
         StoreCallCount++;
         var value = secret.AsSpan().ToArray();
         _items[key.Value] = value;
+        LastStoredValue = value.ToArray();
         var result = CredentialResult.Success();
         return Task.FromResult(result);
     }

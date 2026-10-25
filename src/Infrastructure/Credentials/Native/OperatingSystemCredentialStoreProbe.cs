@@ -38,9 +38,8 @@ public sealed class OperatingSystemCredentialStoreProbe(IOperatingSystemCredenti
     {
         var keyResult = CredentialKey.Create(ProbeKeyValue);
         var key = keyResult.Value;
-        var probeBytes = RandomNumberGenerator.GetBytes(ProbeSecretLength);
-        using var probeSecret = Secret.FromBytes(probeBytes);
-        CryptographicOperations.ZeroMemory(probeBytes);
+        var probeText = RandomNumberGenerator.GetHexString(ProbeSecretLength);
+        using var probeSecret = Secret.FromString(probeText);
 
         var storeResult = await store.Store(key, probeSecret, CancellationToken.None);
         if (!storeResult.IsSuccess)
