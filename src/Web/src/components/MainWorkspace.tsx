@@ -1,13 +1,13 @@
 import { Group, Separator } from 'react-resizable-panels';
 import { CollapsibleRegion } from './CollapsibleRegion';
 import { EmptyState } from './EmptyState';
+import { TerminalWorkspace } from './TerminalWorkspace';
 
 export function MainWorkspace() {
   return (
     <Group orientation="vertical" id="main-workspace" className="group">
-      <CollapsibleRegion id="terminals" title="Terminals" defaultSize="55%" minSize="15%">
-        <div aria-label="Terminal tabs" className="tab-strip" />
-        <EmptyState message="No terminal sessions. Connect to a server to open one." />
+      <CollapsibleRegion id="terminals" title="Terminals" defaultSize="55%" minSize="15%" keepMounted>
+        <TerminalWorkspace />
       </CollapsibleRegion>
       <Separator className="separator separator-horizontal" />
       <CollapsibleRegion id="files" title="Files" defaultSize="45%" minSize="15%">

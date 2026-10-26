@@ -6,12 +6,20 @@ export interface CollapsibleRegionProps {
   title: string;
   defaultSize: string;
   minSize: string;
+  keepMounted?: boolean;
   children: ReactNode;
 }
 
 const COLLAPSED_SIZE_PX = 28;
 
-export function CollapsibleRegion({ id, title, defaultSize, minSize, children }: CollapsibleRegionProps) {
+export function CollapsibleRegion({
+  id,
+  title,
+  defaultSize,
+  minSize,
+  keepMounted = false,
+  children,
+}: CollapsibleRegionProps) {
   const panelRef = usePanelRef();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -55,7 +63,11 @@ export function CollapsibleRegion({ id, title, defaultSize, minSize, children }:
             {collapsed ? '+' : '-'}
           </button>
         </header>
-        {collapsed ? null : <div className="region-body">{children}</div>}
+        {collapsed && !keepMounted ? null : (
+          <div className="region-body" hidden={collapsed}>
+            {children}
+          </div>
+        )}
       </section>
     </Panel>
   );
