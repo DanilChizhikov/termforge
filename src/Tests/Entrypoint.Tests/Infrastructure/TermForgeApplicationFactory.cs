@@ -69,6 +69,7 @@ internal sealed class TermForgeApplicationFactory : WebApplicationFactory<Progra
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("Lifecycle:OpenBrowser", "false");
+        builder.UseSetting("Updates:CheckOnStartup", "false");
         var databasePath = Path.Combine(_databaseDirectory, "termforge.db");
         builder.UseSetting("Persistence:DatabasePath", databasePath);
         foreach (var setting in _settings)
