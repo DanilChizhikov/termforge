@@ -6,12 +6,16 @@ export interface TerminalTab {
   session: TerminalSession | null;
   state: TerminalState;
   reason: string | null;
+  generation: number;
+  reconnecting: boolean;
+  wasConnected: boolean;
 }
 
 export type TerminalTabsAction =
   | { type: 'add'; key: string; connectionId: string }
   | { type: 'opened'; key: string; session: TerminalSession }
   | { type: 'state'; key: string; state: TerminalState; reason: string | null }
+  | { type: 'reconnect'; key: string }
   | { type: 'remove'; key: string };
 
 export interface TerminalTabGroup {
@@ -34,13 +38,35 @@ export function terminalTabsReducer(tabs: TerminalTab[], action: TerminalTabsAct
     case 'add':
       return [
         ...tabs,
-        { key: action.key, connectionId: action.connectionId, session: null, state: 'connecting', reason: null },
+        {
+          key: action.key,
+          connectionId: action.connectionId,
+          session: null,
+          state: 'connecting',
+          reason: null,
+          generation: 0,
+          reconnecting: false,
+          wasConnected: false,
+        },
       ];
     case 'opened':
       return tabs.map((tab) => (tab.key === action.key ? { ...tab, session: action.session } : tab));
     case 'state':
       return tabs.map((tab) =>
-        tab.key === action.key ? { ...tab, state: action.state, reason: action.reason } : tab,
+        tab.key === action.key
+          ? {
+              ...tab,
+              state: action.state,
+              reason: action.reason,
+              wasConnected: tab.wasConnected || action.state === 'connected',
+            }
+          : tab,
+      );
+    case 'reconnect':
+      return tabs.map((tab) =>
+        tab.key === action.key
+          ? { ...tab, session: null, state: 'connecting', reason: null, generation: tab.generation + 1, reconnecting: true }
+          : tab,
       );
     case 'remove':
       return tabs.filter((tab) => tab.key !== action.key);

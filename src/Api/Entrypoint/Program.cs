@@ -19,9 +19,12 @@ builder.Services.AddUpdateCheck(builder.Configuration);
 builder.Services.AddHostKeys(builder.Configuration);
 builder.Services.AddSavedConnections();
 builder.Services.AddCapabilityDiagnostics();
+builder.Services.AddCommandHistory();
+builder.Services.AddServerMonitoring();
 builder.Services.AddTerminals();
 builder.Services.AddFileBrowsing();
 builder.Services.AddRemoteFileEditor(builder.Configuration);
+builder.Services.AddTransfers(builder.Configuration);
 
 var app = builder.Build();
 await app.MigrateDatabaseAsync();
@@ -34,9 +37,12 @@ app.MapUpdateEndpoints();
 app.MapSavedConnectionEndpoints();
 app.MapHostKeyEndpoints();
 app.MapDiagnosticsEndpoints();
+app.MapCommandHistoryEndpoints();
+app.MapMonitoringEndpoints();
 app.MapTerminalEndpoints();
 app.MapFileBrowsingEndpoints();
 app.MapEditorEndpoints();
+app.MapTransferEndpoints();
 app.UseSpaHosting();
 
 app.Run();

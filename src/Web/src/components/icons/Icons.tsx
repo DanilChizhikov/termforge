@@ -199,3 +199,53 @@ export function LockIcon({ size = 14 }: IconProps) {
     </IconFrame>
   );
 }
+
+export function PinIcon({ size = 14 }: IconProps) {
+  return (
+    <IconFrame size={size} strokeWidth={2}>
+      <path d="M9 4h6l-1 6 4 4H6l4-4z" />
+      <path d="M12 14v6" />
+    </IconFrame>
+  );
+}
+
+export function InsertIcon({ size = 14 }: IconProps) {
+  return (
+    <IconFrame size={size} strokeWidth={2}>
+      <path d="M5 12h14" />
+      <path d="M13 6l6 6-6 6" />
+    </IconFrame>
+  );
+}
+
+export function TrashIcon({ size = 14 }: IconProps) {
+  return (
+    <IconFrame size={size} strokeWidth={2}>
+      <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+    </IconFrame>
+  );
+}
+
+export function ArrowDownIcon({ size = 14 }: IconProps) {
+  return (
+    <IconFrame size={size} strokeWidth={2.4}>
+      <path d="M12 5v14M6 13l6 6 6-6" />
+    </IconFrame>
+  );
+}
+
+export function ArrowRightIcon({ size = 14 }: IconProps) {
+  return (
+    <IconFrame size={size} strokeWidth={2.4}>
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </IconFrame>
+  );
+}
+
+export function ArrowLeftIcon({ size = 14 }: IconProps) {
+  return (
+    <IconFrame size={size} strokeWidth={2.4}>
+      <path d="M19 12H5M11 6l-6 6 6 6" />
+    </IconFrame>
+  );
+}

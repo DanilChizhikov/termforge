@@ -30,7 +30,7 @@ internal sealed class SshNetRemoteEditorFileClient(SshConnection<SftpClient> con
         }
     }
 
-    public async Task<SshResult<byte[]>> ReadAsync(RemoteReadRequest request, CancellationToken cancellationToken)
+    public async Task<SshResult<byte[]>> ReadAsync(EditorReadRequest request, CancellationToken cancellationToken)
     {
         try
         {

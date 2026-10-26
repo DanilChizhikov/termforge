@@ -19,7 +19,7 @@ public sealed class RemoteFileSnapshotReader(EditorLimits limits)
             return EditorResult<RemoteFileSnapshot?>.Failure(unsupported);
         }
 
-        var request = new RemoteReadRequest(path, limits.MaxFileBytes);
+        var request = new EditorReadRequest(path, limits.MaxFileBytes);
         var read = await client.ReadAsync(request, cancellationToken);
         if (!read.IsSuccess)
         {

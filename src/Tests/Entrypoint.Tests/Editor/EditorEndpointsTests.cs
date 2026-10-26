@@ -207,7 +207,7 @@ public sealed class EditorEndpointsTests
         var attributesResult = SshResult<RemoteFileAttributes>.Success(attributes);
         var readResult = SshResult<byte[]>.Success(bytes);
         _fileClient.GetAttributesAsync(FilePath, Arg.Any<CancellationToken>()).Returns(attributesResult);
-        _fileClient.ReadAsync(Arg.Is<RemoteReadRequest>(request => request.Path == FilePath), Arg.Any<CancellationToken>()).Returns(readResult);
+        _fileClient.ReadAsync(Arg.Is<EditorReadRequest>(request => request.Path == FilePath), Arg.Any<CancellationToken>()).Returns(readResult);
     }
 
     private void StubSuccessfulWrites()

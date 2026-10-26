@@ -7,7 +7,7 @@ public interface IRemoteEditorFileClient : IAsyncDisposable
 {
     Task<SshResult<RemoteFileAttributes>> GetAttributesAsync(string remotePath, CancellationToken cancellationToken);
 
-    Task<SshResult<byte[]>> ReadAsync(RemoteReadRequest request, CancellationToken cancellationToken);
+    Task<SshResult<byte[]>> ReadAsync(EditorReadRequest request, CancellationToken cancellationToken);
 
     Task<SshResult<RemoteFileAttributes>> CreateFileAsync(RemoteFileCreation creation, CancellationToken cancellationToken);
 

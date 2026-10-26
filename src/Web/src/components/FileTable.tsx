@@ -1,3 +1,4 @@
+import type { DragEvent } from 'react';
 import {
   formatSize,
   isNavigable,
@@ -15,6 +16,7 @@ export interface FileTableProps {
   onSort: (key: SortKey) => void;
   onSelect: (entry: FileEntry, additive: boolean) => void;
   onOpen: (entry: FileEntry) => void;
+  onDragStart?: ((entry: FileEntry, event: DragEvent<HTMLElement>) => void) | undefined;
 }
 
 const COLUMNS: ReadonlyArray<{ key: SortKey; label: string }> = [
@@ -61,7 +63,7 @@ function formatModified(modifiedUtc: string | null): string {
 }
 
 export function FileTable(props: FileTableProps) {
-  const { entries, selected, sortKey, sortDirection, onSort, onSelect, onOpen } = props;
+  const { entries, selected, sortKey, sortDirection, onSort, onSelect, onOpen, onDragStart } = props;
   return (
     <table className="data-table">
       <thead>
@@ -89,6 +91,8 @@ export function FileTable(props: FileTableProps) {
             className={selected.has(entry.path) ? 'file-row file-row-selected' : 'file-row'}
             onClick={(event) => onSelect(entry, event.ctrlKey || event.metaKey)}
             onDoubleClick={() => onOpen(entry)}
+            draggable={onDragStart !== undefined}
+            onDragStart={onDragStart === undefined ? undefined : (event) => onDragStart(entry, event)}
           >
             <td>
               <span className="file-name">

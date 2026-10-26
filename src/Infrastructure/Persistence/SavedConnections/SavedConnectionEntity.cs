@@ -1,3 +1,4 @@
+using DTech.Core.Reconnect;
 using DTech.Core.SavedConnections;
 
 namespace DTech.Persistence.SavedConnections;
@@ -25,6 +26,14 @@ public sealed class SavedConnectionEntity
     public string? SshAlias { get; set; }
 
     public bool HasPassword { get; set; }
+
+    public ReconnectMode ReconnectMode { get; set; }
+
+    public int ReconnectMaxAttempts { get; set; }
+
+    public int ReconnectInitialDelaySeconds { get; set; }
+
+    public int ReconnectMaxDelaySeconds { get; set; }
 
     public DateTime? LastConnectedAt { get; set; }
 

@@ -1,3 +1,4 @@
+using DTech.Core.Reconnect;
 using DTech.Core.Terminal;
 using DTech.Core.Terminal.Sessions;
 using DTech.Entrypoint.Terminals;
@@ -13,6 +14,7 @@ public static class TerminalEndpoints
         var group = endpoints.MapGroup(RoutePrefix);
         group.MapGet("/", List);
         group.MapPost("/", Open);
+        group.MapPost("/reconnect", Reconnect);
         group.MapDelete("/{id}", Close);
         group.Map("/{id}/ws", Attach);
         return endpoints;
@@ -51,6 +53,27 @@ public static class TerminalEndpoints
 
         var response = TerminalSessionResponse.From(launched.Value.Descriptor);
         return Results.Created($"{RoutePrefix}/{response.Id}", response);
+    }
+
+    private static async Task<IResult> Reconnect(OpenTerminalRequest request, HttpContext context, ReconnectService reconnectService)
+    {
+        if (request.ConnectionId is null)
+        {
+            var missingConnection = new TerminalError(TerminalErrorCode.InvalidRequest, "Select a saved connection to reconnect.");
+            return TerminalErrorResults.ToProblem(missingConnection);
+        }
+
+        var owner = TerminalOwner.From(context);
+        var size = new TerminalSize(request.Columns, request.Rows);
+        var launchRequest = new TerminalLaunchRequest(request.ConnectionId.Value, owner, size);
+        var outcome = await reconnectService.ReconnectAsync(launchRequest, context.RequestAborted);
+        if (!outcome.IsSuccess)
+        {
+            return TerminalErrorResults.ToProblem(outcome.Error!);
+        }
+
+        var response = ReconnectTerminalResponse.From(outcome.Session!.Descriptor, outcome.Attempts);
+        return Results.Created($"{RoutePrefix}/{response.Session.Id}", response);
     }
 
     private static async Task<IResult> Close(string id, HttpContext context, TerminalSessionManager sessionManager)

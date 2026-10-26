@@ -1,3 +1,5 @@
+using DTech.Core.Reconnect;
+
 namespace DTech.Core.SavedConnections;
 
 public sealed record SavedConnectionDraft
@@ -19,4 +21,6 @@ public sealed record SavedConnectionDraft
     public Guid? JumpHostId { get; init; }
 
     public string? SshAlias { get; init; }
+
+    public ReconnectPolicy ReconnectPolicy { get; init; } = ReconnectPolicy.Default;
 }

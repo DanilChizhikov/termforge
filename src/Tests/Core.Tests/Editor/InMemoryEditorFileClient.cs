@@ -90,7 +90,7 @@ internal sealed class InMemoryEditorFileClient : IRemoteEditorFileClient
         return Task.FromResult(result);
     }
 
-    public Task<SshResult<byte[]>> ReadAsync(RemoteReadRequest request, CancellationToken cancellationToken)
+    public Task<SshResult<byte[]>> ReadAsync(EditorReadRequest request, CancellationToken cancellationToken)
     {
         if (!_files.TryGetValue(request.Path, out var file))
         {

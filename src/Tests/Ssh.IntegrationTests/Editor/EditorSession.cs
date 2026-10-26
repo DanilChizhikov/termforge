@@ -83,7 +83,7 @@ internal sealed class EditorSession : IAsyncDisposable
 
     public async Task<string> ReadTextAsync(string path)
     {
-        var request = new RemoteReadRequest(path, MaxFileBytes);
+        var request = new EditorReadRequest(path, MaxFileBytes);
         var read = await Client.ReadAsync(request, CancellationToken.None);
         read.IsSuccess.Should().BeTrue(read.Error?.Message);
         return Encoding.UTF8.GetString(read.Value);

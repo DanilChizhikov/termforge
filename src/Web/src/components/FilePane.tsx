@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type DragEvent, type FormEvent } from 'react';
 import {
   describeFileError,
   isNavigable,
@@ -14,6 +14,7 @@ import { EmptyState } from './EmptyState';
 import { FileBreadcrumbs } from './FileBreadcrumbs';
 import { FileTable } from './FileTable';
 import { ArrowUpIcon, FileIcon, PlusIcon, RefreshIcon } from './icons/Icons';
+import { hasDraggedPaths, readDraggedPaths, writeDraggedPaths, type FilePaneTransfer } from './filePaneTransfer';
 
 export interface FilePaneProps {
   title: string;
@@ -23,6 +24,8 @@ export interface FilePaneProps {
   onPathChange: (path: string) => void;
   roots?: LocalRoot[];
   onOpenFile?: (entry: FileEntry) => void;
+  transfer?: FilePaneTransfer;
+  refreshToken?: number;
 }
 
 interface LoadState {
@@ -43,7 +46,7 @@ type PaneAction =
 
 const NO_SELECTION: ReadonlySet<string> = new Set();
 
-export function FilePane({ title, sourceKey, source, path, onPathChange, roots, onOpenFile }: FilePaneProps) {
+export function FilePane({ title, sourceKey, source, path, onPathChange, roots, onOpenFile, transfer, refreshToken = 0 }: FilePaneProps) {
   const [loadState, setLoadState] = useState<LoadState | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [selection, setSelection] = useState<Selection | null>(null);
@@ -52,8 +55,9 @@ export function FilePane({ title, sourceKey, source, path, onPathChange, roots, 
   const [action, setAction] = useState<PaneAction | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [dropActive, setDropActive] = useState(false);
 
-  const requestKey = `${sourceKey}|${path ?? ''}|${reloadToken}`;
+  const requestKey = `${sourceKey}|${path ?? ''}|${reloadToken}|${refreshToken}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -183,8 +187,44 @@ export function FilePane({ title, sourceKey, source, path, onPathChange, roots, 
     });
   }
 
+  function handleDragStart(entry: FileEntry, event: DragEvent<HTMLElement>): void {
+    if (transfer === undefined) {
+      return;
+    }
+    const paths = selectedPaths.has(entry.path) ? selectedEntries.map((item) => item.path) : [entry.path];
+    writeDraggedPaths(event.dataTransfer, { origin: transfer.dragOrigin, paths });
+  }
+
+  function handleDragOver(event: DragEvent<HTMLElement>): void {
+    if (transfer?.onReceive === undefined || !transfer.canReceive || !hasDraggedPaths(event.dataTransfer, transfer.acceptsFrom)) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+    setDropActive(true);
+  }
+
+  function handleDrop(event: DragEvent<HTMLElement>): void {
+    setDropActive(false);
+    if (transfer?.onReceive === undefined || !transfer.canReceive) {
+      return;
+    }
+    const dragged = readDraggedPaths(event.dataTransfer, transfer.acceptsFrom);
+    if (dragged === null || dragged.paths.length === 0) {
+      return;
+    }
+    event.preventDefault();
+    transfer.onReceive(dragged.paths);
+  }
+
   return (
-    <section className="file-pane" aria-label={`${title} files`}>
+    <section
+      className={dropActive ? 'file-pane file-pane-drop' : 'file-pane'}
+      aria-label={`${title} files`}
+      onDragOver={handleDragOver}
+      onDragLeave={() => setDropActive(false)}
+      onDrop={handleDrop}
+    >
       <div className="file-toolbar">
         {roots !== undefined && roots.length > 0 && (
           <select
@@ -254,6 +294,18 @@ export function FilePane({ title, sourceKey, source, path, onPathChange, roots, 
         >
           Delete
         </button>
+        {transfer !== undefined && (
+          <button
+            type="button"
+            className={transfer.primary ? 'btn btn-sm btn-primary file-transfer-button' : 'btn btn-sm btn-filled file-transfer-button'}
+            disabled={selectedEntries.length === 0 || !transfer.canSend}
+            title={transfer.canSend ? undefined : transfer.unavailableReason}
+            onClick={() => transfer.onSend(selectedEntries.map((item) => item.path))}
+          >
+            <transfer.Icon size={13} />
+            {transfer.label}
+          </button>
+        )}
       </div>
       {currentPath !== null && <FileBreadcrumbs path={currentPath} onNavigate={navigate} />}
       {loadError !== null && (
@@ -329,6 +381,7 @@ export function FilePane({ title, sourceKey, source, path, onPathChange, roots, 
             onSort={handleSort}
             onSelect={handleSelect}
             onOpen={handleOpen}
+            onDragStart={transfer === undefined ? undefined : handleDragStart}
           />
         </div>
       )}

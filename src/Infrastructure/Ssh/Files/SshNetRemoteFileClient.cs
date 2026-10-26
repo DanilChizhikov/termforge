@@ -13,12 +13,16 @@ internal sealed class SshNetRemoteFileClient : IRemoteFileClient
     private readonly SshConnection<SftpClient> _connection;
     private readonly SftpEntryMapper _entryMapper;
     private readonly SftpEntryLocator _entryLocator;
+    private readonly SftpStreamCopier _streamCopier;
+    private readonly SftpFileReplacer _fileReplacer;
 
     public SshNetRemoteFileClient(SshConnection<SftpClient> connection)
     {
         _connection = connection;
         _entryMapper = new SftpEntryMapper(connection.Client);
         _entryLocator = new SftpEntryLocator(connection.Client);
+        _streamCopier = new SftpStreamCopier(connection.Client);
+        _fileReplacer = new SftpFileReplacer(connection.Client);
     }
 
     public async Task<SshResult<IReadOnlyList<RemoteFileEntry>>> ListAsync(string remotePath, CancellationToken cancellationToken)
@@ -167,6 +171,48 @@ internal sealed class SshNetRemoteFileClient : IRemoteFileClient
         catch (Exception exception)
         {
             var error = SshExceptionMapper.Map(exception, $"Downloading {remotePath}");
+            return SshResult.Failure(error);
+        }
+    }
+
+    public async Task<SshResult> WriteFileAsync(RemoteWriteRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _streamCopier.WriteAsync(request, cancellationToken);
+            return SshResult.Success();
+        }
+        catch (Exception exception)
+        {
+            var error = SshExceptionMapper.Map(exception, $"Writing {request.RemotePath}");
+            return SshResult.Failure(error);
+        }
+    }
+
+    public async Task<SshResult> ReadFileAsync(RemoteReadRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _streamCopier.ReadAsync(request, cancellationToken);
+            return SshResult.Success();
+        }
+        catch (Exception exception)
+        {
+            var error = SshExceptionMapper.Map(exception, $"Reading {request.RemotePath}");
+            return SshResult.Failure(error);
+        }
+    }
+
+    public async Task<SshResult> ReplaceAsync(RemoteRenameRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _fileReplacer.ReplaceAsync(request, cancellationToken);
+            return SshResult.Success();
+        }
+        catch (Exception exception)
+        {
+            var error = SshExceptionMapper.Map(exception, $"Replacing {request.ToPath}");
             return SshResult.Failure(error);
         }
     }

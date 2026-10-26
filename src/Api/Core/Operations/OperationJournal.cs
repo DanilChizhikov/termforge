@@ -67,10 +67,17 @@ public sealed class OperationJournal : IOperationJournal
     public async Task<Operation> Fail(Guid id, string error, CancellationToken cancellationToken)
     {
         var current = await Load(id, cancellationToken);
-        var now = _timeProvider.GetUtcNow().UtcDateTime;
-        var sanitizedError = _sanitizer.SanitizeText(error);
-        var failed = Transition(current, OperationStatus.Failed, now) with { FinishedAt = now, Error = sanitizedError };
+        var failed = MarkFailed(current, error);
         return await Save(failed, cancellationToken);
+    }
+
+    public async Task<Operation> Fail(Guid id, FailOperationRequest request, CancellationToken cancellationToken)
+    {
+        var current = await Load(id, cancellationToken);
+        var failed = MarkFailed(current, request.Error);
+        var merged = MergeDetails(current.Details, request.Details);
+        var updated = failed with { Retryable = request.Retryable, Details = merged };
+        return await Save(updated, cancellationToken);
     }
 
     public async Task<Operation> Cancel(Guid id, CancellationToken cancellationToken)
@@ -128,6 +135,13 @@ public sealed class OperationJournal : IOperationJournal
         }
 
         return current with { Status = target, UpdatedAt = now };
+    }
+
+    private Operation MarkFailed(Operation current, string error)
+    {
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var sanitizedError = _sanitizer.SanitizeText(error);
+        return Transition(current, OperationStatus.Failed, now) with { FinishedAt = now, Error = sanitizedError };
     }
 
     private Dictionary<string, string> MergeDetails(IReadOnlyDictionary<string, string> existing, IReadOnlyDictionary<string, string>? additional)

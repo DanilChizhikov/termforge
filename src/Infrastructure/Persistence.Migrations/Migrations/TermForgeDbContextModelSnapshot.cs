@@ -88,6 +88,44 @@ namespace DTech.Persistence.Migrations
                     b.ToTable("operations", (string)null);
                 });
 
+            modelBuilder.Entity("DTech.Persistence.CommandHistory.CommandHistoryEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Command")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("command");
+
+                    b.Property<Guid>("ConnectionId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("connection_id");
+
+                    b.Property<DateTime>("ExecutedAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("executed_at");
+
+                    b.Property<int?>("ExitCode")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("exit_code");
+
+                    b.Property<bool>("IsPinned")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("is_pinned");
+
+                    b.HasKey("Id")
+                        .HasName("pk_command_history");
+
+                    b.HasIndex("ConnectionId", "ExecutedAt")
+                        .HasDatabaseName("ix_command_history_connection_id_executed_at");
+
+                    b.ToTable("command_history", (string)null);
+                });
+
             modelBuilder.Entity("DTech.Persistence.HostKeys.TrustedHostKeyRecord", b =>
                 {
                     b.Property<long>("Id")
@@ -187,6 +225,31 @@ namespace DTech.Persistence.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("private_key_path");
 
+                    b.Property<int>("ReconnectInitialDelaySeconds")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(2)
+                        .HasColumnName("reconnect_initial_delay_seconds");
+
+                    b.Property<int>("ReconnectMaxAttempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(5)
+                        .HasColumnName("reconnect_max_attempts");
+
+                    b.Property<int>("ReconnectMaxDelaySeconds")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(60)
+                        .HasColumnName("reconnect_max_delay_seconds");
+
+                    b.Property<string>("ReconnectMode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("Manual")
+                        .HasColumnName("reconnect_mode");
+
                     b.Property<string>("SshAlias")
                         .HasMaxLength(255)
                         .HasColumnType("TEXT")
@@ -235,6 +298,16 @@ namespace DTech.Persistence.Migrations
                         .HasName("pk_app_settings");
 
                     b.ToTable("app_settings", (string)null);
+                });
+
+            modelBuilder.Entity("DTech.Persistence.CommandHistory.CommandHistoryEntity", b =>
+                {
+                    b.HasOne("DTech.Persistence.SavedConnections.SavedConnectionEntity", null)
+                        .WithMany()
+                        .HasForeignKey("ConnectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_command_history_saved_connection_entity_connection_id");
                 });
 
             modelBuilder.Entity("DTech.Persistence.SavedConnections.SavedConnectionEntity", b =>

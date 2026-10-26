@@ -19,4 +19,10 @@ public interface IRemoteFileClient : IAsyncDisposable
     Task<SshResult> UploadAsync(Stream source, string remotePath, CancellationToken cancellationToken);
 
     Task<SshResult> DownloadAsync(string remotePath, Stream destination, CancellationToken cancellationToken);
+
+    Task<SshResult> WriteFileAsync(RemoteWriteRequest request, CancellationToken cancellationToken);
+
+    Task<SshResult> ReadFileAsync(RemoteReadRequest request, CancellationToken cancellationToken);
+
+    Task<SshResult> ReplaceAsync(RemoteRenameRequest request, CancellationToken cancellationToken);
 }
