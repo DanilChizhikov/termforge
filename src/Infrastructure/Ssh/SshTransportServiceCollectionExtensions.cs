@@ -1,5 +1,7 @@
 using DTech.Core.Connections;
+using DTech.Core.Diagnostics;
 using DTech.Core.Files;
+using DTech.Ssh.Commands;
 using DTech.Core.Terminal;
 using DTech.Ssh.Connections;
 using DTech.Ssh.Files;
@@ -19,6 +21,7 @@ public static class SshTransportServiceCollectionExtensions
         services.AddSingleton<SshClientConnector>();
         services.AddSingleton<ITerminalSessionFactory, SshNetTerminalSessionFactory>();
         services.AddSingleton<IRemoteFileClientFactory, SshNetRemoteFileClientFactory>();
+        services.AddSingleton<IRemoteCommandRunnerFactory, SshNetRemoteCommandRunnerFactory>();
         return services;
     }
 }
