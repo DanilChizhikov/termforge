@@ -13,3 +13,4 @@ PermitTTY yes
 PrintMotd no
 Subsystem sftp internal-sftp
 MaxStartups 200:30:300
+PerSourcePenalties no
