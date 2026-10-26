@@ -21,6 +21,7 @@ builder.Services.AddSavedConnections();
 builder.Services.AddCapabilityDiagnostics();
 builder.Services.AddTerminals();
 builder.Services.AddFileBrowsing();
+builder.Services.AddTransfers(builder.Configuration);
 
 var app = builder.Build();
 await app.MigrateDatabaseAsync();
@@ -35,6 +36,7 @@ app.MapHostKeyEndpoints();
 app.MapDiagnosticsEndpoints();
 app.MapTerminalEndpoints();
 app.MapFileBrowsingEndpoints();
+app.MapTransferEndpoints();
 app.UseSpaHosting();
 
 app.Run();

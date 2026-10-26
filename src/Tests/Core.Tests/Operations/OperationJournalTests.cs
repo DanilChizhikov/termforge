@@ -92,6 +92,22 @@ public sealed class OperationJournalTests
     }
 
     [TestMethod]
+    public async Task Fail_with_request_updates_retryable_flag_and_merges_details()
+    {
+        var created = await CreateOperation(true);
+        await _journal.Start(created.Id, TestContext.CancellationToken);
+        var details = new Dictionary<string, string> { ["partialBytes"] = "42" };
+        var request = new FailOperationRequest("permission denied", false, details);
+
+        var failed = await _journal.Fail(created.Id, request, TestContext.CancellationToken);
+
+        failed.Status.Should().Be(OperationStatus.Failed);
+        failed.Retryable.Should().BeFalse();
+        failed.Error.Should().Be("permission denied");
+        failed.Details.Should().ContainKey("partialBytes").WhoseValue.Should().Be("42");
+    }
+
+    [TestMethod]
     public async Task Queued_operation_can_be_cancelled()
     {
         var created = await CreateOperation(false);

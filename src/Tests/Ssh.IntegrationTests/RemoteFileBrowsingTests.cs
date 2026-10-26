@@ -463,6 +463,21 @@ public sealed class RemoteFileBrowsingTests
             return inner.DownloadAsync(remotePath, destination, cancellationToken);
         }
 
+        public Task<SshResult> WriteFileAsync(RemoteWriteRequest request, CancellationToken cancellationToken)
+        {
+            return inner.WriteFileAsync(request, cancellationToken);
+        }
+
+        public Task<SshResult> ReadFileAsync(RemoteReadRequest request, CancellationToken cancellationToken)
+        {
+            return inner.ReadFileAsync(request, cancellationToken);
+        }
+
+        public Task<SshResult> ReplaceAsync(RemoteRenameRequest request, CancellationToken cancellationToken)
+        {
+            return inner.ReplaceAsync(request, cancellationToken);
+        }
+
         public ValueTask DisposeAsync()
         {
             return ValueTask.CompletedTask;
