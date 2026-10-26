@@ -11,7 +11,7 @@ Passwords are never stored in the database or returned by the API. They are writ
 - `GET /api/connections`, `POST /api/connections`
 - `GET|PUT|DELETE /api/connections/{id}`
 - `POST /api/connections/{id}/test`
-- `POST /api/connections/import/ssh-config` body `{ "configPath": string }`
+- `POST /api/connections/import/ssh-config` imports the default user config (`~/.ssh/config`), no body
 - `PUT|DELETE /api/connection-groups/{name}` rename a group or remove it (members become ungrouped)
 
 Jump host chains that would form a cycle are rejected.
@@ -24,7 +24,7 @@ The test opens a terminal session through the Core SSH abstractions and closes i
 
 Supported (exactly what is listed in [ssh-capabilities.md](ssh-capabilities.md)): `Host` blocks with `*`, `?` and `!` patterns, `Include` (nested up to 16 levels, wildcards in file names only), `HostName`, `User`, `Port`, `IdentityFile` (first value only), `ProxyJump` (a single hop that names another imported alias; `none` clears it).
 
-Not supported and reported with file, line and affected aliases: `Match`, percent tokens, multi-value or invalid values, extra `IdentityFile` entries, multi-hop `ProxyJump`, and every other directive. Wildcard-only hosts are used for matching but are not imported as servers. Importing again updates connections of the same name instead of duplicating them.
+Not supported and reported with file, line and affected aliases: `Match`, percent tokens, multi-value or invalid values, extra `IdentityFile` entries, multi-hop `ProxyJump`, and every other directive. Wildcard-only hosts are used for matching but are not imported as servers. Importing again updates connections previously imported from the same alias (host, port, user, key) instead of duplicating them; a name clash with another connection gets an ` (ssh config)` suffix. Imported hosts use a key file when `IdentityFile` is set, otherwise the agent.
 
 ## Known limitations
 
