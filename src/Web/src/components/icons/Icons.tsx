@@ -225,3 +225,27 @@ export function TrashIcon({ size = 14 }: IconProps) {
     </IconFrame>
   );
 }
+
+export function ArrowDownIcon({ size = 14 }: IconProps) {
+  return (
+    <IconFrame size={size} strokeWidth={2.4}>
+      <path d="M12 5v14M6 13l6 6 6-6" />
+    </IconFrame>
+  );
+}
+
+export function ArrowRightIcon({ size = 14 }: IconProps) {
+  return (
+    <IconFrame size={size} strokeWidth={2.4}>
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </IconFrame>
+  );
+}
+
+export function ArrowLeftIcon({ size = 14 }: IconProps) {
+  return (
+    <IconFrame size={size} strokeWidth={2.4}>
+      <path d="M19 12H5M11 6l-6 6 6 6" />
+    </IconFrame>
+  );
+}

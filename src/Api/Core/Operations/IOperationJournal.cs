@@ -10,6 +10,8 @@ public interface IOperationJournal
 
     Task<Operation> Fail(Guid id, string error, CancellationToken cancellationToken);
 
+    Task<Operation> Fail(Guid id, FailOperationRequest request, CancellationToken cancellationToken);
+
     Task<Operation> Cancel(Guid id, CancellationToken cancellationToken);
 
     Task<Operation?> Find(Guid id, CancellationToken cancellationToken);

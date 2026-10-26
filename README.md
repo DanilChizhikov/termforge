@@ -120,6 +120,10 @@ The upper region holds xterm.js terminal tabs grouped by server. "New terminal" 
 
 The lower region has a local pane and a remote (SFTP) pane with navigation, breadcrumbs, sorting, selection, new folder, rename and delete with confirmation. Paths with `..` segments are rejected. See `docs/file-browsing.md`.
 
+## Transfers
+
+Select files or folders and use Upload or Download, or drag them between the local and remote panes. Transfers run through a queue (`Transfers:MaxParallelTransfers`, default 2, max 8) and are recorded in the operation journal. The transfer panel under the file panes shows live progress, rate and remaining time, and offers Cancel, Retry/Resume for retryable failures and Discard partial. Data is written to a hidden `.part` file next to the target and renamed on success; an existing target is replaced only after an explicit Overwrite decision. See `docs/decisions/transfer-queue.md`.
+
 ## Credentials
 
 Secrets are stored in the OS credential store (Windows Credential Manager, macOS Keychain, Linux Secret Service). When that store is unavailable, they are stored in an encrypted vault file instead, which is unlocked with a master password through `POST /api/credentials/vault/unlock`. Like every `/api` endpoint, it requires the browser session and CSRF token described in `docs/security.md`. `GET /api/credentials/status` shows which backend is active and why. Usage, configuration and troubleshooting are in `docs/credentials.md`. The design is in `docs/decisions/0002-credential-store.md`.
