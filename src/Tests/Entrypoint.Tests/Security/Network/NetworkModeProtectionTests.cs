@@ -11,6 +11,7 @@ namespace DTech.Entrypoint.Tests.Security.Network;
 public sealed class NetworkModeProtectionTests
 {
     private static readonly Uri NetworkRealtimeUri = new("wss://termforge.lan/api/ws");
+    private static readonly Uri NetworkTerminalUri = new("wss://termforge.lan/api/terminals/unknown-terminal/ws");
     private static readonly Uri NetworkProbeUri = new($"wss://termforge.lan{WebSocketProbeStartupFilter.Path}");
 
     public TestContext TestContext { get; set; } = null!;
@@ -23,6 +24,7 @@ public sealed class NetworkModeProtectionTests
     [DataRow("/api/credentials/status")]
     [DataRow("/api/host-keys/pending")]
     [DataRow("/api/updates")]
+    [DataRow("/api/terminals")]
     public async Task Unauthenticated_api_request_from_network_is_rejected(string path)
     {
         await using var factory = CreateNetworkFactory();
@@ -36,6 +38,7 @@ public sealed class NetworkModeProtectionTests
     [TestMethod]
     [DataRow("/api/lifecycle/exit")]
     [DataRow("/api/connections/7b0f6b1c-2a59-4f39-9b8f-61c0f1a6a7d1/capabilities/refresh")]
+    [DataRow("/api/terminals")]
     public async Task Unauthenticated_state_change_from_network_is_rejected(string path)
     {
         await using var factory = CreateNetworkFactory();
@@ -60,6 +63,32 @@ public sealed class NetworkModeProtectionTests
         var connect = () => webSocketClient.ConnectAsync(NetworkRealtimeUri, TestContext.CancellationToken);
 
         await connect.Should().ThrowAsync<InvalidOperationException>().WithMessage("*401*");
+    }
+
+    [TestMethod]
+    [DataRow(null)]
+    [DataRow("termforge_session=forged")]
+    public async Task Unauthenticated_terminal_websocket_from_network_is_rejected(string? cookieHeader)
+    {
+        await using var factory = CreateNetworkFactory();
+        var webSocketClient = CreateWebSocketClient(factory, NetworkAccessSettings.NetworkOrigin, cookieHeader);
+
+        var connect = () => webSocketClient.ConnectAsync(NetworkTerminalUri, TestContext.CancellationToken);
+
+        await connect.Should().ThrowAsync<InvalidOperationException>().WithMessage("*401*");
+    }
+
+    [TestMethod]
+    public async Task Unauthenticated_terminal_close_from_network_is_rejected()
+    {
+        await using var factory = CreateNetworkFactory();
+        using var client = factory.CreateClientFor(NetworkAccessSettings.NetworkBaseAddress);
+        using var request = new HttpRequestMessage(HttpMethod.Delete, "/api/terminals/unknown-terminal");
+        request.Headers.Add("Origin", NetworkAccessSettings.NetworkOrigin);
+
+        using var response = await client.SendAsync(request, TestContext.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [TestMethod]

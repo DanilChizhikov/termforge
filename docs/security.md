@@ -223,6 +223,7 @@ With `NetworkAccess:AllowInsecureHttp=true` it starts, logs a `Critical` "INSECU
 ### Limitations
 
 - Single user and a single password; no accounts, roles or two-factor authentication.
+- Terminal sessions belong to the browser session that opened them. Signing out or session expiry makes them unreachable but does not close them; they are closed on application exit.
 - Attempt counters and sessions live in memory: a restart resets lockouts and signs everybody out.
 - A global lockout caused by an attacker also blocks the owner's password sign-in from other devices until it expires; the local launch link still works.
 - Behind a reverse proxy the client address is the proxy, so all clients share one per-client counter; forwarded headers are not trusted. The proxy must keep the original `Host` and `Origin`.
