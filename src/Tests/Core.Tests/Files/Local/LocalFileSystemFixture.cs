@@ -26,7 +26,15 @@ internal sealed class LocalFileSystemFixture : IDisposable
         var linkPath = Directory.Combine(linkName);
         try
         {
-            File.CreateSymbolicLink(linkPath, target);
+            if (System.IO.Directory.Exists(target))
+            {
+                System.IO.Directory.CreateSymbolicLink(linkPath, target);
+            }
+            else
+            {
+                File.CreateSymbolicLink(linkPath, target);
+            }
+
             return true;
         }
         catch (Exception exception) when (exception is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
