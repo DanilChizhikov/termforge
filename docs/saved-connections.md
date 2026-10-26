@@ -18,7 +18,7 @@ Jump host chains that would form a cycle are rejected.
 
 ## Connection test
 
-The test opens a terminal session through the Core SSH abstractions and closes it. Host keys go through `IHostKeyVerifier`. Until the host key verification feature registers a real verifier, the default one rejects every unknown key and the test reports an actionable error. The test never trusts a key on its own.
+The test opens a terminal session through the Core SSH abstractions and closes it. Host keys go through the shared host key verification (`docs/decisions/host-key-verification.md`): an unknown or changed key opens the host key dialog. The decision must be made within the connection test timeout (15 seconds), otherwise the test reports a timeout and fails closed. The test never trusts a key on its own.
 
 ## ssh config import
 

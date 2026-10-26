@@ -11,7 +11,7 @@ Status legend: **supported** = implemented and covered by integration tests; **p
 | Multiple independent sessions | supported | one SSH connection per session |
 | Streaming terminal I/O | supported | raw bytes, cancellable `ReadAsync` |
 | Host key verification hook | supported | `IHostKeyVerifier` gets endpoint, algorithm, `SHA256:` fingerprint (same format as `ssh-keygen -lf`); fails closed |
-| Changed host key detection | partial | the hook can reject; storing known keys and warning about changes is the Host Key Verification task |
+| Changed host key detection | supported | `known_hosts` (read-only, hashed entries, `@revoked`) plus app-trusted keys in SQLite; unknown keys pause for a user decision, changed keys are blocked. See `docs/decisions/host-key-verification.md` |
 | Private key auth (OpenSSH ed25519, RSA rsa-sha2, passphrase) | supported | keys are referenced by file path |
 | Password auth | supported | |
 | SSH agent (OpenSSH agent, Unix socket) | supported | via SshNet.Agent; `SSH_AUTH_SOCK` or explicit socket path |

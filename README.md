@@ -98,6 +98,10 @@ Important operations are recorded in the local database and shown in the History
 
 The sidebar lists saved servers grouped by name, with add, edit, delete, connection test and import from `~/.ssh/config`. Passwords go only to the credential store. See `docs/saved-connections.md`.
 
+## Host keys
+
+Host keys are checked on every SSH connection against `~/.ssh/known_hosts` (read-only, never written) and keys trusted in TermForge. An unknown key pauses the connection and opens a dialog with the `SHA256:` fingerprint (accept once, accept and save, reject); a changed key is blocked and can only be replaced after a separate confirmation. Undecided prompts fail closed after `HostKeys:DecisionTimeout` (default 2 minutes). See `docs/decisions/host-key-verification.md`.
+
 ## Credentials
 
 Secrets are stored in the OS credential store (Windows Credential Manager, macOS Keychain, Linux Secret Service). When that store is unavailable, they are stored in an encrypted vault file instead, which is unlocked with a master password through `POST /api/credentials/vault/unlock`. Like every `/api` endpoint, it requires the browser session and CSRF token described in `docs/security.md`. `GET /api/credentials/status` shows which backend is active and why. Usage, configuration and troubleshooting are in `docs/credentials.md`. The design is in `docs/decisions/0002-credential-store.md`.
