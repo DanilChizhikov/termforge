@@ -552,3 +552,39 @@ select.input {
 dl.fingerprint {
   margin: 0;
 }
+
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-control);
+}
+
+.segmented button {
+  min-height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-small);
+}
+
+.segmented button:hover {
+  color: var(--text-primary);
+}
+
+.segmented button[aria-pressed='true'] {
+  background: var(--surface-selected);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.kbd {
+  padding: 0 4px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-badge);
+  font-family: var(--font-mono);
+  font-size: var(--text-badge);
+}
