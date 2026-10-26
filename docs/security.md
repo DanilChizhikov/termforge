@@ -98,6 +98,7 @@ The SPA cannot and must not read it. `fetch` sends it automatically for same-ori
 
 - Connect to a same-origin URL built from `window.location`, for example `` new WebSocket(`ws://${window.location.host}/api/...`) ``.
 - Browsers send `Origin` and the session cookie on the handshake automatically. The backend requires both: missing or foreign `Origin` → `403`, missing or invalid session → `401`. No CSRF header is needed (and browsers cannot set one).
+- Terminal sockets `/api/terminals/{id}/ws` additionally require that the terminal id (256 random bits) was created by the same browser session (`404` otherwise) and is not already attached (`409`). A leaked id alone is useless without the session cookie and a same-origin handshake.
 
 ### Exit
 
