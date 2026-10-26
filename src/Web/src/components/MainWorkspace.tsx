@@ -1,7 +1,8 @@
 import { Group, Separator } from 'react-resizable-panels';
 import { CollapsibleRegion } from './CollapsibleRegion';
-import { EmptyState } from './EmptyState';
 import { TerminalWorkspace } from './TerminalWorkspace';
+import { LocalFilePane } from './LocalFilePane';
+import { RemoteFilePane } from './RemoteFilePane';
 
 export function MainWorkspace() {
   return (
@@ -13,11 +14,11 @@ export function MainWorkspace() {
       <CollapsibleRegion id="files" title="Files" defaultSize="45%" minSize="15%">
         <Group orientation="horizontal" id="file-panes" className="group">
           <CollapsibleRegion id="local-files" title="Local" defaultSize="50%" minSize="15%">
-            <EmptyState message="Local file browser is not available yet." />
+            <LocalFilePane />
           </CollapsibleRegion>
           <Separator className="separator separator-vertical" />
           <CollapsibleRegion id="remote-files" title="Remote" defaultSize="50%" minSize="15%">
-            <EmptyState message="Connect to a server to browse remote files." />
+            <RemoteFilePane />
           </CollapsibleRegion>
         </Group>
       </CollapsibleRegion>

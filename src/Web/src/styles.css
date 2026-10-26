@@ -55,3 +55,11 @@ body { font-family: sans-serif; font-size: 14px; }
 .terminal-disconnected { color: #c00; margin: 2px 4px; flex: none; }
 .terminal-connecting { color: #c90; margin: 2px 4px; flex: none; }
 .terminal-view { flex: 1; min-height: 0; background: #000; }
+.file-pane { display: flex; flex-direction: column; height: 100%; padding: 4px; box-sizing: border-box; overflow: auto; }
+.file-toolbar { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+.file-breadcrumbs { display: flex; flex-wrap: wrap; gap: 2px; margin-bottom: 4px; }
+.file-action { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; border: 1px solid #999; padding: 4px; margin-bottom: 4px; }
+.file-table { border-collapse: collapse; width: 100%; }
+.file-table th, .file-table td { border: 1px solid #ccc; padding: 2px 6px; text-align: left; }
+.file-row { cursor: default; }
+.file-row-selected { background: #e8f0ff; }
