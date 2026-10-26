@@ -6,7 +6,7 @@ The backend runs on the user's machine and controls SSH sessions. Loopback bindi
 
 ## Decision
 
-- Loopback only. The backend validates its configured bindings before Kestrel listens and refuses to start on any non-loopback address. Network access is a separate future mode.
+- Loopback only. The backend validates its configured bindings before Kestrel listens and refuses to start on any non-loopback address. Network access is a separate opt-in mode (`network-access.md`).
 - Own Host allow-list middleware instead of the built-in `AllowedHosts` host filtering: the rule is "`localhost` or a loopback IP literal", independent of the port, and cannot be widened to `*` by configuration. `AllowedHosts` was removed from `appsettings.json` so there is a single rule.
 - One-time bootstrap token per launch, delivered in the URL fragment of the browser the backend opens, exchanged with `POST /api/session/bootstrap` for an HttpOnly, `SameSite=Strict` session cookie. The fragment keeps the token out of server request logs, proxies and `Referer`. A tiny backend-served page (`/bootstrap`, `/bootstrap.js`, CSP `script-src 'self'`) performs the exchange so the SPA does not have to.
 - Synchronizer CSRF token tied to the session, returned by `GET /api/session` and sent as `X-CSRF-Token`. A double-submit cookie was rejected because cookies are not isolated by port: any page on `127.0.0.1:<other port>` could read a non-HttpOnly cookie.

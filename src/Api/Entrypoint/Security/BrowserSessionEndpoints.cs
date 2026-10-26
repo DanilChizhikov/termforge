@@ -1,3 +1,4 @@
+using DTech.Entrypoint.Security.Network;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Net.Http.Headers;
 
@@ -14,6 +15,9 @@ internal static class BrowserSessionEndpoints
         endpoints.MapGet(SecurityPaths.BootstrapScript, ServeBootstrapScript);
         endpoints.MapPost(SecurityPaths.BootstrapExchange, ExchangeBootstrapToken);
         endpoints.MapGet(SecurityPaths.Session, GetSession);
+        endpoints.MapGet(SecurityPaths.Login, GetLoginStatus);
+        endpoints.MapPost(SecurityPaths.Login, Login);
+        endpoints.MapPost(SecurityPaths.Logout, Logout);
         return endpoints;
     }
 
@@ -39,6 +43,25 @@ internal static class BrowserSessionEndpoints
         var session = context.Features.GetRequiredFeature<BrowserSession>();
         var response = new BrowserSessionResponse(session.CsrfToken);
         return Results.Ok(response);
+    }
+
+    private static IResult GetLoginStatus(HttpContext context, PasswordLoginHandler handler)
+    {
+        var status = handler.GetStatus(context);
+        return Results.Ok(status);
+    }
+
+    private static IResult Login(PasswordLoginRequest request, HttpContext context, PasswordLoginHandler handler)
+    {
+        return handler.Login(request, context);
+    }
+
+    private static IResult Logout(HttpContext context, BrowserSessionStore sessionStore)
+    {
+        var session = context.Features.GetRequiredFeature<BrowserSession>();
+        sessionStore.Remove(session.SessionToken);
+        SessionCookie.Delete(context);
+        return Results.NoContent();
     }
 
     private static void SetBootstrapHeaders(HttpResponse response)

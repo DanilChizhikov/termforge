@@ -11,10 +11,23 @@ internal static class LoopbackBindingValidator
     private const string KestrelEndpointsSection = "Kestrel:Endpoints";
     private const string KestrelEndpointUrlKey = "Url";
     private const char UrlSeparator = ';';
+    private const string HttpsUrlPrefix = "https://";
 
     public static IReadOnlyList<string> FindNonLoopbackBindings(IConfiguration configuration)
     {
-        var violations = new List<string>();
+        var bindings = FindNonLoopbackBindingDetails(configuration);
+        var descriptions = new List<string>(bindings.Count);
+        for (var i = 0; i < bindings.Count; i++)
+        {
+            descriptions.Add(bindings[i].Description);
+        }
+
+        return descriptions;
+    }
+
+    public static IReadOnlyList<NonLoopbackBinding> FindNonLoopbackBindingDetails(IConfiguration configuration)
+    {
+        var violations = new List<NonLoopbackBinding>();
         var hasKestrelEndpoints = AddKestrelEndpointViolations(configuration, violations);
         var preferHostingUrls = configuration.GetValue<bool>(PreferHostingUrlsKey);
         if (!hasKestrelEndpoints || preferHostingUrls)
@@ -25,7 +38,7 @@ internal static class LoopbackBindingValidator
         return violations;
     }
 
-    private static bool AddKestrelEndpointViolations(IConfiguration configuration, List<string> violations)
+    private static bool AddKestrelEndpointViolations(IConfiguration configuration, List<NonLoopbackBinding> violations)
     {
         var hasKestrelEndpoints = false;
         var endpoints = configuration.GetSection(KestrelEndpointsSection).GetChildren();
@@ -44,7 +57,7 @@ internal static class LoopbackBindingValidator
         return hasKestrelEndpoints;
     }
 
-    private static void AddHostingAddressViolations(IConfiguration configuration, List<string> violations)
+    private static void AddHostingAddressViolations(IConfiguration configuration, List<NonLoopbackBinding> violations)
     {
         var configuredUrls = configuration[UrlsKey];
         if (!string.IsNullOrWhiteSpace(configuredUrls))
@@ -57,16 +70,18 @@ internal static class LoopbackBindingValidator
         AddPortViolation(configuration, HttpsPortsKey, violations);
     }
 
-    private static void AddPortViolation(IConfiguration configuration, string key, List<string> violations)
+    private static void AddPortViolation(IConfiguration configuration, string key, List<NonLoopbackBinding> violations)
     {
         var ports = configuration[key];
         if (!string.IsNullOrWhiteSpace(ports))
         {
-            violations.Add($"{key}={ports} binds to every network interface");
+            var isHttps = string.Equals(key, HttpsPortsKey, StringComparison.Ordinal);
+            var binding = new NonLoopbackBinding($"{key}={ports} binds to every network interface", isHttps);
+            violations.Add(binding);
         }
     }
 
-    private static void AddUrlViolations(string urls, List<string> violations)
+    private static void AddUrlViolations(string urls, List<NonLoopbackBinding> violations)
     {
         var separatedUrls = urls.Split(UrlSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         for (var i = 0; i < separatedUrls.Length; i++)
@@ -74,7 +89,9 @@ internal static class LoopbackBindingValidator
             var url = separatedUrls[i];
             if (!IsLoopbackUrl(url))
             {
-                violations.Add($"{url} is not a loopback address");
+                var isHttps = url.StartsWith(HttpsUrlPrefix, StringComparison.OrdinalIgnoreCase);
+                var binding = new NonLoopbackBinding($"{url} is not a loopback address", isHttps);
+                violations.Add(binding);
             }
         }
     }

@@ -21,7 +21,7 @@ internal sealed class CsrfProtectionMiddleware(RequestDelegate next, ILogger<Csr
             || HttpMethods.IsHead(request.Method)
             || HttpMethods.IsOptions(request.Method)
             || HttpMethods.IsTrace(request.Method);
-        return !isSafeMethod && !SecurityPaths.IsBootstrapExchange(request.Path);
+        return !isSafeMethod && !SecurityPaths.IsSessionEstablishment(request.Path);
     }
 
     private static bool HasValidCsrfToken(HttpContext context)

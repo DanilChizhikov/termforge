@@ -1,7 +1,13 @@
 using DTech.Entrypoint.Lifecycle;
 using DTech.Entrypoint.Security;
+using DTech.Entrypoint.Security.Network;
 using DTech.Entrypoint.SpaHosting;
 using DTech.Persistence;
+
+if (PasswordHashCommand.TryRun(args))
+{
+    return;
+}
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddLocalHostSecurity();
