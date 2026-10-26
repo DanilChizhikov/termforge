@@ -107,22 +107,40 @@ export function OperationHistory() {
   const hasNext = offset + PAGE_SIZE < total;
 
   return (
-    <div className="operation-history">
-      <h2>Operation history</h2>
-      <p>{live ? 'Live updates connected.' : 'Live updates disconnected.'}</p>
+    <div className="view">
+      <div className="view-header">
+        <div className="view-header-text">
+          <h2 className="page-title">Operation history</h2>
+        </div>
+        <span className={live ? 'status-text status-text-ok' : 'status-text status-text-idle'}>
+          <span className={live ? 'status-dot status-dot-ok' : 'status-dot status-dot-idle'} aria-hidden="true" />
+          {live ? 'Live updates connected.' : 'Live updates disconnected.'}
+        </span>
+      </div>
       <OperationFilterForm onApply={applyFilters} />
-      {error === null ? null : <p role="alert">{error}</p>}
+      {error === null ? null : (
+        <p role="alert" className="notice notice-danger">
+          {error}
+        </p>
+      )}
       {page === null || page.items.length === 0 ? (
         <EmptyState message="No operations match." />
       ) : (
-        <OperationTable operations={page.items} onRetry={retry} />
+        <div className="table-card">
+          <OperationTable operations={page.items} onRetry={retry} />
+        </div>
       )}
       <div className="operation-paging">
-        <button type="button" disabled={!hasPrevious} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
+        <button
+          type="button"
+          className="btn btn-sm"
+          disabled={!hasPrevious}
+          onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+        >
           Previous
         </button>
         <span>{total} total</span>
-        <button type="button" disabled={!hasNext} onClick={() => setOffset(offset + PAGE_SIZE)}>
+        <button type="button" className="btn btn-sm" disabled={!hasNext} onClick={() => setOffset(offset + PAGE_SIZE)}>
           Next
         </button>
       </div>

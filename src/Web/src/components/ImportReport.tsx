@@ -25,7 +25,7 @@ export function ImportReport({ result, onDismiss }: ImportReportProps) {
           </ul>
         </>
       )}
-      <button type="button" onClick={onDismiss}>
+      <button type="button" className="btn btn-xs" onClick={onDismiss}>
         Dismiss
       </button>
     </div>

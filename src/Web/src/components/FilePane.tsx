@@ -13,6 +13,7 @@ import {
 import { EmptyState } from './EmptyState';
 import { FileBreadcrumbs } from './FileBreadcrumbs';
 import { FileTable } from './FileTable';
+import { ArrowUpIcon, PlusIcon, RefreshIcon } from './icons/Icons';
 
 export interface FilePaneProps {
   title: string;
@@ -182,6 +183,7 @@ export function FilePane({ title, sourceKey, source, path, onPathChange, roots }
       <div className="file-toolbar">
         {roots !== undefined && roots.length > 0 && (
           <select
+            className="input input-sm"
             aria-label={`${title} roots`}
             value=""
             onChange={(event) => {
@@ -200,23 +202,29 @@ export function FilePane({ title, sourceKey, source, path, onPathChange, roots }
         )}
         <button
           type="button"
+          className="btn btn-sm btn-ghost"
           disabled={listing === null || listing.parentPath === null}
           onClick={() => listing?.parentPath != null && navigate(listing.parentPath)}
         >
+          <ArrowUpIcon size={13} />
           Up
         </button>
-        <button type="button" onClick={refresh}>
+        <button type="button" className="btn btn-sm btn-ghost" onClick={refresh}>
+          <RefreshIcon size={13} />
           Refresh
         </button>
         <button
           type="button"
+          className="btn btn-sm btn-ghost"
           disabled={listing === null || busy}
           onClick={() => openAction({ type: 'createDirectory' })}
         >
+          <PlusIcon size={13} />
           New folder
         </button>
         <button
           type="button"
+          className="btn btn-sm btn-ghost"
           disabled={selectedEntries.length !== 1 || busy}
           onClick={() => openRename(selectedEntries)}
         >
@@ -224,6 +232,7 @@ export function FilePane({ title, sourceKey, source, path, onPathChange, roots }
         </button>
         <button
           type="button"
+          className="btn btn-sm btn-ghost btn-danger-link"
           disabled={selectedEntries.length === 0 || busy}
           onClick={() => openAction({ type: 'delete', entries: selectedEntries })}
         >
@@ -248,24 +257,27 @@ export function FilePane({ title, sourceKey, source, path, onPathChange, roots }
           className="file-action"
           onSubmit={(event) => void submitName(event)}
         >
-          <label>
-            {action.type === 'rename' ? 'New name' : 'Folder name'}
+          <label className="field">
+            <span className="field-label">{action.type === 'rename' ? 'New name' : 'Folder name'}</span>
             <input
+              className="input input-sm input-mono"
               name="name"
               defaultValue={action.type === 'rename' ? action.entry.name : ''}
               autoFocus
             />
           </label>
-          <button type="submit" disabled={busy}>
-            {action.type === 'rename' ? 'Rename' : 'Create'}
-          </button>
-          <button type="button" onClick={() => setAction(null)}>
-            Cancel
-          </button>
+          <div className="file-action-buttons">
+            <button type="button" className="btn btn-sm" onClick={() => setAction(null)}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-sm btn-primary" disabled={busy}>
+              {action.type === 'rename' ? 'Rename' : 'Create'}
+            </button>
+          </div>
         </form>
       )}
       {action !== null && action.type === 'delete' && (
-        <div role="alertdialog" aria-label="Confirm delete" className="file-action">
+        <div role="alertdialog" aria-label="Confirm delete" className="file-action file-action-danger">
           <p>
             Delete {action.entries.length} item(s)? Only files and empty folders can be deleted.
           </p>
@@ -274,26 +286,35 @@ export function FilePane({ title, sourceKey, source, path, onPathChange, roots }
               <li key={entry.path}>{entry.name}</li>
             ))}
           </ul>
-          <button type="button" disabled={busy} onClick={() => void confirmDelete()}>
-            Confirm delete
-          </button>
-          <button type="button" onClick={() => setAction(null)}>
-            Cancel
-          </button>
+          <div className="file-action-buttons">
+            <button type="button" className="btn btn-sm btn-safe" onClick={() => setAction(null)}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm btn-destructive"
+              disabled={busy}
+              onClick={() => void confirmDelete()}
+            >
+              Confirm delete
+            </button>
+          </div>
         </div>
       )}
       {loading && <EmptyState message="Loading..." />}
       {listing !== null && entries.length === 0 && <EmptyState message="This folder is empty." />}
       {listing !== null && entries.length > 0 && (
-        <FileTable
-          entries={entries}
-          selected={selectedPaths}
-          sortKey={sortKey}
-          sortDirection={sortDirection}
-          onSort={handleSort}
-          onSelect={handleSelect}
-          onOpen={handleOpen}
-        />
+        <div className="file-table-scroll">
+          <FileTable
+            entries={entries}
+            selected={selectedPaths}
+            sortKey={sortKey}
+            sortDirection={sortDirection}
+            onSort={handleSort}
+            onSelect={handleSelect}
+            onOpen={handleOpen}
+          />
+        </div>
       )}
     </section>
   );

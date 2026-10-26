@@ -1,15 +1,27 @@
+import '@fontsource-variable/geist';
+import '@fontsource-variable/geist-mono';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
-import './styles.css';
+import { loadTerminalFont } from './components/terminalTheme';
+import './styles/tokens.css';
+import './styles/base.css';
+import './styles/components.css';
+import './styles/layout.css';
 
 const container = document.getElementById('root');
 if (container === null) {
   throw new Error('Root element not found');
 }
 
-createRoot(container).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+const root = createRoot(container);
+
+function renderApp(): void {
+  root.render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  );
+}
+
+void loadTerminalFont().finally(renderApp);

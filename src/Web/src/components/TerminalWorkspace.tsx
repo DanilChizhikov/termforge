@@ -9,6 +9,7 @@ import {
   type TerminalTab,
 } from '../state/terminalTabs';
 import { EmptyState } from './EmptyState';
+import { CloseIcon, PlusIcon } from './icons/Icons';
 import { TerminalView } from './TerminalView';
 
 const STATE_LABELS = {
@@ -16,6 +17,20 @@ const STATE_LABELS = {
   connected: 'connected',
   disconnected: 'disconnected',
 } as const;
+
+const STATE_DOTS = {
+  connecting: 'status-dot-caution',
+  connected: 'status-dot-ok',
+  disconnected: 'status-dot-danger',
+} as const;
+
+function terminalTabClassName(tab: TerminalTab, active: boolean): string {
+  const classNames = ['terminal-tab', `terminal-tab-${tab.state}`];
+  if (active) {
+    classNames.push('terminal-tab-active');
+  }
+  return classNames.join(' ');
+}
 
 export function TerminalWorkspace() {
   const selectedServerId = useSelectedServerId();
@@ -41,43 +56,58 @@ export function TerminalWorkspace() {
 
   return (
     <div className="terminal-workspace">
-      <div className="terminal-toolbar">
-        <button type="button" onClick={openTab} disabled={selectedServerId === null}>
+      <div className="terminal-bar">
+        {tabs.length === 0 ? null : (
+          <div aria-label="Terminal tabs" className="terminal-tab-groups">
+            {groupTabsByServer(tabs).map((group) => (
+              <div key={group.connectionId} role="group" aria-label={group.name} className="terminal-tab-group">
+                <span className="terminal-group-label">{group.name}</span>
+                <div role="tablist" aria-label={`${group.name} terminals`} className="terminal-tab-list">
+                  {group.tabs.map((tab) => (
+                    <span key={tab.key} className={terminalTabClassName(tab, tab.key === visibleKey)}>
+                      <button
+                        type="button"
+                        role="tab"
+                        id={`tab-${tab.key}`}
+                        aria-selected={tab.key === visibleKey}
+                        aria-controls={`panel-${tab.key}`}
+                        className="terminal-tab-button"
+                        onClick={() => setActiveKey(tab.key)}
+                      >
+                        <span className={`status-dot status-dot-sm ${STATE_DOTS[tab.state]}`} aria-hidden="true" />
+                        {tabLabel(tab)}{' '}
+                        <span className={tab.state === 'connected' ? 'visually-hidden' : 'terminal-tab-state'}>
+                          ({STATE_LABELS[tab.state]})
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-btn icon-btn-sm"
+                        aria-label={`Close ${tabLabel(tab)}`}
+                        onClick={() => closeTab(tab)}
+                      >
+                        <CloseIcon size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {selectedServerId === null ? <span className="terminal-hint">Select a server to open a terminal.</span> : null}
+        <span className="terminal-bar-spacer" />
+        <button
+          type="button"
+          className="btn btn-sm btn-filled"
+          onClick={openTab}
+          disabled={selectedServerId === null}
+        >
+          <PlusIcon size={13} />
           New terminal
         </button>
-        {selectedServerId === null ? <span>Select a server to open a terminal.</span> : null}
       </div>
-      {tabs.length === 0 ? (
-        <EmptyState message="No terminal sessions. Connect to a server to open one." />
-      ) : (
-        <div aria-label="Terminal tabs" className="terminal-tab-groups">
-          {groupTabsByServer(tabs).map((group) => (
-            <div key={group.connectionId} role="group" aria-label={group.name} className="terminal-tab-group">
-              <span className="terminal-group-label">{group.name}:</span>
-              <div role="tablist" aria-label={`${group.name} terminals`} className="tab-strip">
-                {group.tabs.map((tab) => (
-                  <span key={tab.key} className="terminal-tab">
-                    <button
-                      type="button"
-                      role="tab"
-                      id={`tab-${tab.key}`}
-                      aria-selected={tab.key === visibleKey}
-                      aria-controls={`panel-${tab.key}`}
-                      className={tab.key === visibleKey ? 'tab tab-active' : 'tab'}
-                      onClick={() => setActiveKey(tab.key)}
-                    >
-                      {tabLabel(tab)} ({STATE_LABELS[tab.state]})
-                    </button>
-                    <button type="button" aria-label={`Close ${tabLabel(tab)}`} onClick={() => closeTab(tab)}>
-                      x
-                    </button>
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {tabs.length === 0 ? <EmptyState message="No terminal sessions. Connect to a server to open one." /> : null}
       {tabs.map((tab) => (
         <div
           key={tab.key}

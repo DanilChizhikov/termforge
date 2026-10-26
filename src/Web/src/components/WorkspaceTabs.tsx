@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, type ComponentType } from 'react';
 import { EmptyState } from './EmptyState';
+import { ContainerIcon, FileIcon, ListIcon, PulseIcon, TerminalIcon, type IconProps } from './icons/Icons';
 import { MainWorkspace } from './MainWorkspace';
 import { OperationHistory } from './OperationHistory';
 import { ServerDiagnostics } from './ServerDiagnostics';
@@ -8,14 +9,15 @@ interface WorkspaceTabDefinition {
   id: string;
   title: string;
   emptyMessage: string | null;
+  Icon: ComponentType<IconProps>;
 }
 
 const WORKSPACE_TABS: readonly WorkspaceTabDefinition[] = [
-  { id: 'workspace', title: 'Workspace', emptyMessage: null },
-  { id: 'editor', title: 'Editor', emptyMessage: 'No files open in the editor.' },
-  { id: 'docker', title: 'Docker', emptyMessage: 'Connect to a server to manage Docker.' },
-  { id: 'diagnostics', title: 'Diagnostics', emptyMessage: 'No diagnostics collected yet.' },
-  { id: 'history', title: 'History', emptyMessage: 'No history yet.' },
+  { id: 'workspace', title: 'Workspace', emptyMessage: null, Icon: TerminalIcon },
+  { id: 'editor', title: 'Editor', emptyMessage: 'No files open in the editor.', Icon: FileIcon },
+  { id: 'docker', title: 'Docker', emptyMessage: 'Connect to a server to manage Docker.', Icon: ContainerIcon },
+  { id: 'diagnostics', title: 'Diagnostics', emptyMessage: 'No diagnostics collected yet.', Icon: PulseIcon },
+  { id: 'history', title: 'History', emptyMessage: 'No history yet.', Icon: ListIcon },
 ];
 
 export function WorkspaceTabs() {
@@ -23,7 +25,7 @@ export function WorkspaceTabs() {
 
   return (
     <div className="workspace">
-      <div role="tablist" aria-label="Workspace tabs" className="tab-strip">
+      <div role="tablist" aria-label="Workspace tabs" className="workspace-tabs">
         {WORKSPACE_TABS.map((tab) => (
           <button
             key={tab.id}
@@ -32,9 +34,10 @@ export function WorkspaceTabs() {
             id={`tab-${tab.id}`}
             aria-selected={tab.id === activeId}
             aria-controls={`panel-${tab.id}`}
-            className={tab.id === activeId ? 'tab tab-active' : 'tab'}
+            className="workspace-tab"
             onClick={() => setActiveId(tab.id)}
           >
+            <tab.Icon />
             {tab.title}
           </button>
         ))}

@@ -3,6 +3,7 @@ import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import { useEffect, useRef } from 'react';
 import { describeError } from '../api/connections';
+import { TERMINAL_FONT_FAMILY, TERMINAL_FONT_SIZE, TERMINAL_LINE_HEIGHT, TERMINAL_THEME } from './terminalTheme';
 import {
   closeTerminal,
   openTerminal,
@@ -42,7 +43,13 @@ export function TerminalView({ connectionId, active, onOpened, onStateChange }: 
     if (container === null) {
       return;
     }
-    const terminal = new Terminal({ cursorBlink: true, fontFamily: 'monospace', fontSize: 13 });
+    const terminal = new Terminal({
+      cursorBlink: true,
+      fontFamily: TERMINAL_FONT_FAMILY,
+      fontSize: TERMINAL_FONT_SIZE,
+      lineHeight: TERMINAL_LINE_HEIGHT,
+      theme: TERMINAL_THEME,
+    });
     const fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
     terminal.open(container);

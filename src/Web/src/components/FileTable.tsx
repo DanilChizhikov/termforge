@@ -5,6 +5,7 @@ import {
   type SortDirection,
   type SortKey,
 } from '../api/files';
+import { FileIcon, FolderIcon, LinkIcon, SortAscendingIcon, SortDescendingIcon } from './icons/Icons';
 
 export interface FileTableProps {
   entries: FileEntry[];
@@ -40,18 +41,40 @@ function ariaSort(active: boolean, direction: SortDirection): 'ascending' | 'des
   return direction === 'asc' ? 'ascending' : 'descending';
 }
 
+function EntryIcon({ entry }: { entry: FileEntry }) {
+  if (isNavigable(entry)) {
+    return (
+      <span className="file-icon file-icon-folder">
+        <FolderIcon />
+      </span>
+    );
+  }
+  return <span className="file-icon">{entry.kind === 'SymbolicLink' ? <LinkIcon /> : <FileIcon />}</span>;
+}
+
+function SortMarker({ direction }: { direction: SortDirection }) {
+  return direction === 'asc' ? <SortAscendingIcon /> : <SortDescendingIcon />;
+}
+
+function formatModified(modifiedUtc: string | null): string {
+  return modifiedUtc === null ? '' : new Date(modifiedUtc).toLocaleString();
+}
+
 export function FileTable(props: FileTableProps) {
   const { entries, selected, sortKey, sortDirection, onSort, onSelect, onOpen } = props;
-  const sortMarker = sortDirection === 'asc' ? ' ^' : ' v';
   return (
-    <table className="file-table">
+    <table className="data-table">
       <thead>
         <tr>
           {COLUMNS.map((column) => (
-            <th key={column.key} aria-sort={ariaSort(sortKey === column.key, sortDirection)}>
-              <button type="button" onClick={() => onSort(column.key)}>
+            <th
+              key={column.key}
+              className={column.key === 'size' ? 'cell-end' : undefined}
+              aria-sort={ariaSort(sortKey === column.key, sortDirection)}
+            >
+              <button type="button" className="th-button" onClick={() => onSort(column.key)}>
                 {column.label}
-                {sortKey === column.key ? sortMarker : ''}
+                {sortKey === column.key ? <SortMarker direction={sortDirection} /> : null}
               </button>
             </th>
           ))}
@@ -67,11 +90,16 @@ export function FileTable(props: FileTableProps) {
             onClick={(event) => onSelect(entry, event.ctrlKey || event.metaKey)}
             onDoubleClick={() => onOpen(entry)}
           >
-            <td>{isNavigable(entry) ? `${entry.name}/` : entry.name}</td>
-            <td>{formatSize(entry)}</td>
-            <td>{entry.modifiedUtc ?? ''}</td>
-            <td>{describeKind(entry)}</td>
-            <td>{entry.permissions ?? ''}</td>
+            <td>
+              <span className="file-name">
+                <EntryIcon entry={entry} />
+                {isNavigable(entry) ? `${entry.name}/` : entry.name}
+              </span>
+            </td>
+            <td className="cell-end cell-muted">{formatSize(entry)}</td>
+            <td className="cell-muted">{formatModified(entry.modifiedUtc)}</td>
+            <td className="cell-muted">{describeKind(entry)}</td>
+            <td className="cell-mono cell-muted">{entry.permissions ?? ''}</td>
           </tr>
         ))}
       </tbody>
