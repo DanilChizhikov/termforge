@@ -250,6 +250,41 @@ export function ArrowLeftIcon({ size = 14 }: IconProps) {
   );
 }
 
+export function SettingsIcon({ size = 18 }: IconProps) {
+  return (
+    <IconFrame size={size} strokeWidth={1.8}>
+      <path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1" />
+      <circle cx="15" cy="6" r="2" />
+      <circle cx="9" cy="12" r="2" />
+      <circle cx="17" cy="18" r="2" />
+    </IconFrame>
+  );
+}
+
+export function ChevronLeftIcon({ size = 13 }: IconProps) {
+  return (
+    <IconFrame size={size} strokeWidth={2}>
+      <path d="M15 6l-6 6 6 6" />
+    </IconFrame>
+  );
+}
+
+export function PlayIcon({ size = 14 }: IconProps) {
+  return (
+    <IconFrame size={size} strokeWidth={2}>
+      <path d="M7 5l12 7-12 7z" />
+    </IconFrame>
+  );
+}
+
+export function PauseIcon({ size = 14 }: IconProps) {
+  return (
+    <IconFrame size={size} strokeWidth={2}>
+      <path d="M8 5v14M16 5v14" />
+    </IconFrame>
+  );
+}
+
 export function SearchIcon({ size = 14 }: IconProps) {
   return (
     <IconFrame size={size} strokeWidth={2}>

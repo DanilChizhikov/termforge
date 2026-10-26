@@ -9,6 +9,8 @@ import './styles/base.css';
 import './styles/components.css';
 import './styles/layout.css';
 import './styles/docker.css';
+import './styles/settings.css';
+import './styles/recording.css';
 
 const container = document.getElementById('root');
 if (container === null) {

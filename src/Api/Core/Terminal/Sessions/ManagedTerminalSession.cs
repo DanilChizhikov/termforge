@@ -9,12 +9,15 @@ public sealed class ManagedTerminalSession
     private int _attached;
     private int _closed;
     private string? _closeReason;
+    private ITerminalOutputObserver? _outputObserver;
+    private TerminalSize _size;
 
-    internal ManagedTerminalSession(TerminalSessionDescriptor descriptor, string ownerKey, ITerminalSession session)
+    internal ManagedTerminalSession(TerminalSessionDescriptor descriptor, string ownerKey, ITerminalSession session, TerminalSize initialSize)
     {
         Descriptor = descriptor;
         OwnerKey = ownerKey;
         _session = session;
+        _size = initialSize;
     }
 
     public TerminalSessionDescriptor Descriptor { get; }
@@ -27,6 +30,8 @@ public sealed class ManagedTerminalSession
 
     public CancellationToken Closing => _closing.Token;
 
+    public TerminalSize Size => _size;
+
     internal string OwnerKey { get; }
 
     public bool TryAttach()
@@ -35,9 +40,32 @@ public sealed class ManagedTerminalSession
         return isFirstAttachment && !IsClosed;
     }
 
-    public ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
+    public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
     {
-        return _session.ReadAsync(buffer, cancellationToken);
+        var length = await _session.ReadAsync(buffer, cancellationToken);
+        var observer = Volatile.Read(ref _outputObserver);
+        if (length > 0 && observer is not null)
+        {
+            var output = buffer.Span[..length];
+            observer.Observe(output);
+        }
+
+        return length;
+    }
+
+    public bool TryAttachOutputObserver(ITerminalOutputObserver observer)
+    {
+        if (IsClosed)
+        {
+            return false;
+        }
+
+        return Interlocked.CompareExchange(ref _outputObserver, observer, null) is null;
+    }
+
+    public void DetachOutputObserver(ITerminalOutputObserver observer)
+    {
+        Interlocked.CompareExchange(ref _outputObserver, null, observer);
     }
 
     public ValueTask<SshResult> WriteAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
@@ -47,7 +75,13 @@ public sealed class ManagedTerminalSession
 
     public SshResult Resize(TerminalSize size)
     {
-        return _session.Resize(size);
+        var resized = _session.Resize(size);
+        if (resized.IsSuccess)
+        {
+            _size = size;
+        }
+
+        return resized;
     }
 
     internal async Task CloseAsync(string reason)

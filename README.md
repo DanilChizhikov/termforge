@@ -116,6 +116,10 @@ Host keys are checked on every SSH connection against `~/.ssh/known_hosts` (read
 
 The upper region holds xterm.js terminal tabs grouped by server. "New terminal" opens an SSH PTY session on the selected server; each tab shows the server name, session number and state (connecting, connected, disconnected with reason). Sessions are bound to the browser session and closed when the tab or socket closes, the remote shell exits, or TermForge shuts down. Reconnect behavior and the command history panel are described in `docs/reconnect-and-command-history.md`. See `docs/decisions/interactive-terminal.md`.
 
+## Terminal recording
+
+Off by default. After turning on "Record terminal output" in Settings → Security, Record in a terminal's status line records that session's output (never keystrokes) as an asciicast v2 file in the app data directory. Both steps warn that recordings may contain secrets. Size per recording, number of recordings and retention days are set in the same place; recordings can be replayed and deleted there. See `docs/decisions/terminal-recording.md`.
+
 ## File browsing
 
 The lower region has a local pane and a remote (SFTP) pane with navigation, breadcrumbs, sorting, selection, new folder, rename and delete with confirmation. Paths with `..` segments are rejected. See `docs/file-browsing.md`.

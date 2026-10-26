@@ -110,7 +110,7 @@ public sealed class TerminalSessionManager(ITerminalSessionFactory sessionFactor
             if (rejection is null)
             {
                 var descriptor = CreateDescriptor(request.Server);
-                registered = new ManagedTerminalSession(descriptor, request.OwnerKey, session);
+                registered = new ManagedTerminalSession(descriptor, request.OwnerKey, session, request.InitialSize);
                 _sessions[descriptor.Id] = registered;
             }
         }

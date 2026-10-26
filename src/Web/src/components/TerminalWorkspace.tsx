@@ -12,6 +12,7 @@ import { EmptyState } from './EmptyState';
 import { CloseIcon, ListIcon, PlusIcon } from './icons/Icons';
 import { CommandHistoryPanel } from './CommandHistoryPanel';
 import { ReconnectBar } from './ReconnectBar';
+import { TerminalRecordingBar } from './TerminalRecordingBar';
 import { TerminalView, type TerminalHandle } from './TerminalView';
 
 const STATE_LABELS = {
@@ -41,6 +42,7 @@ export function TerminalWorkspace() {
   const visibleKey = tabs.some((tab) => tab.key === activeKey) ? activeKey : (tabs[0]?.key ?? null);
   const [historyOpen, setHistoryOpen] = useState(true);
   const [historyVersion, setHistoryVersion] = useState(0);
+  const [recordingKeys, setRecordingKeys] = useState<ReadonlySet<string>>(() => new Set());
   const handles = useRef(new Map<string, TerminalHandle>());
   const visibleTab = tabs.find((tab) => tab.key === visibleKey) ?? null;
 
@@ -68,6 +70,21 @@ export function TerminalWorkspace() {
     const key = createTabKey();
     dispatch({ type: 'add', key, connectionId: selectedServerId });
     setActiveKey(key);
+  };
+
+  const markRecording = (key: string, recording: boolean) => {
+    setRecordingKeys((current) => {
+      if (current.has(key) === recording) {
+        return current;
+      }
+      const next = new Set(current);
+      if (recording) {
+        next.add(key);
+      } else {
+        next.delete(key);
+      }
+      return next;
+    });
   };
 
   const closeTab = (tab: TerminalTab) => {
@@ -102,6 +119,12 @@ export function TerminalWorkspace() {
                         <span className={tab.state === 'connected' ? 'visually-hidden' : 'terminal-tab-state'}>
                           ({STATE_LABELS[tab.state]})
                         </span>
+                        {recordingKeys.has(tab.key) ? (
+                          <span className="badge badge-recording">
+                            <span className="status-dot status-dot-xs status-dot-active" aria-hidden="true" />
+                            rec
+                          </span>
+                        ) : null}
                       </button>
                       <button
                         type="button"
@@ -158,6 +181,13 @@ export function TerminalWorkspace() {
           ) : null}
           {tab.state === 'connecting' ? (
             <p className="terminal-connecting">{tab.reconnecting ? 'Reconnecting…' : 'Connecting…'}</p>
+          ) : null}
+          {tab.state === 'connected' && tab.session !== null ? (
+            <TerminalRecordingBar
+              key={tab.session.id}
+              terminalId={tab.session.id}
+              onRecordingChange={(recording) => markRecording(tab.key, recording)}
+            />
           ) : null}
           <TerminalView
             connectionId={tab.connectionId}
