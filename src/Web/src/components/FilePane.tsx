@@ -13,7 +13,7 @@ import {
 import { EmptyState } from './EmptyState';
 import { FileBreadcrumbs } from './FileBreadcrumbs';
 import { FileTable } from './FileTable';
-import { ArrowUpIcon, PlusIcon, RefreshIcon } from './icons/Icons';
+import { ArrowUpIcon, FileIcon, PlusIcon, RefreshIcon } from './icons/Icons';
 import { hasDraggedPaths, readDraggedPaths, writeDraggedPaths, type FilePaneTransfer } from './filePaneTransfer';
 
 export interface FilePaneProps {
@@ -23,6 +23,7 @@ export interface FilePaneProps {
   path: string | null;
   onPathChange: (path: string) => void;
   roots?: LocalRoot[];
+  onOpenFile?: (entry: FileEntry) => void;
   transfer?: FilePaneTransfer;
   refreshToken?: number;
 }
@@ -45,7 +46,7 @@ type PaneAction =
 
 const NO_SELECTION: ReadonlySet<string> = new Set();
 
-export function FilePane({ title, sourceKey, source, path, onPathChange, roots, transfer, refreshToken = 0 }: FilePaneProps) {
+export function FilePane({ title, sourceKey, source, path, onPathChange, roots, onOpenFile, transfer, refreshToken = 0 }: FilePaneProps) {
   const [loadState, setLoadState] = useState<LoadState | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [selection, setSelection] = useState<Selection | null>(null);
@@ -125,6 +126,10 @@ export function FilePane({ title, sourceKey, source, path, onPathChange, roots, 
   function handleOpen(entry: FileEntry): void {
     if (isNavigable(entry)) {
       navigate(entry.path);
+      return;
+    }
+    if (entry.kind === 'File') {
+      onOpenFile?.(entry);
     }
   }
 
@@ -270,6 +275,17 @@ export function FilePane({ title, sourceKey, source, path, onPathChange, roots, 
         >
           Rename
         </button>
+        {onOpenFile === undefined ? null : (
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost"
+            disabled={selectedEntries.length !== 1 || selectedEntries[0]?.kind !== 'File'}
+            onClick={() => selectedEntries[0] !== undefined && onOpenFile(selectedEntries[0])}
+          >
+            <FileIcon size={13} />
+            Edit
+          </button>
+        )}
         <button
           type="button"
           className="btn btn-sm btn-ghost btn-danger-link"

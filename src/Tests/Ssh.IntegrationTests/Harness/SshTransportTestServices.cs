@@ -8,9 +8,15 @@ internal static class SshTransportTestServices
 {
     public static ServiceProvider Create(IHostKeyVerifier hostKeyVerifier)
     {
+        return Create(hostKeyVerifier, static _ => { });
+    }
+
+    public static ServiceProvider Create(IHostKeyVerifier hostKeyVerifier, Action<IServiceCollection> configure)
+    {
         var services = new ServiceCollection();
         services.AddSingleton(hostKeyVerifier);
         services.AddSshTransport();
+        configure(services);
         return services.BuildServiceProvider();
     }
 

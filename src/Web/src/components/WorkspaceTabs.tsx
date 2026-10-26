@@ -1,4 +1,6 @@
-import { useState, type ComponentType } from 'react';
+import type { ComponentType } from 'react';
+import { activateWorkspaceTab, useActiveWorkspaceTab, type WorkspaceTabId } from '../state/workspaceTab';
+import { EditorWorkspace } from './editor/EditorWorkspace';
 import { EmptyState } from './EmptyState';
 import { ContainerIcon, FileIcon, ListIcon, PulseIcon, TerminalIcon, type IconProps } from './icons/Icons';
 import { MainWorkspace } from './MainWorkspace';
@@ -6,7 +8,7 @@ import { OperationHistory } from './OperationHistory';
 import { ServerDiagnostics } from './ServerDiagnostics';
 
 interface WorkspaceTabDefinition {
-  id: string;
+  id: WorkspaceTabId;
   title: string;
   emptyMessage: string | null;
   Icon: ComponentType<IconProps>;
@@ -21,7 +23,7 @@ const WORKSPACE_TABS: readonly WorkspaceTabDefinition[] = [
 ];
 
 export function WorkspaceTabs() {
-  const [activeId, setActiveId] = useState(WORKSPACE_TABS[0]?.id ?? 'workspace');
+  const activeId = useActiveWorkspaceTab();
 
   return (
     <div className="workspace">
@@ -35,7 +37,7 @@ export function WorkspaceTabs() {
             aria-selected={tab.id === activeId}
             aria-controls={`panel-${tab.id}`}
             className="workspace-tab"
-            onClick={() => setActiveId(tab.id)}
+            onClick={() => activateWorkspaceTab(tab.id)}
           >
             <tab.Icon />
             {tab.title}
@@ -61,6 +63,9 @@ export function WorkspaceTabs() {
 function renderPanel(tab: WorkspaceTabDefinition, isActive: boolean) {
   if (tab.id === 'history') {
     return isActive ? <OperationHistory /> : null;
+  }
+  if (tab.id === 'editor') {
+    return <EditorWorkspace />;
   }
   if (tab.id === 'diagnostics') {
     return isActive ? <ServerDiagnostics /> : null;
