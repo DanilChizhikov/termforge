@@ -47,7 +47,7 @@ Every remote request opens its own SSH connection through the common connector (
 
 ## Limitations
 
-- No transfers (upload/download), no search, no recursive delete, no move between directories.
+- No recursive delete, no move between directories. Transfers and filename search are described in `docs/decisions/transfer-queue.md` and `docs/decisions/filename-search.md`.
 - Symbolic link target paths are not shown, only the kind of the target (SSH.NET does not expose `readlink`).
 - Remote listings are not paged; very large directories are returned at once.
 - Permissions are shown read-only; owner and group names are not resolved.
