@@ -758,3 +758,129 @@
   padding: 0;
   list-style: none;
 }
+
+.main-workspace {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.file-pane-drop {
+  outline: 1px dashed var(--accent);
+  outline-offset: -3px;
+}
+
+.file-transfer-button {
+  gap: 6px;
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.transfer-panel {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 40%;
+  padding: 8px 12px 10px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-chrome);
+}
+
+.transfer-panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--text-small);
+}
+
+.transfer-panel-title {
+  font-weight: 600;
+}
+
+.transfer-panel-spacer {
+  flex: 1;
+}
+
+.transfer-panel-empty,
+.transfer-panel-error {
+  margin: 0;
+  font-size: var(--text-small);
+}
+
+.transfer-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.transfer-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--surface-badge);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.transfer-card-failed {
+  border-color: var(--status-danger-border);
+  background: var(--status-danger-soft);
+}
+
+.transfer-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-small);
+}
+
+.transfer-direction {
+  display: inline-flex;
+  color: var(--accent);
+}
+
+.transfer-direction-down {
+  color: var(--status-info);
+}
+
+.transfer-route {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transfer-card-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: var(--text-label);
+}
+
+.transfer-error {
+  color: var(--status-danger-text);
+}
+
+.transfer-conflict-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 200px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+}

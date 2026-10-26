@@ -4,6 +4,7 @@ import { setRemotePath, useRemotePath } from '../state/filePaths';
 import { useSelectedServerId } from '../state/selectedServer';
 import { EmptyState } from './EmptyState';
 import { FilePane } from './FilePane';
+import { useFinishedTransferCount, useRemotePaneTransfer } from './useTransferTargets';
 
 interface ServerFilePaneProps {
   serverId: string;
@@ -13,6 +14,8 @@ function ServerFilePane({ serverId }: ServerFilePaneProps) {
   const path = useRemotePath(serverId);
   const source = useMemo(() => createRemoteSource(serverId), [serverId]);
   const handlePathChange = useCallback((next: string) => setRemotePath(serverId, next), [serverId]);
+  const transfer = useRemotePaneTransfer(serverId);
+  const finishedUploads = useFinishedTransferCount('upload', serverId);
   return (
     <FilePane
       title="Remote"
@@ -20,6 +23,8 @@ function ServerFilePane({ serverId }: ServerFilePaneProps) {
       source={source}
       path={path}
       onPathChange={handlePathChange}
+      transfer={transfer}
+      refreshToken={finishedUploads}
     />
   );
 }
