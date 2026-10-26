@@ -1,0 +1,148 @@
+.settings-view {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  min-height: 0;
+  overflow: auto;
+}
+
+.settings-nav {
+  display: flex;
+  flex: 1 1 220px;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 100%;
+  padding: 20px 12px;
+  border-right: 1px solid var(--border-subtle);
+  background: var(--surface-chrome);
+}
+
+.settings-nav-link {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+}
+
+.settings-nav-link[aria-current='page'] {
+  background: var(--surface-selected);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.settings-main {
+  flex: 999 1 560px;
+  min-width: 0;
+  padding: 28px 32px 40px;
+}
+
+.settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: 880px;
+}
+
+.settings-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-heading p {
+  max-width: 620px;
+  margin: 0;
+}
+
+.settings-heading .page-title {
+  margin: 0;
+}
+
+.settings-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+}
+
+.settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin: 0;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-faint);
+}
+
+.settings-row:last-child {
+  border-bottom: 0;
+}
+
+.settings-row-text {
+  display: flex;
+  flex: 1 1 320px;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.settings-row-title {
+  font-weight: 600;
+}
+
+.settings-row-hint {
+  color: var(--text-secondary);
+  font-size: var(--text-dense);
+}
+
+.settings-row-footer {
+  justify-content: flex-end;
+}
+
+.settings-row-footer .settings-row-hint {
+  flex: 1 1 320px;
+  overflow-wrap: anywhere;
+}
+
+.settings-unit-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-dense);
+}
+
+.settings-number {
+  width: 84px;
+  text-align: right;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-section-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.settings-section-title {
+  margin: 0;
+  font-size: var(--text-brand);
+  font-weight: 600;
+}
+
+.settings-table-card {
+  overflow-x: auto;
+}
+
+.settings-table-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
