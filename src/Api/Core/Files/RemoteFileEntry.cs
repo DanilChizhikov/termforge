@@ -5,4 +5,10 @@ public sealed record RemoteFileEntry(string Name, string FullPath, RemoteFileKin
     public long Size { get; init; }
 
     public DateTime LastWriteTimeUtc { get; init; }
+
+    public string? Permissions { get; init; }
+
+    public RemoteFileKind? LinkTargetKind { get; init; }
+
+    public bool IsBrokenLink { get; init; }
 }
