@@ -98,6 +98,10 @@ Important operations are recorded in the local database and shown in the History
 
 The sidebar lists saved servers grouped by name, with add, edit, delete, connection test and import from `~/.ssh/config`. Passwords go only to the credential store. See `docs/saved-connections.md`.
 
+## Server diagnostics
+
+The Diagnostics tab checks the selected server for command execution, SFTP, Docker (installed and accessible), sudo and common utilities, and explains what is missing. Results are cached per connection with a manual refresh. See `docs/diagnostics.md`.
+
 ## Host keys
 
 Host keys are checked on every SSH connection against `~/.ssh/known_hosts` (read-only, never written) and keys trusted in TermForge. An unknown key pauses the connection and opens a dialog with the `SHA256:` fingerprint (accept once, accept and save, reject); a changed key is blocked and can only be replaced after a separate confirmation. Undecided prompts fail closed after `HostKeys:DecisionTimeout` (default 2 minutes). See `docs/decisions/host-key-verification.md`.
