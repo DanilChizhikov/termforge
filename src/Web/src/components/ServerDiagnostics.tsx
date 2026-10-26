@@ -3,9 +3,11 @@ import {
   getCapabilities,
   refreshCapabilities,
   type CapabilityReport,
+  type CapabilityStatus,
 } from '../api/diagnostics';
 import { useSelectedServerId } from '../state/selectedServer';
 import { EmptyState } from './EmptyState';
+import { RefreshIcon } from './icons/Icons';
 
 interface DiagnosticsState {
   report: CapabilityReport | null;
@@ -52,43 +54,74 @@ function DiagnosticsView({ serverId }: { serverId: string }) {
   }, [serverId]);
 
   return (
-    <section aria-label="Server diagnostics">
-      <h2>Server diagnostics</h2>
-      <button type="button" disabled={state.isLoading} onClick={refresh}>
-        Refresh
-      </button>
-      {state.isLoading ? <p>Checking server...</p> : null}
-      {state.error !== null ? <p role="alert">{state.error}</p> : null}
+    <section aria-label="Server diagnostics" className="view">
+      <div className="view-header">
+        <div className="view-header-text">
+          <h2 className="page-title">Server diagnostics</h2>
+          {state.report !== null ? (
+            <span className="view-subtitle">Checked at {new Date(state.report.checkedAt).toLocaleString()}</span>
+          ) : null}
+        </div>
+        <button type="button" className="btn btn-sm" disabled={state.isLoading} onClick={refresh}>
+          <RefreshIcon size={13} />
+          Refresh
+        </button>
+      </div>
+      {state.isLoading ? <p className="text-secondary">Checking server...</p> : null}
+      {state.error !== null ? (
+        <p role="alert" className="notice notice-danger">
+          {state.error}
+        </p>
+      ) : null}
       {state.report !== null ? <ReportView report={state.report} /> : null}
     </section>
   );
 }
 
+const STATUS_TONES: Record<CapabilityStatus, string> = {
+  Available: 'ok',
+  Unavailable: 'danger',
+  Unknown: 'idle',
+};
+
 function ReportView({ report }: { report: CapabilityReport }) {
   return (
-    <div>
-      <p>Checked at {new Date(report.checkedAt).toLocaleString()}</p>
-      {report.state !== 'Completed' ? <p role="alert">{report.message ?? report.state}</p> : null}
-      {report.capabilities.length > 0 ? (
-        <table className="operation-table">
-          <thead>
-            <tr>
-              <th>Capability</th>
-              <th>Status</th>
-              <th>Details</th>
-            </tr>
-          </thead>
-          <tbody>
-            {report.capabilities.map((capability) => (
-              <tr key={capability.id}>
-                <td>{capability.name}</td>
-                <td>{capability.status}</td>
-                <td>{capability.reason}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <>
+      {report.state !== 'Completed' ? (
+        <p role="alert" className="notice notice-danger">
+          {report.message ?? report.state}
+        </p>
       ) : null}
-    </div>
+      {report.capabilities.length > 0 ? (
+        <div className="table-card">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Capability</th>
+                <th>Status</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              {report.capabilities.map((capability) => (
+                <tr key={capability.id}>
+                  <td className="capability-name">{capability.name}</td>
+                  <td>
+                    <span className={`status-text status-text-${STATUS_TONES[capability.status]}`}>
+                      <span
+                        className={`status-dot status-dot-sm status-dot-${STATUS_TONES[capability.status]}`}
+                        aria-hidden="true"
+                      />
+                      {capability.status}
+                    </span>
+                  </td>
+                  <td className="cell-muted">{capability.reason}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </>
   );
 }

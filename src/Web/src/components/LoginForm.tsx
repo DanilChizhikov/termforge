@@ -51,15 +51,16 @@ export function LoginForm({ onSignedIn = reloadPage }: LoginFormProps) {
 
   return (
     <form className="login-form" aria-label="Sign in" onSubmit={(event) => void handleSubmit(event)}>
-      <strong>Sign in to TermForge</strong>
+      <h1 className="dialog-title">Sign in to TermForge</h1>
       {insecure && (
-        <p role="alert" className="form-error">
+        <p role="alert" className="notice notice-danger">
           Warning: this connection is not encrypted (HTTP). The password can be intercepted on the network.
         </p>
       )}
-      <label>
-        Password
+      <label className="field">
+        <span className="field-label">Password</span>
         <input
+          className="input"
           type="password"
           autoComplete="current-password"
           value={password}
@@ -67,7 +68,7 @@ export function LoginForm({ onSignedIn = reloadPage }: LoginFormProps) {
           required
         />
       </label>
-      <button type="submit" disabled={submitting || password.length === 0}>
+      <button type="submit" className="btn btn-primary" disabled={submitting || password.length === 0}>
         Sign in
       </button>
       {error !== null && (

@@ -20,13 +20,18 @@ export function OperationFilterForm({ onApply }: OperationFilterFormProps) {
 
   return (
     <form className="operation-filters" aria-label="Operation filters" onSubmit={submit}>
-      <label>
-        Kind
-        <input value={draft.kind} onChange={(event) => setDraft({ ...draft, kind: event.target.value })} />
+      <label className="field">
+        <span className="field-label">Kind</span>
+        <input
+          className="input input-sm"
+          value={draft.kind}
+          onChange={(event) => setDraft({ ...draft, kind: event.target.value })}
+        />
       </label>
-      <label>
-        Status
+      <label className="field">
+        <span className="field-label">Status</span>
         <select
+          className="input input-sm"
           value={draft.status}
           onChange={(event) => setDraft({ ...draft, status: event.target.value as OperationStatus | '' })}
         >
@@ -38,30 +43,40 @@ export function OperationFilterForm({ onApply }: OperationFilterFormProps) {
           ))}
         </select>
       </label>
-      <label>
-        Server
-        <input value={draft.server} onChange={(event) => setDraft({ ...draft, server: event.target.value })} />
-      </label>
-      <label>
-        From
+      <label className="field">
+        <span className="field-label">Server</span>
         <input
+          className="input input-sm"
+          value={draft.server}
+          onChange={(event) => setDraft({ ...draft, server: event.target.value })}
+        />
+      </label>
+      <label className="field">
+        <span className="field-label">From</span>
+        <input
+          className="input input-sm"
           type="datetime-local"
           value={draft.from}
           onChange={(event) => setDraft({ ...draft, from: event.target.value })}
         />
       </label>
-      <label>
-        To
+      <label className="field">
+        <span className="field-label">To</span>
         <input
+          className="input input-sm"
           type="datetime-local"
           value={draft.to}
           onChange={(event) => setDraft({ ...draft, to: event.target.value })}
         />
       </label>
-      <button type="submit">Apply</button>
-      <button type="button" onClick={reset}>
-        Reset
-      </button>
+      <div className="operation-filter-actions">
+        <button type="button" className="btn btn-sm" onClick={reset}>
+          Reset
+        </button>
+        <button type="submit" className="btn btn-sm btn-filled">
+          Apply
+        </button>
+      </div>
     </form>
   );
 }
