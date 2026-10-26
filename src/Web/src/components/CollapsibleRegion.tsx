@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Panel, usePanelRef } from 'react-resizable-panels';
+import { ChevronDownIcon, ChevronRightIcon } from './icons/Icons';
 
 export interface CollapsibleRegionProps {
   id: string;
@@ -53,14 +54,15 @@ export function CollapsibleRegion({
     >
       <section aria-label={title} className="region-content">
         <header className="region-header">
-          <span>{title}</span>
+          <span className="section-label">{title}</span>
           <button
             type="button"
+            className="icon-btn icon-btn-sm"
             aria-expanded={!collapsed}
             aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${title}`}
             onClick={toggle}
           >
-            {collapsed ? '+' : '-'}
+            {collapsed ? <ChevronRightIcon size={13} /> : <ChevronDownIcon size={13} />}
           </button>
         </header>
         {collapsed && !keepMounted ? null : (

@@ -35,17 +35,16 @@ export function UpdateNotice() {
     <div className="update-notice" data-testid="update-notice">
       <span>TermForge {status.currentVersion}</span>
       {status.state === 'updateavailable' && status.releaseUrl !== null && (
-        <span>
-          {' '}
-          | Update available: {status.latestVersion}{' '}
+        <span className="chip chip-info">
+          Update available: {status.latestVersion}{' '}
           <a href={status.releaseUrl} target="_blank" rel="noopener noreferrer">
             Download
           </a>
         </span>
       )}
-      {status.state === 'uptodate' && <span> | Up to date</span>}
-      {status.state === 'checkfailed' && <span> | Update check unavailable</span>}{' '}
-      <button type="button" onClick={checkNow} disabled={checking}>
+      {status.state === 'uptodate' && <span className="status-text status-text-ok">Up to date</span>}
+      {status.state === 'checkfailed' && <span>Update check unavailable</span>}
+      <button type="button" className="btn btn-sm btn-ghost" onClick={checkNow} disabled={checking}>
         {checking ? 'Checking...' : 'Check for updates'}
       </button>
     </div>

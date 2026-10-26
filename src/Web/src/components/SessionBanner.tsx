@@ -44,7 +44,7 @@ export function SessionBanner() {
 
   if (state === 'login') {
     return (
-      <div className="session-banner">
+      <div className="session-banner session-banner-login">
         <LoginForm />
       </div>
     );
@@ -58,9 +58,9 @@ export function SessionBanner() {
   }
   if (state === 'password') {
     return (
-      <div className="session-info">
+      <div className="session-banner session-info">
         Signed in with password.{' '}
-        <button type="button" onClick={() => void handleSignOut()}>
+        <button type="button" className="btn btn-xs" onClick={() => void handleSignOut()}>
           Sign out
         </button>
       </div>

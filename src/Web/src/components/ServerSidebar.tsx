@@ -18,6 +18,7 @@ import {
 } from '../api/connections';
 import { selectServer, useSelectedServerId } from '../state/selectedServer';
 import { EmptyState } from './EmptyState';
+import { ImportIcon, PlusIcon } from './icons/Icons';
 import { ImportReport } from './ImportReport';
 import { ServerForm } from './ServerForm';
 import { ServerRow, type ServerStatus } from './ServerRow';
@@ -134,11 +135,9 @@ export function ServerSidebar() {
   return (
     <div className="server-sidebar">
       <div className="server-toolbar">
-        <button type="button" onClick={() => setDialog({ mode: 'add' })}>
+        <button type="button" className="btn btn-sm btn-filled btn-block" onClick={() => setDialog({ mode: 'add' })}>
+          <PlusIcon size={13} />
           Add server
-        </button>
-        <button type="button" onClick={() => void importConfig()}>
-          Import SSH config
         </button>
       </div>
       {message === null ? null : <p className="form-error">{message}</p>}
@@ -147,14 +146,28 @@ export function ServerSidebar() {
       )}
       {connections.length === 0 ? <EmptyState message="No servers yet." /> : null}
       {[...groups.entries()].map(([group, items]) => (
-        <section key={group} aria-label={group === UNGROUPED ? 'Ungrouped' : `Group ${group}`}>
+        <section
+          key={group}
+          className="server-group"
+          aria-label={group === UNGROUPED ? 'Ungrouped' : `Group ${group}`}
+        >
           {group === UNGROUPED ? null : (
             <div className="group-header">
-              <strong>{group}</strong>
-              <button type="button" aria-label={`Rename group ${group}`} onClick={() => void rename(group)}>
+              <span className="group-name">{group}</span>
+              <button
+                type="button"
+                className="btn btn-xs btn-ghost"
+                aria-label={`Rename group ${group}`}
+                onClick={() => void rename(group)}
+              >
                 Rename
               </button>
-              <button type="button" aria-label={`Ungroup ${group}`} onClick={() => void ungroup(group)}>
+              <button
+                type="button"
+                className="btn btn-xs btn-ghost"
+                aria-label={`Ungroup ${group}`}
+                onClick={() => void ungroup(group)}
+              >
                 Ungroup
               </button>
             </div>
@@ -175,6 +188,12 @@ export function ServerSidebar() {
           </ul>
         </section>
       ))}
+      <div className="server-import">
+        <button type="button" className="btn btn-sm btn-filled btn-block" onClick={() => void importConfig()}>
+          <ImportIcon size={13} />
+          Import SSH config
+        </button>
+      </div>
       {dialog === null ? null : (
         <ServerForm
           title={dialog.mode === 'edit' ? 'Edit server' : 'Add server'}
