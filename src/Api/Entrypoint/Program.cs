@@ -25,6 +25,7 @@ builder.Services.AddTerminals();
 builder.Services.AddFileBrowsing();
 builder.Services.AddRemoteFileEditor(builder.Configuration);
 builder.Services.AddTransfers(builder.Configuration);
+builder.Services.AddDockerManagement();
 
 var app = builder.Build();
 await app.MigrateDatabaseAsync();
@@ -43,6 +44,7 @@ app.MapTerminalEndpoints();
 app.MapFileBrowsingEndpoints();
 app.MapEditorEndpoints();
 app.MapTransferEndpoints();
+app.MapDockerEndpoints();
 app.UseSpaHosting();
 
 app.Run();

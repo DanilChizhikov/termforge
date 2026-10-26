@@ -4,7 +4,7 @@ public static class ShellScript
 {
     public static string Wrap(string script)
     {
-        var escaped = script.Replace("'", "'\\''", StringComparison.Ordinal);
-        return $"sh -c '{escaped}'";
+        var quotedScript = ShellArgument.Quote(script);
+        return $"sh -c {quotedScript}";
     }
 }

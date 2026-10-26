@@ -6,7 +6,6 @@ public sealed class DockerProbe : ICapabilityProbe
 {
     private const string InstalledName = "Docker installed";
     private const string AccessName = "Docker access";
-    private const string NotInstalledReason = "Docker is not installed on the server.";
 
     public async Task<IReadOnlyList<CapabilityResult>> ProbeAsync(CapabilityProbeContext context, CancellationToken cancellationToken)
     {
@@ -18,8 +17,8 @@ public sealed class DockerProbe : ICapabilityProbe
 
         if (presence == ToolPresence.Missing)
         {
-            var installed = CapabilityResult.Unavailable(CapabilityIds.DockerInstalled, InstalledName, NotInstalledReason);
-            var access = CapabilityResult.Unavailable(CapabilityIds.DockerAccess, AccessName, NotInstalledReason);
+            var installed = CapabilityResult.Unavailable(CapabilityIds.DockerInstalled, InstalledName, DockerAccessMessages.NotInstalled);
+            var access = CapabilityResult.Unavailable(CapabilityIds.DockerAccess, AccessName, DockerAccessMessages.NotInstalled);
             return [installed, access];
         }
 
@@ -48,8 +47,8 @@ public sealed class DockerProbe : ICapabilityProbe
         return info.Access switch
         {
             DockerAccess.Accessible => CapabilityResult.Available(CapabilityIds.DockerAccess, AccessName, $"The Docker daemon is reachable (server version {info.Version})."),
-            DockerAccess.PermissionDenied => CapabilityResult.Unavailable(CapabilityIds.DockerAccess, AccessName, "Permission denied: the user is not in the docker group. Add the user to the docker group (then log in again) or use rootless Docker."),
-            DockerAccess.DaemonNotRunning => CapabilityResult.Unavailable(CapabilityIds.DockerAccess, AccessName, "The Docker daemon is not running or its socket is unreachable. Start the docker service on the server."),
+            DockerAccess.PermissionDenied => CapabilityResult.Unavailable(CapabilityIds.DockerAccess, AccessName, DockerAccessMessages.PermissionDenied),
+            DockerAccess.DaemonNotRunning => CapabilityResult.Unavailable(CapabilityIds.DockerAccess, AccessName, DockerAccessMessages.DaemonNotRunning),
             _ => CapabilityResult.Unknown(CapabilityIds.DockerAccess, AccessName, "Docker returned an unrecognized answer to 'docker info'."),
         };
     }
