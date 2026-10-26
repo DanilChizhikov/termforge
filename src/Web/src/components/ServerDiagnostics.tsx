@@ -7,6 +7,7 @@ import {
 } from '../api/diagnostics';
 import { useSelectedServerId } from '../state/selectedServer';
 import { EmptyState } from './EmptyState';
+import { ServerMetricsSection } from './ServerMetricsSection';
 import { RefreshIcon } from './icons/Icons';
 
 interface DiagnosticsState {
@@ -67,6 +68,7 @@ function DiagnosticsView({ serverId }: { serverId: string }) {
           Refresh
         </button>
       </div>
+      <ServerMetricsSection serverId={serverId} />
       {state.isLoading ? <p className="text-secondary">Checking server...</p> : null}
       {state.error !== null ? (
         <p role="alert" className="notice notice-danger">
