@@ -23,6 +23,7 @@ builder.Services.AddCommandHistory();
 builder.Services.AddServerMonitoring();
 builder.Services.AddTerminals();
 builder.Services.AddFileBrowsing();
+builder.Services.AddFileSearch();
 builder.Services.AddRemoteFileEditor(builder.Configuration);
 builder.Services.AddTransfers(builder.Configuration);
 
@@ -41,6 +42,7 @@ app.MapCommandHistoryEndpoints();
 app.MapMonitoringEndpoints();
 app.MapTerminalEndpoints();
 app.MapFileBrowsingEndpoints();
+app.MapFileSearchEndpoints();
 app.MapEditorEndpoints();
 app.MapTransferEndpoints();
 app.UseSpaHosting();

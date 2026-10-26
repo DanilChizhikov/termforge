@@ -76,6 +76,22 @@ export class ApiClient {
     return this.request<T>('DELETE', path);
   }
 
+  async openStream(path: string, signal: AbortSignal): Promise<Response> {
+    assertApiPath(path);
+    const response = await this.fetchImpl(path, {
+      method: 'GET',
+      credentials: 'same-origin',
+      headers: { Accept: 'application/x-ndjson, application/json' },
+      signal,
+    });
+    if (!response.ok) {
+      const payload = await readBody(response);
+      this.handleFailure(response.status);
+      throw new ApiError(response.status, payload);
+    }
+    return response;
+  }
+
   async request<T>(method: HttpMethod, path: string, body?: unknown): Promise<T> {
     assertApiPath(path);
     const isUnsafe = UNSAFE_METHODS.has(method);

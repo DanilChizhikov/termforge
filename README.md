@@ -120,6 +120,10 @@ The upper region holds xterm.js terminal tabs grouped by server. "New terminal" 
 
 The lower region has a local pane and a remote (SFTP) pane with navigation, breadcrumbs, sorting, selection, new folder, rename and delete with confirmation. Paths with `..` segments are rejected. See `docs/file-browsing.md`.
 
+## Filename search
+
+The search button in each file pane searches names (glob with `*` and `?`, case-insensitive) below the current folder with depth, result and time limits. Results stream in as they are found, Stop cancels the search, and a search stopped by a limit or with unreadable folders is marked partial. Remote search uses SFTP traversal by default or `find` on the server when available, with an explicit fallback notice. See `docs/decisions/filename-search.md`.
+
 ## Transfers
 
 Select files or folders and use Upload or Download, or drag them between the local and remote panes. Transfers run through a queue (`Transfers:MaxParallelTransfers`, default 2, max 8) and are recorded in the operation journal. The transfer panel under the file panes shows live progress, rate and remaining time, and offers Cancel, Retry/Resume for retryable failures and Discard partial. Data is written to a hidden `.part` file next to the target and renamed on success; an existing target is replaced only after an explicit Overwrite decision. See `docs/decisions/transfer-queue.md`.
