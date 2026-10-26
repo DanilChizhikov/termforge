@@ -1,9 +1,12 @@
+using DTech.Core.CommandHistory;
 using DTech.Core.Operations;
+using DTech.Persistence.CommandHistory;
 using DTech.Persistence.Database;
 using DTech.Persistence.Operations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 namespace DTech.Persistence;
@@ -17,7 +20,10 @@ public static class PersistenceServiceCollectionExtensions
         services.AddSingleton<DatabasePathResolver>();
         services.AddSingleton<DatabaseMigrator>();
         services.AddDbContext<TermForgeDbContext>(ConfigureContext);
+        services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<IOperationRepository, OperationRepository>();
+        services.AddScoped<ICommandHistoryRepository, CommandHistoryRepository>();
+        services.AddScoped<ICommandExclusionPatternStore, CommandExclusionPatternStore>();
         return services;
     }
 

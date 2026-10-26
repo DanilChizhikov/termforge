@@ -19,6 +19,7 @@ builder.Services.AddUpdateCheck(builder.Configuration);
 builder.Services.AddHostKeys(builder.Configuration);
 builder.Services.AddSavedConnections();
 builder.Services.AddCapabilityDiagnostics();
+builder.Services.AddCommandHistory();
 builder.Services.AddTerminals();
 builder.Services.AddFileBrowsing();
 
@@ -33,6 +34,7 @@ app.MapUpdateEndpoints();
 app.MapSavedConnectionEndpoints();
 app.MapHostKeyEndpoints();
 app.MapDiagnosticsEndpoints();
+app.MapCommandHistoryEndpoints();
 app.MapTerminalEndpoints();
 app.MapFileBrowsingEndpoints();
 app.UseSpaHosting();

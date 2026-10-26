@@ -1,3 +1,4 @@
+using DTech.Core.Reconnect;
 using DTech.Core.SavedConnections;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -24,6 +25,10 @@ internal sealed class SavedConnectionConfiguration : IEntityTypeConfiguration<Sa
         builder.Property(connection => connection.AuthMethod).HasConversion<string>().HasMaxLength(MaxAuthMethodLength).IsRequired();
         builder.Property(connection => connection.PrivateKeyPath).HasMaxLength(SavedConnectionValidator.MaxTextLength);
         builder.Property(connection => connection.SshAlias).HasMaxLength(SavedConnectionValidator.MaxTextLength);
+        builder.Property(connection => connection.ReconnectMode).HasConversion<string>().HasMaxLength(MaxAuthMethodLength).HasDefaultValue(ReconnectPolicy.Default.Mode).ValueGeneratedNever().IsRequired();
+        builder.Property(connection => connection.ReconnectMaxAttempts).HasDefaultValue(ReconnectPolicy.Default.MaxAttempts).IsRequired();
+        builder.Property(connection => connection.ReconnectInitialDelaySeconds).HasDefaultValue(ReconnectPolicy.Default.InitialDelaySeconds).IsRequired();
+        builder.Property(connection => connection.ReconnectMaxDelaySeconds).HasDefaultValue(ReconnectPolicy.Default.MaxDelaySeconds).IsRequired();
         builder.Property(connection => connection.CreatedAt).IsRequired();
         builder.Property(connection => connection.UpdatedAt).IsRequired();
         builder.HasOne<SavedConnectionEntity>()

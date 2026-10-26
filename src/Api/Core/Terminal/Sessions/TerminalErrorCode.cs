@@ -8,4 +8,6 @@ public enum TerminalErrorCode
     SessionLimitReached,
     ShuttingDown,
     ConnectionFailed,
+    ReconnectDisabled,
+    ReconnectFailed,
 }
