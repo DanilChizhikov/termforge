@@ -2,12 +2,14 @@ import { Group, Separator } from 'react-resizable-panels';
 import { CollapsibleRegion } from './components/CollapsibleRegion';
 import { EmptyState } from './components/EmptyState';
 import { SessionBanner } from './components/SessionBanner';
+import { UpdateNotice } from './components/UpdateNotice';
 import { WorkspaceTabs } from './components/WorkspaceTabs';
 
 export function App() {
   return (
     <div className="app">
       <SessionBanner />
+      <UpdateNotice />
       <Group orientation="horizontal" id="app-layout" className="group">
         <CollapsibleRegion id="servers" title="Servers" defaultSize="20%" minSize="10%">
           <EmptyState message="No servers yet." />
