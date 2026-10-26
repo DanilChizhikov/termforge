@@ -10,6 +10,7 @@ using NSubstitute;
 namespace DTech.Ssh.IntegrationTests;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class ConnectionTesterTests
 {
     private const string WrongPassword = "wrong-secret-value";
