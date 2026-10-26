@@ -1,7 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.10" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.10" />
     <PackageReference Include="Testcontainers" Version="4.16.0" />
   </ItemGroup>
 
@@ -11,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../Infrastructure/Ssh/Ssh.csproj" />
+    <ProjectReference Include="../../Infrastructure/HostKeys/HostKeys.csproj" />
   </ItemGroup>
 
 </Project>

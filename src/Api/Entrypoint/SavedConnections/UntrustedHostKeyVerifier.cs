@@ -4,8 +4,8 @@ namespace DTech.Entrypoint.SavedConnections;
 
 public sealed class UntrustedHostKeyVerifier : IHostKeyVerifier
 {
-    public HostKeyTrustDecision Verify(HostKeyVerificationRequest request)
+    public HostKeyVerification Verify(HostKeyVerificationRequest request)
     {
-        return HostKeyTrustDecision.Reject;
+        return new HostKeyVerification(HostKeyStatus.Unknown, []);
     }
 }

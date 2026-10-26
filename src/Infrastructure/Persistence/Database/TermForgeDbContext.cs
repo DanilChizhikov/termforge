@@ -1,4 +1,5 @@
 using DTech.Core.Operations;
+using DTech.Persistence.HostKeys;
 using DTech.Persistence.Settings;
 using DTech.Persistence.Time;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +16,8 @@ public sealed class TermForgeDbContext : DbContext
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
 
     public DbSet<Operation> Operations => Set<Operation>();
+
+    public DbSet<TrustedHostKeyRecord> TrustedHostKeys => Set<TrustedHostKeyRecord>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
