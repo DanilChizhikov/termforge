@@ -233,3 +233,7 @@ With `NetworkAccess:AllowInsecureHttp=true` it starts, logs a `Critical` "INSECU
 ## Logging
 
 Never log secrets: bootstrap token, session token, CSRF token, passwords, password hashes, keys, terminal output. Sign-in attempts are logged with the client address only. Request logging must not include request bodies or cookie headers. The ASP.NET Core request log contains the URL without the fragment, which is why the bootstrap token travels in the fragment.
+
+## Terminal recordings
+
+Terminal output is written to disk only when the user turns on "Record terminal output" in Settings and then starts a recording for a specific terminal; both steps warn that recordings may contain secrets. Keystrokes are never recorded. Recordings are plain asciicast files in the app data directory (directory 0700, files 0600 on Unix), limited in size, count and age, and can be deleted from Settings. See `docs/decisions/terminal-recording.md`.
