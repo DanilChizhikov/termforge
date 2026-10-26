@@ -2,7 +2,7 @@ using DTech.Core.SavedConnections;
 
 namespace DTech.Core.Terminal.Sessions;
 
-public sealed class TerminalLauncher(ISavedConnectionRepository repository, ConnectionTargetFactory targetFactory, TerminalSessionManager sessionManager)
+public sealed class TerminalLauncher(ISavedConnectionRepository repository, ConnectionTargetFactory targetFactory, TerminalSessionManager sessionManager) : ITerminalLauncher
 {
     public async Task<TerminalResult<ManagedTerminalSession>> LaunchAsync(TerminalLaunchRequest request, CancellationToken cancellationToken)
     {

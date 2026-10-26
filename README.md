@@ -114,7 +114,7 @@ Host keys are checked on every SSH connection against `~/.ssh/known_hosts` (read
 
 ## Terminals
 
-The upper region holds xterm.js terminal tabs grouped by server. "New terminal" opens an SSH PTY session on the selected server; each tab shows the server name, session number and state (connecting, connected, disconnected with reason). Sessions are bound to the browser session and closed when the tab or socket closes, the remote shell exits, or TermForge shuts down. There is no automatic reconnect. See `docs/decisions/interactive-terminal.md`.
+The upper region holds xterm.js terminal tabs grouped by server. "New terminal" opens an SSH PTY session on the selected server; each tab shows the server name, session number and state (connecting, connected, disconnected with reason). Sessions are bound to the browser session and closed when the tab or socket closes, the remote shell exits, or TermForge shuts down. Reconnect behavior and the command history panel are described in `docs/reconnect-and-command-history.md`. See `docs/decisions/interactive-terminal.md`.
 
 ## File browsing
 

@@ -24,6 +24,14 @@ public sealed class SavedConnectionRequest
 
     public string? Password { get; set; }
 
+    public string? ReconnectMode { get; set; }
+
+    public int? ReconnectMaxAttempts { get; set; }
+
+    public int? ReconnectInitialDelaySeconds { get; set; }
+
+    public int? ReconnectMaxDelaySeconds { get; set; }
+
     public override string ToString()
     {
         return $"{nameof(SavedConnectionRequest)} {{ {nameof(Name)} = {Name}, {nameof(Password)} = {Secret.Redacted} }}";

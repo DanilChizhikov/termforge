@@ -16,6 +16,7 @@ internal static class TerminalOutputRelay
             {
                 var output = buffer.AsMemory(0, readLength);
                 await context.Writer.SendOutputAsync(output, cancellationToken);
+                await CaptureAsync(context, output, cancellationToken);
                 readLength = await context.Session.ReadAsync(buffer, cancellationToken);
             }
 
@@ -24,6 +25,16 @@ internal static class TerminalOutputRelay
         catch (Exception exception) when (exception is WebSocketException or OperationCanceledException or ObjectDisposedException)
         {
             return TerminalRelayOutcome.BrowserDisconnected;
+        }
+    }
+
+    private static async Task CaptureAsync(TerminalRelayContext context, ReadOnlyMemory<byte> output, CancellationToken cancellationToken)
+    {
+        var recorded = await context.Capture.ObserveAsync(output, cancellationToken);
+        if (recorded > 0)
+        {
+            var changed = TerminalServerMessage.HistoryChanged();
+            await context.Writer.SendMessageAsync(changed, cancellationToken);
         }
     }
 }

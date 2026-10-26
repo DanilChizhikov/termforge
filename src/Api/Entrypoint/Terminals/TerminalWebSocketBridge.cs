@@ -1,9 +1,10 @@
 using System.Net.WebSockets;
+using DTech.Core.CommandHistory;
 using DTech.Core.Terminal.Sessions;
 
 namespace DTech.Entrypoint.Terminals;
 
-internal sealed class TerminalWebSocketBridge(TerminalSessionManager sessionManager, ILogger<TerminalWebSocketBridge> logger)
+internal sealed class TerminalWebSocketBridge(TerminalSessionManager sessionManager, CommandCaptureSessionFactory captureFactory, ILogger<TerminalWebSocketBridge> logger)
 {
     private static readonly TimeSpan CloseHandshakeTimeout = TimeSpan.FromSeconds(2);
 
@@ -11,7 +12,8 @@ internal sealed class TerminalWebSocketBridge(TerminalSessionManager sessionMana
     {
         using var writer = new TerminalSocketWriter(webSocket);
         using var relayStop = CancellationTokenSource.CreateLinkedTokenSource(requestAborted);
-        var context = new TerminalRelayContext(webSocket, session, writer);
+        var capture = captureFactory.Create(session.Descriptor.ConnectionId);
+        var context = new TerminalRelayContext(webSocket, session, writer, capture);
         var connected = TerminalServerMessage.Connected();
         await TrySendAsync(writer, connected, relayStop.Token);
 
@@ -30,6 +32,7 @@ internal sealed class TerminalWebSocketBridge(TerminalSessionManager sessionMana
 
         await TryCloseAsync(writer, relayStop.Token);
         await Task.WhenAll(outputRelay, inputRelay);
+        await capture.CompleteAsync(CancellationToken.None);
         var descriptor = session.Descriptor;
         logger.LogInformation($"Terminal {descriptor.SessionNumber} of {descriptor.ConnectionName} closed: {session.CloseReason}");
     }

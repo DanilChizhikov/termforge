@@ -26,6 +26,14 @@ public sealed class SavedConnectionResponse
 
     public bool HasPassword { get; init; }
 
+    public required string ReconnectMode { get; init; }
+
+    public int ReconnectMaxAttempts { get; init; }
+
+    public int ReconnectInitialDelaySeconds { get; init; }
+
+    public int ReconnectMaxDelaySeconds { get; init; }
+
     public DateTime? LastConnectedAt { get; init; }
 
     public static SavedConnectionResponse From(SavedConnection connection)
@@ -44,6 +52,10 @@ public sealed class SavedConnectionResponse
             JumpHostId = details.JumpHostId,
             SshAlias = details.SshAlias,
             HasPassword = connection.HasPassword,
+            ReconnectMode = details.ReconnectPolicy.Mode.ToString(),
+            ReconnectMaxAttempts = details.ReconnectPolicy.MaxAttempts,
+            ReconnectInitialDelaySeconds = details.ReconnectPolicy.InitialDelaySeconds,
+            ReconnectMaxDelaySeconds = details.ReconnectPolicy.MaxDelaySeconds,
             LastConnectedAt = connection.LastConnectedAt,
         };
     }

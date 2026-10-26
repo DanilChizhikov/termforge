@@ -4,6 +4,7 @@ internal sealed record TerminalServerMessage(string Type)
 {
     public const string StatusType = "status";
     public const string ErrorType = "error";
+    public const string HistoryType = "history";
     public const string ConnectedState = "connected";
     public const string DisconnectedState = "disconnected";
 
@@ -21,6 +22,11 @@ internal sealed record TerminalServerMessage(string Type)
     public static TerminalServerMessage Disconnected(string reason)
     {
         return new TerminalServerMessage(StatusType) { State = DisconnectedState, Reason = reason };
+    }
+
+    public static TerminalServerMessage HistoryChanged()
+    {
+        return new TerminalServerMessage(HistoryType);
     }
 
     public static TerminalServerMessage Error(string message)
