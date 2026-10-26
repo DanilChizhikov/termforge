@@ -116,6 +116,10 @@ The upper region holds xterm.js terminal tabs grouped by server. "New terminal" 
 
 The lower region has a local pane and a remote (SFTP) pane with navigation, breadcrumbs, sorting, selection, new folder, rename and delete with confirmation. Paths with `..` segments are rejected. See `docs/file-browsing.md`.
 
+## Remote file editor
+
+Double-click a remote file (or select it and press Edit) to open it in the Editor tab: Monaco with syntax highlighting, several files at once, unsaved markers, ⌘S/Ctrl+S, a diff view and the list of backups with compare and roll back. Saving checks that the file did not change since it was opened (mtime, size and SHA-256), backs up the original, writes a temporary file and atomically renames it into place, keeping permissions. A changed file is never overwritten without an explicit choice. Saves are recorded in the journal. Limits are set by `Editor:MaxFileBytes` and `Editor:MaxBackupsPerFile`. See `docs/decisions/remote-file-editor.md`.
+
 ## Credentials
 
 Secrets are stored in the OS credential store (Windows Credential Manager, macOS Keychain, Linux Secret Service). When that store is unavailable, they are stored in an encrypted vault file instead, which is unlocked with a master password through `POST /api/credentials/vault/unlock`. Like every `/api` endpoint, it requires the browser session and CSRF token described in `docs/security.md`. `GET /api/credentials/status` shows which backend is active and why. Usage, configuration and troubleshooting are in `docs/credentials.md`. The design is in `docs/decisions/0002-credential-store.md`.
