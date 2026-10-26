@@ -1,0 +1,79 @@
+:root {
+  color-scheme: dark;
+
+  --surface-backdrop: #060708;
+  --surface-terminal: #08090b;
+  --surface-canvas: #0b0c0e;
+  --surface-chrome: #0e1013;
+  --surface-card: #121417;
+  --surface-raised: #15181c;
+  --surface-control: #181b1f;
+  --surface-selected: #1e2227;
+  --surface-badge: #22262c;
+  --surface-track: #262a30;
+  --surface-disabled: #2a2f36;
+  --surface-overlay: rgb(6 7 8 / 72%);
+
+  --border-faint: #1c1f24;
+  --border-subtle: #24282e;
+  --border-default: #2c3138;
+  --border-strong: #343a42;
+  --border-control: #3a3f46;
+
+  --text-primary: #eceae6;
+  --text-soft: #c9cdd3;
+  --text-secondary: #a9aeb6;
+  --text-muted: #858b94;
+  --text-idle: #6b717a;
+  --text-inverse: #0b0c0e;
+
+  --accent: #ff8a3d;
+  --accent-hover: #ff9a52;
+  --accent-text: #ffb27f;
+  --accent-on: #1b0e05;
+  --accent-soft: rgb(255 138 61 / 12%);
+  --accent-faint: rgb(255 138 61 / 6%);
+  --link: #ff9a52;
+  --link-hover: #ffb47e;
+
+  --status-ok: #46c08a;
+  --status-ok-text: #7fd8ae;
+  --status-caution: #e9b949;
+  --status-caution-soft: rgb(233 185 73 / 12%);
+  --status-caution-border: #5a4a22;
+  --status-danger: #ff6b5e;
+  --status-danger-text: #ff8a80;
+  --status-danger-soft: rgb(255 107 94 / 7%);
+  --status-danger-badge: rgb(255 107 94 / 14%);
+  --status-danger-border: rgb(255 107 94 / 30%);
+  --status-destructive: #e5554a;
+  --status-destructive-hover: #f0645a;
+  --status-on-destructive: #ffffff;
+  --status-info: #6fa8ff;
+  --status-info-text: #9cc3ff;
+  --status-info-soft: rgb(111 168 255 / 12%);
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 7px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-pill: 999px;
+
+  --font-ui: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  --text-page-title: 22px;
+  --text-dialog-title: 17px;
+  --text-brand: 14px;
+  --text-body: 13px;
+  --text-dense: 12.5px;
+  --text-small: 12px;
+  --text-caption: 11.5px;
+  --text-label: 11px;
+  --text-badge: 10.5px;
+  --text-mono: 12.5px;
+  --text-fingerprint: 14px;
+
+  --shadow-dialog: 0 30px 80px rgb(0 0 0 / 60%);
+}
