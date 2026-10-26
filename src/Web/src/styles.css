@@ -41,3 +41,6 @@ body { font-family: sans-serif; font-size: 14px; }
 .dialog form { background: #fff; border: 1px solid #666; padding: 12px; display: flex; flex-direction: column; gap: 6px; min-width: 280px; }
 .dialog label { display: flex; flex-direction: column; }
 .dialog-actions { display: flex; gap: 6px; }
+.host-key-backdrop { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.5); z-index: 100; }
+.host-key-dialog { max-width: 640px; padding: 16px; background: #fff; color: #000; border: 1px solid #000; }
+.host-key-warning, .host-key-error { color: #b00020; font-weight: bold; }
