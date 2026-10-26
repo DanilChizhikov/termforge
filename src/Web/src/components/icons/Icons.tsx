@@ -249,3 +249,12 @@ export function ArrowLeftIcon({ size = 14 }: IconProps) {
     </IconFrame>
   );
 }
+
+export function SearchIcon({ size = 14 }: IconProps) {
+  return (
+    <IconFrame size={size} strokeWidth={2}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-3.5-3.5" />
+    </IconFrame>
+  );
+}

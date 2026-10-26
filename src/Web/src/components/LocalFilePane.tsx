@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createLocalSource, getLocalRoots, type LocalRoot } from '../api/files';
+import { createLocalSearch } from '../api/fileSearch';
 import { setLocalPath, useLocalPath } from '../state/filePaths';
 import { FilePane } from './FilePane';
 import { useFinishedTransferCount, useLocalPaneTransfer } from './useTransferTargets';
@@ -7,6 +8,7 @@ import { useFinishedTransferCount, useLocalPaneTransfer } from './useTransferTar
 export function LocalFilePane() {
   const path = useLocalPath();
   const source = useMemo(() => createLocalSource(), []);
+  const search = useMemo(() => createLocalSearch(), []);
   const [roots, setRoots] = useState<LocalRoot[]>([]);
   const transfer = useLocalPaneTransfer();
   const finishedDownloads = useFinishedTransferCount('download', null);
@@ -35,6 +37,7 @@ export function LocalFilePane() {
       roots={roots}
       transfer={transfer}
       refreshToken={finishedDownloads}
+      search={search}
     />
   );
 }

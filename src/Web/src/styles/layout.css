@@ -1227,3 +1227,144 @@
     display: none;
   }
 }
+
+.file-search-toggle {
+  margin-left: auto;
+  border-color: var(--border-default);
+}
+
+.file-search-toggle[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.file-search-toggle + .file-transfer-button {
+  margin-left: 0;
+}
+
+.file-search {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  padding: 0 10px 8px;
+  border-top: 1px solid var(--border-faint);
+}
+
+.file-search-form {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.file-search-pattern {
+  flex: 1 1 160px;
+}
+
+.file-search-limit {
+  flex: 0 0 84px;
+}
+
+.file-search-method {
+  flex: 0 0 140px;
+}
+
+.file-search-scope,
+.file-search-status {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-small);
+}
+
+.file-search-scope code {
+  color: var(--text-soft);
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  overflow-wrap: anywhere;
+}
+
+.file-search-status:empty {
+  display: none;
+}
+
+.file-search-status .status-text {
+  white-space: normal;
+}
+
+.file-search-notice {
+  flex: none;
+}
+
+.file-search-warnings {
+  flex: none;
+  color: var(--text-secondary);
+  font-size: var(--text-small);
+}
+
+.file-search-warnings summary {
+  cursor: pointer;
+  color: var(--status-caution);
+}
+
+.file-search-warnings ul {
+  max-height: 120px;
+  margin: 4px 0 0;
+  padding-left: 16px;
+  overflow: auto;
+}
+
+.file-search-warnings code {
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.file-search-results {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.file-search-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.file-search-result:hover {
+  background: var(--surface-raised);
+}
+
+.file-search-result-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.file-search-result-name,
+.file-search-result-path {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-search-result-name {
+  color: var(--text-primary);
+  font-size: var(--text-mono);
+}
+
+.file-search-result-path {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+}

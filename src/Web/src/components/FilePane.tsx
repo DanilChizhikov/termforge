@@ -10,10 +10,12 @@ import {
   type SortDirection,
   type SortKey,
 } from '../api/files';
+import type { FileSearchMatch, FileSearchSource } from '../api/fileSearch';
 import { EmptyState } from './EmptyState';
 import { FileBreadcrumbs } from './FileBreadcrumbs';
+import { FileSearchPanel } from './FileSearchPanel';
 import { FileTable } from './FileTable';
-import { ArrowUpIcon, FileIcon, PlusIcon, RefreshIcon } from './icons/Icons';
+import { ArrowUpIcon, FileIcon, PlusIcon, RefreshIcon, SearchIcon } from './icons/Icons';
 import { hasDraggedPaths, readDraggedPaths, writeDraggedPaths, type FilePaneTransfer } from './filePaneTransfer';
 
 export interface FilePaneProps {
@@ -26,6 +28,7 @@ export interface FilePaneProps {
   onOpenFile?: (entry: FileEntry) => void;
   transfer?: FilePaneTransfer;
   refreshToken?: number;
+  search?: FileSearchSource;
 }
 
 interface LoadState {
@@ -46,7 +49,7 @@ type PaneAction =
 
 const NO_SELECTION: ReadonlySet<string> = new Set();
 
-export function FilePane({ title, sourceKey, source, path, onPathChange, roots, onOpenFile, transfer, refreshToken = 0 }: FilePaneProps) {
+export function FilePane({ title, sourceKey, source, path, onPathChange, roots, onOpenFile, transfer, refreshToken = 0, search }: FilePaneProps) {
   const [loadState, setLoadState] = useState<LoadState | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [selection, setSelection] = useState<Selection | null>(null);
@@ -56,6 +59,7 @@ export function FilePane({ title, sourceKey, source, path, onPathChange, roots, 
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [dropActive, setDropActive] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const requestKey = `${sourceKey}|${path ?? ''}|${reloadToken}|${refreshToken}`;
 
@@ -93,11 +97,19 @@ export function FilePane({ title, sourceKey, source, path, onPathChange, roots, 
     [listing, sortKey, sortDirection],
   );
   const selectedEntries = entries.filter((entry) => selectedPaths.has(entry.path));
+  const showSearch = searchOpen && search !== undefined && currentPath !== null;
 
   function navigate(target: string): void {
     setAction(null);
     setActionError(null);
     onPathChange(target);
+  }
+
+  function openSearchLocation(match: FileSearchMatch): void {
+    const locationKey = `${sourceKey}|${match.parentPath}|${reloadToken}|${refreshToken}`;
+    setSelection({ key: locationKey, paths: new Set([match.entry.path]) });
+    setSearchOpen(false);
+    navigate(match.parentPath);
   }
 
   function refresh(): void {
@@ -294,6 +306,19 @@ export function FilePane({ title, sourceKey, source, path, onPathChange, roots, 
         >
           Delete
         </button>
+        {search !== undefined && (
+          <button
+            type="button"
+            className="icon-btn file-search-toggle"
+            aria-label={searchOpen ? 'Close file search' : 'Search files'}
+            aria-pressed={searchOpen}
+            title={searchOpen ? 'Close file search' : 'Search files'}
+            disabled={currentPath === null}
+            onClick={() => setSearchOpen((open) => !open)}
+          >
+            <SearchIcon size={14} />
+          </button>
+        )}
         {transfer !== undefined && (
           <button
             type="button"
@@ -369,9 +394,12 @@ export function FilePane({ title, sourceKey, source, path, onPathChange, roots, 
           </div>
         </div>
       )}
-      {loading && <EmptyState message="Loading..." />}
-      {listing !== null && entries.length === 0 && <EmptyState message="This folder is empty." />}
-      {listing !== null && entries.length > 0 && (
+      {showSearch && (
+        <FileSearchPanel title={title} search={search} rootPath={currentPath} onOpenLocation={openSearchLocation} />
+      )}
+      {!showSearch && loading && <EmptyState message="Loading..." />}
+      {!showSearch && listing !== null && entries.length === 0 && <EmptyState message="This folder is empty." />}
+      {!showSearch && listing !== null && entries.length > 0 && (
         <div className="file-table-scroll">
           <FileTable
             entries={entries}
