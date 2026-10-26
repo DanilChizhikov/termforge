@@ -52,7 +52,7 @@ public sealed class ConnectionTesterTests
 
         var result = await TestAsync(connection, SshTransportTestServices.CreatePinnedVerifier(cluster.Target.Identity.HostKey));
 
-        result.State.Should().Be(ConnectionTestState.AuthenticationFailed);
+        result.State.Should().Be(ConnectionTestState.AuthenticationFailed, result.Detail);
         result.Message.Should().Contain("Authentication failed");
         $"{result.Message}{result.Detail}".Should().NotContain(WrongPassword);
         _connections.Single().LastConnectedAt.Should().BeNull();
@@ -66,7 +66,7 @@ public sealed class ConnectionTesterTests
 
         var result = await TestAsync(connection, SshTransportTestServices.CreatePinnedVerifier(cluster.Target.Identity.HostKey));
 
-        result.State.Should().Be(ConnectionTestState.AuthenticationFailed);
+        result.State.Should().Be(ConnectionTestState.AuthenticationFailed, result.Detail);
     }
 
     [TestMethod]
@@ -77,7 +77,7 @@ public sealed class ConnectionTesterTests
 
         var result = await TestAsync(connection, SshTransportTestServices.CreateRejectingVerifier());
 
-        result.State.Should().Be(ConnectionTestState.HostKeyRejected);
+        result.State.Should().Be(ConnectionTestState.HostKeyRejected, result.Detail);
         result.Message.Should().Contain("not trusted");
     }
 
