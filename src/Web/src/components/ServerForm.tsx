@@ -2,8 +2,10 @@ import { useState, type FormEvent } from 'react';
 import {
   AUTH_METHODS,
   describeError,
+  RECONNECT_MODES,
   type AuthMethod,
   type ConnectionInput,
+  type ReconnectMode,
   type SavedConnection,
 } from '../api/connections';
 
@@ -16,6 +18,12 @@ export interface ServerFormProps {
   onSubmit: (input: ConnectionInput) => Promise<void>;
   onCancel: () => void;
 }
+
+const RECONNECT_MODE_LABELS: Record<ReconnectMode, string> = {
+  Manual: 'Ask me (show a Reconnect button)',
+  Automatic: 'Reconnect automatically',
+  Off: 'Don’t reconnect',
+};
 
 export function ServerForm({
   title,
@@ -130,6 +138,60 @@ export function ServerForm({
                   ))}
                 </select>
               </label>
+              <label className="field span-4">
+                <span className="field-label">If the connection drops</span>
+                <select
+                  className="input"
+                  value={input.reconnectMode}
+                  onChange={(event) => update('reconnectMode', event.target.value as ReconnectMode)}
+                >
+                  {RECONNECT_MODES.map((mode) => (
+                    <option key={mode} value={mode}>
+                      {RECONNECT_MODE_LABELS[mode]}
+                    </option>
+                  ))}
+                </select>
+                <span className="field-hint">
+                  After reconnecting, TermForge opens a fresh shell and never re-runs the command that was running.
+                </span>
+              </label>
+              {input.reconnectMode === 'Automatic' ? (
+                <>
+                  <label className="field span-2">
+                    <span className="field-label">Attempts before giving up</span>
+                    <input
+                      className="input input-mono"
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={input.reconnectMaxAttempts}
+                      onChange={(event) => update('reconnectMaxAttempts', Number(event.target.value))}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field-label">First wait (s)</span>
+                    <input
+                      className="input input-mono"
+                      type="number"
+                      min={1}
+                      max={3600}
+                      value={input.reconnectInitialDelaySeconds}
+                      onChange={(event) => update('reconnectInitialDelaySeconds', Number(event.target.value))}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field-label">Longest wait (s)</span>
+                    <input
+                      className="input input-mono"
+                      type="number"
+                      min={1}
+                      max={3600}
+                      value={input.reconnectMaxDelaySeconds}
+                      onChange={(event) => update('reconnectMaxDelaySeconds', Number(event.target.value))}
+                    />
+                  </label>
+                </>
+              ) : null}
               {input.authMethod === 'KeyFile' ? (
                 <label className="field span-4">
                   <span className="field-label">Private key file</span>

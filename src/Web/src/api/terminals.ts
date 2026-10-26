@@ -19,7 +19,8 @@ export type TerminalState = 'connecting' | 'connected' | 'disconnected';
 export type TerminalServerMessage =
   | { type: 'status'; state: 'connected' }
   | { type: 'status'; state: 'disconnected'; reason: string | null }
-  | { type: 'error'; message: string };
+  | { type: 'error'; message: string }
+  | { type: 'history' };
 
 const TERMINALS_PATH = '/api/terminals';
 
@@ -29,6 +30,23 @@ export function openTerminal(
   client: ApiClient = apiClient,
 ): Promise<TerminalSession> {
   return client.post<TerminalSession>(TERMINALS_PATH, {
+    connectionId,
+    columns: size.columns,
+    rows: size.rows,
+  });
+}
+
+export interface ReconnectedTerminal {
+  session: TerminalSession;
+  attempts: number;
+}
+
+export function reconnectTerminal(
+  connectionId: string,
+  size: TerminalSize,
+  client: ApiClient = apiClient,
+): Promise<ReconnectedTerminal> {
+  return client.post<ReconnectedTerminal>(`${TERMINALS_PATH}/reconnect`, {
     connectionId,
     columns: size.columns,
     rows: size.rows,
@@ -61,6 +79,9 @@ export function parseServerMessage(text: string): TerminalServerMessage | null {
   const message = parsed as Record<string, unknown>;
   if (message['type'] === 'error' && typeof message['message'] === 'string') {
     return { type: 'error', message: message['message'] };
+  }
+  if (message['type'] === 'history') {
+    return { type: 'history' };
   }
   if (message['type'] !== 'status') {
     return null;

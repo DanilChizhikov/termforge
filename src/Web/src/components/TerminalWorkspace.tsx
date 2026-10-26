@@ -1,4 +1,4 @@
-import { useReducer, useState } from 'react';
+import { useReducer, useRef, useState } from 'react';
 import { closeTerminal } from '../api/terminals';
 import { useSelectedServerId } from '../state/selectedServer';
 import {
@@ -9,8 +9,10 @@ import {
   type TerminalTab,
 } from '../state/terminalTabs';
 import { EmptyState } from './EmptyState';
-import { CloseIcon, PlusIcon } from './icons/Icons';
-import { TerminalView } from './TerminalView';
+import { CloseIcon, ListIcon, PlusIcon } from './icons/Icons';
+import { CommandHistoryPanel } from './CommandHistoryPanel';
+import { ReconnectBar } from './ReconnectBar';
+import { TerminalView, type TerminalHandle } from './TerminalView';
 
 const STATE_LABELS = {
   connecting: 'connecting',
@@ -37,6 +39,27 @@ export function TerminalWorkspace() {
   const [tabs, dispatch] = useReducer(terminalTabsReducer, []);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const visibleKey = tabs.some((tab) => tab.key === activeKey) ? activeKey : (tabs[0]?.key ?? null);
+  const [historyOpen, setHistoryOpen] = useState(true);
+  const [historyVersion, setHistoryVersion] = useState(0);
+  const handles = useRef(new Map<string, TerminalHandle>());
+  const visibleTab = tabs.find((tab) => tab.key === visibleKey) ?? null;
+
+  const registerHandle = (key: string) => (handle: TerminalHandle | null) => {
+    if (handle === null) {
+      handles.current.delete(key);
+      return undefined;
+    }
+    handles.current.set(key, handle);
+    return () => {
+      handles.current.delete(key);
+    };
+  };
+
+  const insertIntoActiveTerminal = (text: string) => {
+    if (visibleKey !== null) {
+      handles.current.get(visibleKey)?.insertText(text);
+    }
+  };
 
   const openTab = () => {
     if (selectedServerId === null) {
@@ -97,6 +120,12 @@ export function TerminalWorkspace() {
         )}
         {selectedServerId === null ? <span className="terminal-hint">Select a server to open a terminal.</span> : null}
         <span className="terminal-bar-spacer" />
+        {historyOpen || visibleTab === null ? null : (
+          <button type="button" className="btn btn-sm" onClick={() => setHistoryOpen(true)}>
+            <ListIcon size={13} />
+            History
+          </button>
+        )}
         <button
           type="button"
           className="btn btn-sm btn-filled"
@@ -108,6 +137,8 @@ export function TerminalWorkspace() {
         </button>
       </div>
       {tabs.length === 0 ? <EmptyState message="No terminal sessions. Connect to a server to open one." /> : null}
+      <div className="terminal-body">
+      <div className="terminal-stack">
       {tabs.map((tab) => (
         <div
           key={tab.key}
@@ -118,19 +149,39 @@ export function TerminalWorkspace() {
           className="terminal-panel"
         >
           {tab.state === 'disconnected' ? (
-            <p role="status" className="terminal-disconnected">
-              Disconnected: {tab.reason}
-            </p>
+            <ReconnectBar
+              connectionId={tab.connectionId}
+              reason={tab.reason}
+              wasConnected={tab.wasConnected}
+              onReconnect={() => dispatch({ type: 'reconnect', key: tab.key })}
+            />
           ) : null}
-          {tab.state === 'connecting' ? <p className="terminal-connecting">Connecting…</p> : null}
+          {tab.state === 'connecting' ? (
+            <p className="terminal-connecting">{tab.reconnecting ? 'Reconnecting…' : 'Connecting…'}</p>
+          ) : null}
           <TerminalView
             connectionId={tab.connectionId}
             active={tab.key === visibleKey}
+            generation={tab.generation}
+            reconnect={tab.reconnecting}
+            handleRef={registerHandle(tab.key)}
+            onHistoryChanged={() => setHistoryVersion((version) => version + 1)}
             onOpened={(session) => dispatch({ type: 'opened', key: tab.key, session })}
             onStateChange={(state, reason) => dispatch({ type: 'state', key: tab.key, state, reason })}
           />
         </div>
       ))}
+      </div>
+      {historyOpen && visibleTab !== null ? (
+        <CommandHistoryPanel
+          connectionId={visibleTab.connectionId}
+          connectionName={visibleTab.session?.connectionName ?? 'server'}
+          version={historyVersion}
+          onInsert={insertIntoActiveTerminal}
+          onCollapse={() => setHistoryOpen(false)}
+        />
+      ) : null}
+      </div>
     </div>
   );
 }

@@ -2,6 +2,10 @@ import { ApiError, apiClient, type ApiClient } from './client';
 
 export type AuthMethod = 'KeyFile' | 'Agent' | 'Password';
 
+export type ReconnectMode = 'Off' | 'Manual' | 'Automatic';
+
+export const RECONNECT_MODES: readonly ReconnectMode[] = ['Manual', 'Automatic', 'Off'];
+
 export const AUTH_METHODS: readonly AuthMethod[] = ['Agent', 'KeyFile', 'Password'];
 
 export interface SavedConnection {
@@ -17,6 +21,10 @@ export interface SavedConnection {
   sshAlias: string | null;
   hasPassword: boolean;
   lastConnectedAt: string | null;
+  reconnectMode: ReconnectMode;
+  reconnectMaxAttempts: number;
+  reconnectInitialDelaySeconds: number;
+  reconnectMaxDelaySeconds: number;
 }
 
 export interface ConnectionInput {
@@ -29,6 +37,10 @@ export interface ConnectionInput {
   privateKeyPath: string;
   jumpHostId: string;
   password: string;
+  reconnectMode: ReconnectMode;
+  reconnectMaxAttempts: number;
+  reconnectInitialDelaySeconds: number;
+  reconnectMaxDelaySeconds: number;
 }
 
 export type ConnectionTestState =
@@ -78,6 +90,10 @@ export function emptyInput(): ConnectionInput {
     privateKeyPath: '',
     jumpHostId: '',
     password: '',
+    reconnectMode: 'Manual',
+    reconnectMaxAttempts: 5,
+    reconnectInitialDelaySeconds: 2,
+    reconnectMaxDelaySeconds: 60,
   };
 }
 
@@ -92,6 +108,10 @@ export function inputFrom(connection: SavedConnection): ConnectionInput {
     privateKeyPath: connection.privateKeyPath ?? '',
     jumpHostId: connection.jumpHostId ?? '',
     password: '',
+    reconnectMode: connection.reconnectMode,
+    reconnectMaxAttempts: connection.reconnectMaxAttempts,
+    reconnectInitialDelaySeconds: connection.reconnectInitialDelaySeconds,
+    reconnectMaxDelaySeconds: connection.reconnectMaxDelaySeconds,
   };
 }
 
@@ -105,6 +125,10 @@ function toBody(input: ConnectionInput): Record<string, unknown> {
     authMethod: input.authMethod,
     privateKeyPath: input.authMethod === 'KeyFile' ? input.privateKeyPath : null,
     jumpHostId: input.jumpHostId === '' ? null : input.jumpHostId,
+    reconnectMode: input.reconnectMode,
+    reconnectMaxAttempts: input.reconnectMaxAttempts,
+    reconnectInitialDelaySeconds: input.reconnectInitialDelaySeconds,
+    reconnectMaxDelaySeconds: input.reconnectMaxDelaySeconds,
   };
   if (input.authMethod === 'Password' && input.password !== '') {
     body['password'] = input.password;
@@ -114,6 +138,10 @@ function toBody(input: ConnectionInput): Record<string, unknown> {
 
 export function listConnections(client: ApiClient = apiClient): Promise<SavedConnection[]> {
   return client.get<SavedConnection[]>(CONNECTIONS_PATH);
+}
+
+export function getConnection(id: string, client: ApiClient = apiClient): Promise<SavedConnection> {
+  return client.get<SavedConnection>(`${CONNECTIONS_PATH}/${id}`);
 }
 
 export function createConnection(input: ConnectionInput, client: ApiClient = apiClient): Promise<SavedConnection> {
