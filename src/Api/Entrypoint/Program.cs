@@ -12,6 +12,7 @@ builder.Services.AddOperationJournal();
 builder.Services.AddUpdateCheck(builder.Configuration);
 builder.Services.AddHostKeys(builder.Configuration);
 builder.Services.AddSavedConnections();
+builder.Services.AddCapabilityDiagnostics();
 
 var app = builder.Build();
 await app.MigrateDatabaseAsync();
@@ -23,6 +24,7 @@ app.MapOperationEndpoints();
 app.MapUpdateEndpoints();
 app.MapSavedConnectionEndpoints();
 app.MapHostKeyEndpoints();
+app.MapDiagnosticsEndpoints();
 app.UseSpaHosting();
 
 app.Run();
