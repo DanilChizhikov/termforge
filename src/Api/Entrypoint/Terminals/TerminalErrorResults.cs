@@ -25,6 +25,7 @@ internal static class TerminalErrorResults
             TerminalErrorCode.InvalidRequest => StatusCodes.Status400BadRequest,
             TerminalErrorCode.NotFound => StatusCodes.Status404NotFound,
             TerminalErrorCode.CredentialsUnavailable => StatusCodes.Status409Conflict,
+            TerminalErrorCode.ReconnectDisabled => StatusCodes.Status409Conflict,
             TerminalErrorCode.SessionLimitReached => StatusCodes.Status429TooManyRequests,
             TerminalErrorCode.ShuttingDown => StatusCodes.Status503ServiceUnavailable,
             _ => StatusCodes.Status502BadGateway,

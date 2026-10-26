@@ -104,13 +104,17 @@ The sidebar lists saved servers grouped by name, with add, edit, delete, connect
 
 The Diagnostics tab checks the selected server for command execution, SFTP, Docker (installed and accessible), sudo and common utilities, and explains what is missing. Results are cached per connection with a manual refresh. See `docs/diagnostics.md`.
 
+## Server monitoring
+
+The sidebar and the Diagnostics tab show uptime, CPU, memory and free disk space of the selected server, polled while the view is open (10, 30 or 60 seconds). A metric that cannot be collected shows the reason instead of a value. See `docs/decisions/server-monitoring.md`.
+
 ## Host keys
 
 Host keys are checked on every SSH connection against `~/.ssh/known_hosts` (read-only, never written) and keys trusted in TermForge. An unknown key pauses the connection and opens a dialog with the `SHA256:` fingerprint (accept once, accept and save, reject); a changed key is blocked and can only be replaced after a separate confirmation. Undecided prompts fail closed after `HostKeys:DecisionTimeout` (default 2 minutes). See `docs/decisions/host-key-verification.md`.
 
 ## Terminals
 
-The upper region holds xterm.js terminal tabs grouped by server. "New terminal" opens an SSH PTY session on the selected server; each tab shows the server name, session number and state (connecting, connected, disconnected with reason). Sessions are bound to the browser session and closed when the tab or socket closes, the remote shell exits, or TermForge shuts down. There is no automatic reconnect. See `docs/decisions/interactive-terminal.md`.
+The upper region holds xterm.js terminal tabs grouped by server. "New terminal" opens an SSH PTY session on the selected server; each tab shows the server name, session number and state (connecting, connected, disconnected with reason). Sessions are bound to the browser session and closed when the tab or socket closes, the remote shell exits, or TermForge shuts down. Reconnect behavior and the command history panel are described in `docs/reconnect-and-command-history.md`. See `docs/decisions/interactive-terminal.md`.
 
 ## File browsing
 

@@ -1,3 +1,5 @@
+using DTech.Core.Reconnect;
+
 namespace DTech.Core.SavedConnections;
 
 public static class SavedConnectionValidator
@@ -44,6 +46,12 @@ public static class SavedConnectionValidator
         if (!Enum.IsDefined(draft.AuthMethod))
         {
             return SavedConnectionError.Invalid("The authentication method is not supported.");
+        }
+
+        var reconnectError = ReconnectPolicyValidator.Validate(draft.ReconnectPolicy);
+        if (reconnectError is not null)
+        {
+            return SavedConnectionError.Invalid(reconnectError);
         }
 
         return ValidateOptionalFields(draft);

@@ -1,3 +1,4 @@
+using DTech.Core.Reconnect;
 using DTech.Core.SavedConnections;
 
 namespace DTech.Persistence.SavedConnections;
@@ -17,6 +18,7 @@ internal static class SavedConnectionMapper
             PrivateKeyPath = entity.PrivateKeyPath,
             JumpHostId = entity.JumpHostId,
             SshAlias = entity.SshAlias,
+            ReconnectPolicy = new ReconnectPolicy(entity.ReconnectMode, entity.ReconnectMaxAttempts, entity.ReconnectInitialDelaySeconds, entity.ReconnectMaxDelaySeconds),
         };
         return new SavedConnection
         {
@@ -54,6 +56,10 @@ internal static class SavedConnectionMapper
         entity.PrivateKeyPath = details.PrivateKeyPath;
         entity.JumpHostId = details.JumpHostId;
         entity.SshAlias = details.SshAlias;
+        entity.ReconnectMode = details.ReconnectPolicy.Mode;
+        entity.ReconnectMaxAttempts = details.ReconnectPolicy.MaxAttempts;
+        entity.ReconnectInitialDelaySeconds = details.ReconnectPolicy.InitialDelaySeconds;
+        entity.ReconnectMaxDelaySeconds = details.ReconnectPolicy.MaxDelaySeconds;
         entity.HasPassword = model.HasPassword;
         entity.LastConnectedAt = model.LastConnectedAt;
         entity.CreatedAt = model.CreatedAt;

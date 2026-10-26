@@ -1,13 +1,14 @@
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import { useEffect, useRef } from 'react';
+import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import { describeError } from '../api/connections';
 import { TERMINAL_FONT_FAMILY, TERMINAL_FONT_SIZE, TERMINAL_LINE_HEIGHT, TERMINAL_THEME } from './terminalTheme';
 import {
   closeTerminal,
   openTerminal,
   parseServerMessage,
+  reconnectTerminal,
   resizeMessage,
   terminalSocketUrl,
   type TerminalSession,
@@ -15,11 +16,19 @@ import {
   type TerminalState,
 } from '../api/terminals';
 
+export interface TerminalHandle {
+  insertText: (text: string) => void;
+}
+
 export interface TerminalViewProps {
   connectionId: string;
   active: boolean;
   onOpened: (session: TerminalSession) => void;
   onStateChange: (state: TerminalState, reason: string | null) => void;
+  generation?: number;
+  reconnect?: boolean;
+  handleRef?: Ref<TerminalHandle>;
+  onHistoryChanged?: (() => void) | undefined;
 }
 
 const CONNECTION_LOST = 'The connection to TermForge was lost.';
@@ -27,16 +36,40 @@ const CONNECTION_LOST = 'The connection to TermForge was lost.';
 interface TerminalCallbacks {
   onOpened: (session: TerminalSession) => void;
   onStateChange: (state: TerminalState, reason: string | null) => void;
+  onHistoryChanged?: (() => void) | undefined;
 }
 
-export function TerminalView({ connectionId, active, onOpened, onStateChange }: TerminalViewProps) {
+export function TerminalView({
+  connectionId,
+  active,
+  onOpened,
+  onStateChange,
+  generation = 0,
+  reconnect = false,
+  handleRef,
+  onHistoryChanged,
+}: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const fitRef = useRef<(() => void) | null>(null);
-  const callbacksRef = useRef<TerminalCallbacks>({ onOpened, onStateChange });
+  const terminalRef = useRef<Terminal | null>(null);
+  const reconnectRef = useRef(reconnect);
+  const callbacksRef = useRef<TerminalCallbacks>({ onOpened, onStateChange, onHistoryChanged });
 
   useEffect(() => {
-    callbacksRef.current = { onOpened, onStateChange };
+    callbacksRef.current = { onOpened, onStateChange, onHistoryChanged };
+    reconnectRef.current = reconnect;
   });
+
+  useImperativeHandle(
+    handleRef,
+    () => ({
+      insertText: (text: string) => {
+        terminalRef.current?.paste(text);
+        terminalRef.current?.focus();
+      },
+    }),
+    [],
+  );
 
   useEffect(() => {
     const container = containerRef.current;
@@ -53,6 +86,7 @@ export function TerminalView({ connectionId, active, onOpened, onStateChange }: 
     const fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
     terminal.open(container);
+    terminalRef.current = terminal;
 
     const encoder = new TextEncoder();
     let socket: WebSocket | null = null;
@@ -113,7 +147,9 @@ export function TerminalView({ connectionId, active, onOpened, onStateChange }: 
         if (message === null) {
           return;
         }
-        if (message.type === 'error') {
+        if (message.type === 'history') {
+          callbacksRef.current.onHistoryChanged?.();
+        } else if (message.type === 'error') {
           terminal.write(`\r\n[TermForge] ${message.message}\r\n`);
         } else if (message.state === 'connected') {
           report('connected', null);
@@ -126,7 +162,10 @@ export function TerminalView({ connectionId, active, onOpened, onStateChange }: 
       };
     };
 
-    openTerminal(connectionId, currentSize)
+    const launch = reconnectRef.current
+      ? reconnectTerminal(connectionId, currentSize).then((reconnected) => reconnected.session)
+      : openTerminal(connectionId, currentSize);
+    launch
       .then((session) => {
         if (disposed) {
           closeTerminal(session.id).catch(() => undefined);
@@ -140,13 +179,14 @@ export function TerminalView({ connectionId, active, onOpened, onStateChange }: 
     return () => {
       disposed = true;
       fitRef.current = null;
+      terminalRef.current = null;
       observer.disconnect();
       dataSubscription.dispose();
       binarySubscription.dispose();
       socket?.close();
       terminal.dispose();
     };
-  }, [connectionId]);
+  }, [connectionId, generation]);
 
   useEffect(() => {
     if (active) {

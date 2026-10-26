@@ -1,3 +1,4 @@
+using DTech.Core.Reconnect;
 using DTech.Core.SavedConnections;
 
 namespace DTech.Entrypoint.SavedConnections;
@@ -19,6 +20,12 @@ internal static class SavedConnectionRequestMapper
             return SavedConnectionResult<SavedConnectionSubmission>.Failure(unknown);
         }
 
+        var reconnectPolicy = ReadReconnectPolicy(request);
+        if (!reconnectPolicy.IsSuccess)
+        {
+            return SavedConnectionResult<SavedConnectionSubmission>.Failure(reconnectPolicy.Error);
+        }
+
         var draft = new SavedConnectionDraft
         {
             Name = request.Name,
@@ -30,9 +37,27 @@ internal static class SavedConnectionRequestMapper
             PrivateKeyPath = request.PrivateKeyPath,
             JumpHostId = request.JumpHostId,
             SshAlias = request.SshAlias,
+            ReconnectPolicy = reconnectPolicy.Value,
         };
         var submission = new SavedConnectionSubmission(draft, request.Password);
         request.Password = null;
         return SavedConnectionResult<SavedConnectionSubmission>.Success(submission);
+    }
+
+    private static SavedConnectionResult<ReconnectPolicy> ReadReconnectPolicy(SavedConnectionRequest request)
+    {
+        var defaults = ReconnectPolicy.Default;
+        var mode = defaults.Mode;
+        if (request.ReconnectMode is not null && !Enum.TryParse(request.ReconnectMode, true, out mode))
+        {
+            var unknown = SavedConnectionError.Invalid($"The reconnect mode '{request.ReconnectMode}' is not supported.");
+            return SavedConnectionResult<ReconnectPolicy>.Failure(unknown);
+        }
+
+        var maxAttempts = request.ReconnectMaxAttempts ?? defaults.MaxAttempts;
+        var initialDelay = request.ReconnectInitialDelaySeconds ?? defaults.InitialDelaySeconds;
+        var maxDelay = request.ReconnectMaxDelaySeconds ?? defaults.MaxDelaySeconds;
+        var policy = new ReconnectPolicy(mode, maxAttempts, initialDelay, maxDelay);
+        return SavedConnectionResult<ReconnectPolicy>.Success(policy);
     }
 }

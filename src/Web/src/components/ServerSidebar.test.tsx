@@ -36,6 +36,10 @@ function makeConnection(overrides: Partial<SavedConnection> = {}): SavedConnecti
     sshAlias: null,
     hasPassword: false,
     lastConnectedAt: null,
+    reconnectMode: 'Manual',
+    reconnectMaxAttempts: 5,
+    reconnectInitialDelaySeconds: 2,
+    reconnectMaxDelaySeconds: 60,
     ...overrides,
   };
 }

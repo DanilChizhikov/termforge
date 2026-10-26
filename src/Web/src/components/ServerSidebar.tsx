@@ -22,6 +22,7 @@ import { ImportIcon, PlusIcon } from './icons/Icons';
 import { ImportReport } from './ImportReport';
 import { ServerForm } from './ServerForm';
 import { ServerRow, type ServerStatus } from './ServerRow';
+import { SidebarMetrics } from './SidebarMetrics';
 
 type DialogState = { mode: 'add' } | { mode: 'edit'; connection: SavedConnection } | null;
 
@@ -188,6 +189,9 @@ export function ServerSidebar() {
           </ul>
         </section>
       ))}
+      {selectedId !== null && connections.some((connection) => connection.id === selectedId) ? (
+        <SidebarMetrics serverId={selectedId} />
+      ) : null}
       <div className="server-import">
         <button type="button" className="btn btn-sm btn-filled btn-block" onClick={() => void importConfig()}>
           <ImportIcon size={13} />
