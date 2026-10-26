@@ -104,6 +104,7 @@ public sealed class ConnectionTester
             SshErrorKind.AgentUnavailable => ConnectionTestState.AuthenticationFailed,
             SshErrorKind.ConnectionFailed => ConnectionTestState.Unreachable,
             SshErrorKind.HostKeyRejected => ConnectionTestState.HostKeyRejected,
+            SshErrorKind.HostKeyChanged => ConnectionTestState.HostKeyRejected,
             _ => ConnectionTestState.Failed,
         };
     }

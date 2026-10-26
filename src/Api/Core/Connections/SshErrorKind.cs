@@ -4,6 +4,7 @@ public enum SshErrorKind
 {
     ConnectionFailed,
     HostKeyRejected,
+    HostKeyChanged,
     AuthenticationFailed,
     PrivateKeyUnusable,
     AgentUnavailable,

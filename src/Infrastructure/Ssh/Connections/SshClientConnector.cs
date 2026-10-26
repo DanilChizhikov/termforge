@@ -3,7 +3,7 @@ using Renci.SshNet;
 
 namespace DTech.Ssh.Connections;
 
-internal sealed class SshClientConnector(SshAuthenticationFactory authenticationFactory, IHostKeyVerifier hostKeyVerifier)
+internal sealed class SshClientConnector(SshHopConnector hopConnector, IHostKeyTrustPrompt hostKeyTrustPrompt)
 {
     private const string LoopbackAddress = "127.0.0.1";
     private const uint AnyFreePort = 0;
@@ -11,46 +11,79 @@ internal sealed class SshClientConnector(SshAuthenticationFactory authentication
     public async Task<SshResult<SshConnection<TClient>>> ConnectAsync<TClient>(SshConnectionTarget target, Func<ConnectionInfo, TClient> createClient, CancellationToken cancellationToken)
         where TClient : BaseClient
     {
-        var dependencies = new List<IDisposable>();
+        SshTunnel? tunnel = null;
         var dialEndpoint = target.Endpoint;
         if (target.JumpHost is not null)
         {
-            var tunnel = await OpenTunnelAsync(target, cancellationToken);
-            if (!tunnel.IsSuccess)
+            var tunnelResult = await OpenTunnelAsync(target, cancellationToken);
+            if (!tunnelResult.IsSuccess)
             {
-                return SshResult<SshConnection<TClient>>.Failure(tunnel.Error!);
+                return SshResult<SshConnection<TClient>>.Failure(tunnelResult.Error!);
             }
 
-            dependencies.Add(tunnel.Value);
-            dialEndpoint = tunnel.Value.LocalEndpoint;
+            tunnel = tunnelResult.Value;
+            dialEndpoint = tunnel.LocalEndpoint;
         }
 
-        var authentication = authenticationFactory.Create(target);
-        if (!authentication.IsSuccess)
+        var hop = new SshHop<TClient>(target, dialEndpoint, createClient);
+        var attempt = await ConnectVerifiedHopAsync(hop, cancellationToken);
+        if (attempt.Client is null)
         {
-            DisposeAll(dependencies);
-            return SshResult<SshConnection<TClient>>.Failure(authentication.Error!);
+            tunnel?.Dispose();
+            return SshResult<SshConnection<TClient>>.Failure(attempt.Error!);
         }
 
-        dependencies.InsertRange(0, authentication.Value.OwnedResources);
-        var connectionInfo = new ConnectionInfo(dialEndpoint.Host, dialEndpoint.Port, target.UserName, authentication.Value.Method);
-        var client = createClient(connectionInfo);
-        var hostKeyGate = new HostKeyGate(hostKeyVerifier, target.Endpoint);
-        client.HostKeyReceived += hostKeyGate.OnHostKeyReceived;
+        var dependencies = new List<IDisposable>(attempt.OwnedResources);
+        if (tunnel is not null)
+        {
+            dependencies.Add(tunnel);
+        }
+
+        var connection = new SshConnection<TClient>(attempt.Client, dependencies);
+        return SshResult<SshConnection<TClient>>.Success(connection);
+    }
+
+    private async Task<SshHopAttempt<TClient>> ConnectVerifiedHopAsync<TClient>(SshHop<TClient> hop, CancellationToken cancellationToken)
+        where TClient : BaseClient
+    {
+        var firstAttempt = await hopConnector.ConnectAsync(hop, null, cancellationToken);
+        var challenge = firstAttempt.Challenge;
+        if (challenge is null)
+        {
+            return firstAttempt;
+        }
+
+        HostKeyPromptOutcome outcome;
         try
         {
-            await client.ConnectAsync(cancellationToken);
+            outcome = await hostKeyTrustPrompt.AskAsync(challenge, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            var cancelledError = new SshError(SshErrorKind.Cancelled, $"Connecting to {hop.Target.Endpoint} was cancelled while waiting for a host key decision");
+            return SshHopAttempt<TClient>.Failed(cancelledError);
         }
         catch (Exception exception)
         {
-            client.Dispose();
-            DisposeAll(dependencies);
-            var error = CreateConnectError(target, hostKeyGate, exception);
-            return SshResult<SshConnection<TClient>>.Failure(error);
+            var promptError = HostKeyErrors.VerifierFailed(hop.Target.Endpoint, challenge.Request.HostKey, $"host key prompt failed: {exception.Message}");
+            return SshHopAttempt<TClient>.Failed(promptError);
         }
 
-        var connection = new SshConnection<TClient>(client, dependencies);
-        return SshResult<SshConnection<TClient>>.Success(connection);
+        if (outcome != HostKeyPromptOutcome.Accepted)
+        {
+            var notAcceptedError = HostKeyErrors.NotAccepted(challenge, outcome);
+            return SshHopAttempt<TClient>.Failed(notAcceptedError);
+        }
+
+        var approvedHostKey = challenge.Request.HostKey;
+        var secondAttempt = await hopConnector.ConnectAsync(hop, approvedHostKey, cancellationToken);
+        if (secondAttempt.Challenge is not null)
+        {
+            var changedError = HostKeyErrors.ChangedDuringConfirmation(challenge);
+            return SshHopAttempt<TClient>.Failed(changedError);
+        }
+
+        return secondAttempt;
     }
 
     private async Task<SshResult<SshTunnel>> OpenTunnelAsync(SshConnectionTarget target, CancellationToken cancellationToken)
@@ -85,30 +118,5 @@ internal sealed class SshClientConnector(SshAuthenticationFactory authentication
     private static SshClient CreateSshClient(ConnectionInfo connectionInfo)
     {
         return new SshClient(connectionInfo);
-    }
-
-    private static SshError CreateConnectError(SshConnectionTarget target, HostKeyGate hostKeyGate, Exception exception)
-    {
-        var rejectedHostKey = hostKeyGate.RejectedHostKey;
-        if (rejectedHostKey is null)
-        {
-            return SshExceptionMapper.Map(exception, $"Connecting to {target.Endpoint}");
-        }
-
-        var reason = hostKeyGate.VerifierFailure ?? "not trusted by the host key verifier";
-        var message = $"Host key {rejectedHostKey.Algorithm} {rejectedHostKey.Sha256Fingerprint} of {target.Endpoint} was rejected: {reason}";
-        return new SshError(SshErrorKind.HostKeyRejected, message)
-        {
-            PresentedHostKey = rejectedHostKey,
-        };
-    }
-
-    private static void DisposeAll(IReadOnlyList<IDisposable> resources)
-    {
-        for (var i = 0; i < resources.Count; i++)
-        {
-            var resource = resources[i];
-            resource.Dispose();
-        }
     }
 }

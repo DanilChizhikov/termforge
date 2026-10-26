@@ -28,21 +28,22 @@ internal static class SshTransportTestServices
     public static IHostKeyVerifier CreateRejectingVerifier()
     {
         var verifier = Substitute.For<IHostKeyVerifier>();
-        verifier.Verify(Arg.Any<HostKeyVerificationRequest>()).Returns(HostKeyTrustDecision.Reject);
+        var unknown = new HostKeyVerification(HostKeyStatus.Unknown, []);
+        verifier.Verify(Arg.Any<HostKeyVerificationRequest>()).Returns(unknown);
         return verifier;
     }
 
-    private static HostKeyTrustDecision Decide(HostKeyVerificationRequest request, IReadOnlyList<HostKey> trustedHostKeys)
+    private static HostKeyVerification Decide(HostKeyVerificationRequest request, IReadOnlyList<HostKey> trustedHostKeys)
     {
         for (var i = 0; i < trustedHostKeys.Count; i++)
         {
             var trustedHostKey = trustedHostKeys[i];
             if (trustedHostKey == request.HostKey)
             {
-                return HostKeyTrustDecision.Trust;
+                return new HostKeyVerification(HostKeyStatus.Trusted, trustedHostKeys);
             }
         }
 
-        return HostKeyTrustDecision.Reject;
+        return new HostKeyVerification(HostKeyStatus.Unknown, trustedHostKeys);
     }
 }
