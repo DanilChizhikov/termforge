@@ -23,3 +23,21 @@ body { font-family: sans-serif; font-size: 14px; }
 .operation-table th, .operation-table td { border: 1px solid #999; padding: 2px 6px; text-align: left; }
 .operation-paging { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
 .update-notice { background: #eef; border-bottom: 1px solid #99c; padding: 4px 6px; }
+.server-sidebar { padding: 6px; }
+.server-toolbar { display: flex; gap: 6px; margin-bottom: 6px; }
+.server-list { list-style: none; margin: 0 0 8px; padding: 0; }
+.server-row { border-bottom: 1px solid #ccc; padding: 4px 0; }
+.server-selected { background: #e8f0ff; }
+.server-actions { display: flex; gap: 4px; margin-top: 2px; }
+.server-address, .server-last, .server-status { font-size: 12px; color: #444; }
+.group-header { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+.status-unknown { color: #999; }
+.status-testing { color: #c90; }
+.status-ok { color: #0a0; }
+.status-error { color: #c00; }
+.form-error { color: #c00; margin: 4px 0; }
+.import-report { border: 1px solid #999; padding: 4px; margin-bottom: 6px; font-size: 12px; }
+.dialog { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.3); display: flex; align-items: center; justify-content: center; z-index: 10; }
+.dialog form { background: #fff; border: 1px solid #666; padding: 12px; display: flex; flex-direction: column; gap: 6px; min-width: 280px; }
+.dialog label { display: flex; flex-direction: column; }
+.dialog-actions { display: flex; gap: 6px; }

@@ -17,7 +17,7 @@ Status legend: **supported** = implemented and covered by integration tests; **p
 | SSH agent (OpenSSH agent, Unix socket) | supported | via SshNet.Agent; `SSH_AUTH_SOCK` or explicit socket path |
 | SSH agent (Windows OpenSSH pipe, Pageant) | partial | provided by SshNet.Agent, not verified by tests |
 | ProxyJump | partial | a chain through `JumpHost` using a local loopback forward; one level tested |
-| `~/.ssh/config` aliases and options | unsupported | SSH.NET has no ssh_config parser; app-side import is planned (Saved Connections task) |
+| `~/.ssh/config` import | partial | app-side parser, see [saved-connections.md](saved-connections.md): `Host` (with `*`, `?`, `!` patterns), `Include`, `HostName`, `User`, `Port`, `IdentityFile` (first one), `ProxyJump` (single hop to another imported alias). `Match`, percent tokens and every other directive are reported and ignored |
 | SFTP list / upload / download | supported | errors: `RemotePathNotFound`, `PermissionDenied`, `Cancelled` |
 | SFTP progress, resume | unsupported | SSH.NET has progress callbacks; not exposed yet (Transfer Queue task) |
 | Keyboard-interactive / 2FA | unsupported | not implemented |
