@@ -1,3 +1,6 @@
+using DTech.Entrypoint.Security.Network;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
 namespace DTech.Entrypoint.Security;
 
 internal static class LocalHostSecurityExtensions
@@ -5,7 +8,14 @@ internal static class LocalHostSecurityExtensions
     public static WebApplicationBuilder AddLocalHostSecurity(this WebApplicationBuilder builder)
     {
         var services = builder.Services;
-        services.AddTransient<IStartupFilter, LoopbackBindingStartupFilter>();
+        var networkAccessSection = builder.Configuration.GetSection(NetworkAccessOptions.SectionName);
+        services.AddOptions<NetworkAccessOptions>().Bind(networkAccessSection);
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddTransient<IStartupFilter, BindingSecurityStartupFilter>();
+        services.AddSingleton<AllowedHostPolicy>();
+        services.AddSingleton<LoginAttemptLimiter>();
+        services.AddSingleton<NetworkPasswordVerifier>();
+        services.AddSingleton<PasswordLoginHandler>();
         services.AddSingleton<BootstrapToken>();
         services.AddSingleton<BrowserSessionStore>();
         services.AddSingleton<BootstrapExchangeHandler>();

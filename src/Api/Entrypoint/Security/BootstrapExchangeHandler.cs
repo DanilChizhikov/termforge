@@ -10,7 +10,7 @@ internal sealed class BootstrapExchangeHandler(BootstrapToken bootstrapToken, Br
             return Results.Text("The launch link is invalid or was already used", statusCode: StatusCodes.Status403Forbidden);
         }
 
-        var session = sessionStore.Create();
+        var session = sessionStore.Create(BrowserSessionKind.Launch, null);
         SessionCookie.Append(context, session.SessionToken);
         logger.LogInformation("Browser session created");
         return Results.NoContent();

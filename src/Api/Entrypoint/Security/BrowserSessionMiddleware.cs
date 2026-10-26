@@ -29,6 +29,6 @@ internal sealed class BrowserSessionMiddleware(RequestDelegate next, BrowserSess
         }
 
         var path = context.Request.Path;
-        return SecurityPaths.IsApi(path) && !SecurityPaths.IsBootstrapExchange(path);
+        return SecurityPaths.IsApi(path) && !SecurityPaths.IsSessionEstablishment(path);
     }
 }
