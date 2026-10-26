@@ -22,6 +22,7 @@ public static class SshTransportServiceCollectionExtensions
         services.AddSingleton<ITerminalSessionFactory, SshNetTerminalSessionFactory>();
         services.AddSingleton<IRemoteFileClientFactory, SshNetRemoteFileClientFactory>();
         services.AddSingleton<IRemoteCommandRunnerFactory, SshNetRemoteCommandRunnerFactory>();
+        services.AddSingleton<IRemoteCommandStreamFactory, SshNetRemoteCommandStreamFactory>();
         return services;
     }
 }

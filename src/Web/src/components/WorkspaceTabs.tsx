@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import { activateWorkspaceTab, useActiveWorkspaceTab, type WorkspaceTabId } from '../state/workspaceTab';
+import { DockerWorkspace } from './docker/DockerWorkspace';
 import { EditorWorkspace } from './editor/EditorWorkspace';
 import { EmptyState } from './EmptyState';
 import { ContainerIcon, FileIcon, ListIcon, PulseIcon, TerminalIcon, type IconProps } from './icons/Icons';
@@ -66,6 +67,9 @@ function renderPanel(tab: WorkspaceTabDefinition, isActive: boolean) {
   }
   if (tab.id === 'editor') {
     return <EditorWorkspace />;
+  }
+  if (tab.id === 'docker') {
+    return <DockerWorkspace active={isActive} />;
   }
   if (tab.id === 'diagnostics') {
     return isActive ? <ServerDiagnostics /> : null;

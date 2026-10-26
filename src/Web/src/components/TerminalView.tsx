@@ -29,6 +29,7 @@ export interface TerminalViewProps {
   reconnect?: boolean;
   handleRef?: Ref<TerminalHandle>;
   onHistoryChanged?: (() => void) | undefined;
+  open?: ((size: TerminalSize) => Promise<TerminalSession>) | undefined;
 }
 
 const CONNECTION_LOST = 'The connection to TermForge was lost.';
@@ -48,16 +49,19 @@ export function TerminalView({
   reconnect = false,
   handleRef,
   onHistoryChanged,
+  open,
 }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const fitRef = useRef<(() => void) | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const reconnectRef = useRef(reconnect);
+  const openRef = useRef(open);
   const callbacksRef = useRef<TerminalCallbacks>({ onOpened, onStateChange, onHistoryChanged });
 
   useEffect(() => {
     callbacksRef.current = { onOpened, onStateChange, onHistoryChanged };
     reconnectRef.current = reconnect;
+    openRef.current = open;
   });
 
   useImperativeHandle(
@@ -162,9 +166,7 @@ export function TerminalView({
       };
     };
 
-    const launch = reconnectRef.current
-      ? reconnectTerminal(connectionId, currentSize).then((reconnected) => reconnected.session)
-      : openTerminal(connectionId, currentSize);
+    const launch = startSession(connectionId, currentSize, openRef.current, reconnectRef.current);
     launch
       .then((session) => {
         if (disposed) {
@@ -195,4 +197,18 @@ export function TerminalView({
   }, [active]);
 
   return <div ref={containerRef} className="terminal-view" data-testid="terminal-view" />;
+}
+
+function startSession(
+  connectionId: string,
+  size: TerminalSize,
+  open: ((size: TerminalSize) => Promise<TerminalSession>) | undefined,
+  reconnect: boolean,
+): Promise<TerminalSession> {
+  if (open !== undefined) {
+    return open(size);
+  }
+  return reconnect
+    ? reconnectTerminal(connectionId, size).then((reconnected) => reconnected.session)
+    : openTerminal(connectionId, size);
 }
