@@ -9,6 +9,7 @@ using DTech.Core.Workspace;
 using DTech.Entrypoint.Tests.Infrastructure;
 using DTech.Entrypoint.Tests.Terminals.Support;
 using DTech.Entrypoint.Tests.Transfers;
+using DTech.Entrypoint.Transfers;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -26,6 +27,7 @@ internal sealed class LifecycleApiHarness : IAsyncDisposable
     private readonly TestContext _testContext;
     private readonly string _workDirectory = Path.Combine(Path.GetTempPath(), $"termforge-lifecycle-tests-{Guid.NewGuid():N}");
     private HttpClient _client = null!;
+    private RecordingTransferJournal? _journal;
     private AuthenticatedSession _session = null!;
 
     private LifecycleApiHarness(TestContext testContext, IReadOnlyDictionary<string, string?> settings, Action<IServiceCollection>? configureServices)
@@ -48,6 +50,8 @@ internal sealed class LifecycleApiHarness : IAsyncDisposable
     public TaskCompletionSource TransferGate { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public string WorkDirectory => _workDirectory;
+
+    public IReadOnlyList<OperationStatus> JournaledTransferOutcomes => _journal?.JournaledOutcomes ?? [];
 
     public static async Task<LifecycleApiHarness> StartAsync(TestContext testContext, IReadOnlyDictionary<string, string?>? settings = null, Action<IServiceCollection>? configureServices = null)
     {
@@ -146,15 +150,6 @@ internal sealed class LifecycleApiHarness : IAsyncDisposable
         await stopping.Task.WaitAsync(WaitTimeout, _testContext.CancellationToken);
     }
 
-    public async Task<IReadOnlyList<Operation>> ListTransferOperationsAsync()
-    {
-        await using var scope = Factory.Services.CreateAsyncScope();
-        var repository = scope.ServiceProvider.GetRequiredService<IOperationRepository>();
-        var query = OperationQuery.Unfiltered with { Kind = TransferOperationKinds.Download };
-        var page = await repository.Query(query, _testContext.CancellationToken);
-        return page.Items;
-    }
-
     private async Task WaitForTransferStatusAsync(string status)
     {
         var deadline = DateTime.UtcNow + WaitTimeout;
@@ -181,6 +176,16 @@ internal sealed class LifecycleApiHarness : IAsyncDisposable
         opener.OpenAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(_ => CreateGatedClient());
         services.RemoveAll<ITransferConnectionOpener>();
         services.AddSingleton(opener);
+        services.RemoveAll<ITransferJournal>();
+        services.AddSingleton<ITransferJournal>(CreateRecordingJournal);
+    }
+
+    private RecordingTransferJournal CreateRecordingJournal(IServiceProvider provider)
+    {
+        var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
+        var inner = new ScopedTransferJournal(scopeFactory);
+        _journal = new RecordingTransferJournal(inner);
+        return _journal;
     }
 
     private FileResult<IRemoteFileClient> CreateGatedClient()

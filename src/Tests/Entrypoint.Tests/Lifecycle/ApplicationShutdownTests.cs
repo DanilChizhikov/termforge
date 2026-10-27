@@ -74,8 +74,7 @@ public sealed class ApplicationShutdownTests
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
         var accepted = await _harness.ReadJsonAsync(response);
         accepted.GetProperty("state").GetString().Should().Be("shuttingDown");
-        var operations = await _harness.ListTransferOperationsAsync();
-        operations.Should().ContainSingle().Which.Status.Should().Be(OperationStatus.Cancelled);
+        _harness.JournaledTransferOutcomes.Should().ContainSingle().Which.Should().Be(OperationStatus.Cancelled);
         _harness.TerminalSessions.Sessions.Should().ContainSingle().Which.IsDisposed.Should().BeTrue();
         Directory.EnumerateFiles(_harness.WorkDirectory, "*.part").Should().BeEmpty();
     }
@@ -99,8 +98,7 @@ public sealed class ApplicationShutdownTests
         var problem = await _harness.ReadJsonAsync(rejected);
         problem.GetProperty("code").GetString().Should().Be("ApplicationExiting");
         attention.GetProperty("state").GetString().Should().Be("waitingForTransfers");
-        var operations = await _harness.ListTransferOperationsAsync();
-        operations.Should().ContainSingle().Which.Status.Should().Be(OperationStatus.Succeeded);
+        _harness.JournaledTransferOutcomes.Should().ContainSingle().Which.Should().Be(OperationStatus.Succeeded);
     }
 
     [TestMethod]
@@ -152,8 +150,7 @@ public sealed class ApplicationShutdownTests
         await _harness.WaitForStoppingAsync();
 
         exitNow.StatusCode.Should().Be(HttpStatusCode.Accepted);
-        var operations = await _harness.ListTransferOperationsAsync();
-        operations.Should().ContainSingle().Which.Status.Should().Be(OperationStatus.Cancelled);
+        _harness.JournaledTransferOutcomes.Should().ContainSingle().Which.Should().Be(OperationStatus.Cancelled);
     }
 
     [TestMethod]
@@ -166,8 +163,7 @@ public sealed class ApplicationShutdownTests
 
         lifetime.StopApplication();
 
-        var operations = await _harness.ListTransferOperationsAsync();
-        operations.Should().ContainSingle().Which.Status.Should().Be(OperationStatus.Cancelled);
+        _harness.JournaledTransferOutcomes.Should().ContainSingle().Which.Should().Be(OperationStatus.Cancelled);
         _harness.TerminalSessions.Sessions.Should().ContainSingle().Which.IsDisposed.Should().BeTrue();
     }
 }
