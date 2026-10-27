@@ -12,7 +12,7 @@ Download the archive for your system from the GitHub releases page of the reposi
 | macOS on Intel | `termforge-<version>-osx-x64.tar.gz` | verified on Apple silicon under Rosetta 2 |
 | Linux x64 (glibc) | `termforge-<version>-linux-x64.tar.gz` | verified |
 | Linux arm64 (glibc) | `termforge-<version>-linux-arm64.tar.gz` | verified |
-| Windows x64 | `termforge-<version>-win-x64.zip` | built, not verified |
+| Windows x64 | `termforge-<version>-win-x64.zip` | verified in CI on Windows Server 2025 |
 | Windows arm64 | `termforge-<version>-win-arm64.zip` | built, not verified |
 
 What "verified" covers is listed in [release-verification.md](release-verification.md). Alpine and other musl-based Linux distributions are not supported: there is no `linux-musl` build.
@@ -48,7 +48,7 @@ Optional:
 
 ## Windows
 
-Unpack the `.zip` and run `TermForge.exe`. These builds are produced by the same pipeline but nobody has started them on Windows yet. Windows SmartScreen may warn about an unknown publisher. Passwords go to Windows Credential Manager.
+Unpack the `.zip` and run `TermForge.exe`. The x64 build passed the smoke test on Windows Server 2025; the arm64 build has not been started on a real machine yet. The binaries are not signed, so Windows SmartScreen may warn about an unknown publisher. Passwords go to Windows Credential Manager.
 
 ## First start
 

@@ -25,7 +25,7 @@ Download the archive for your system from the GitHub releases page, unpack it an
 | macOS, Intel | `osx-x64` | verified under Rosetta 2 |
 | Linux x64, glibc | `linux-x64` | verified |
 | Linux arm64, glibc | `linux-arm64` | verified |
-| Windows x64 | `win-x64` | built, not verified |
+| Windows x64 | `win-x64` | verified in CI |
 | Windows arm64 | `win-arm64` | built, not verified |
 
 ```sh
