@@ -119,6 +119,14 @@
   text-align: right;
 }
 
+.settings-card .input-sm {
+  height: 36px;
+  border-color: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  font-size: var(--text-dense);
+}
+
 .settings-section {
   display: flex;
   flex-direction: column;
