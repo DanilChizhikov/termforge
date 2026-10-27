@@ -59,10 +59,12 @@ jobs:
         include:
         - rid: linux-x64
           os: ubuntu-latest
+          smoke: true
         - rid: linux-arm64
           os: ubuntu-latest
         - rid: win-x64
           os: windows-latest
+          smoke: true
         - rid: win-arm64
           os: windows-latest
         # osx builds run on macOS so the SDK signs the apphost.
@@ -70,6 +72,7 @@ jobs:
           os: macos-latest
         - rid: osx-arm64
           os: macos-latest
+          smoke: true
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -85,24 +88,23 @@ jobs:
       with:
         dotnet-version: '10.0.x'
 
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: npm
+        cache-dependency-path: src/Web/package-lock.json
+
     - name: Publish
-      run: |
-        dotnet publish src/Api/Entrypoint/Entrypoint.csproj -c Release -r "$RID" --self-contained true \
-          -o "publish/termforge-$VERSION-$RID" -p:Version="$VERSION" -p:BuildNumber="$BUILD"
+      run: ./scripts/publish.sh -r "$RID" -v "$VERSION" -b "$BUILD"
       env:
         RID: ${{ matrix.rid }}
         VERSION: ${{ needs.Version.outputs.version }}
         BUILD: ${{ needs.Version.outputs.build }}
 
-    - name: Archive
-      run: |
-        cd publish
-        name="termforge-$VERSION-$RID"
-        if [[ "$RID" == win-* ]]; then
-          7z a "$name.zip" "$name" >/dev/null
-        else
-          tar -czf "$name.tar.gz" "$name"
-        fi
+    - name: Smoke test
+      if: ${{ matrix.smoke }}
+      run: ./scripts/smoke-test.sh "publish/termforge-$VERSION-$RID"
       env:
         RID: ${{ matrix.rid }}
         VERSION: ${{ needs.Version.outputs.version }}

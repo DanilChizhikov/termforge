@@ -9,7 +9,9 @@ if (PasswordHashCommand.TryRun(args))
     return;
 }
 
-var builder = WebApplication.CreateBuilder(args);
+var publishedContentRoot = PublishedContentRoot.Find(AppContext.BaseDirectory);
+var builderOptions = new WebApplicationOptions { Args = args, ContentRootPath = publishedContentRoot };
+var builder = WebApplication.CreateBuilder(builderOptions);
 builder.AddLocalHostSecurity();
 builder.AddApplicationLifecycle();
 builder.Services.AddPersistence(builder.Configuration);
