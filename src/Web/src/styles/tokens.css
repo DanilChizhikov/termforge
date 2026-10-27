@@ -94,6 +94,8 @@
   --terminal-bright-yellow: #f2c14e;
   --terminal-bright-magenta: #dcbcff;
   --terminal-bright-cyan: #8fe0cc;
+  --terminal-cursor-width: 2px;
+  --terminal-cursor-height: 1.25em;
 
   --code-string: #a6d9b8;
   --code-line-number: #5e646d;

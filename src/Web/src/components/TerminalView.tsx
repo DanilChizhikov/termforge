@@ -5,7 +5,6 @@ import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import { describeError } from '../api/connections';
 import {
   TERMINAL_CURSOR_STYLE,
-  TERMINAL_CURSOR_WIDTH,
   TERMINAL_FONT_FAMILY,
   TERMINAL_FONT_SIZE,
   TERMINAL_LINE_HEIGHT,
@@ -96,7 +95,7 @@ export function TerminalView({
       fontSize: TERMINAL_FONT_SIZE,
       lineHeight: TERMINAL_LINE_HEIGHT,
       cursorStyle: TERMINAL_CURSOR_STYLE,
-      cursorWidth: TERMINAL_CURSOR_WIDTH,
+      cursorInactiveStyle: TERMINAL_CURSOR_STYLE,
       theme: createTerminalTheme(),
     });
     const fitAddon = new FitAddon();
