@@ -86,7 +86,7 @@ write_browser_command() {
   native_url_file="$(native_path "$url_file")"
   if [[ "$(find_binary)" == *.exe ]]; then
     browser_command="$work_dir/browser.cmd"
-    printf '@echo %%~1> "%s"\r\n' "$native_url_file" > "$browser_command"
+    printf '@>"%s" echo %%*\r\n' "$native_url_file" > "$browser_command"
   else
     browser_command="$work_dir/browser.sh"
     printf '#!/bin/sh\nprintf "%%s\\n" "$1" > "%s"\n' "$native_url_file" > "$browser_command"
