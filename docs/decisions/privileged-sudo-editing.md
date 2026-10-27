@@ -69,7 +69,8 @@ Saves and rollbacks are journaled as `file.save` and `file.rollback`, like regul
 
 - The Editor toolbar offers "Edit with sudo" for an open file. A file that cannot be opened because of missing permissions offers "Open with sudo".
 - When sudo needs a password and none is saved, every elevated action (open, save, compare with a backup, roll back) asks for it in a dialog. Cancel is the default; "Remember in credential store" is off by default.
-- An elevated file shows a caution badge "Editing with sudo" with a shield icon, and "Stop using sudo" returns the tab to normal saving. A saved password can be forgotten from the same toolbar.
+- After a file is opened, `GET /api/editor/remote/{id}/sudo/access?path=&ownerId=` checks it as the SSH user, without sudo: the owner name comes from `getent passwd <uid>` (falling back to `/etc/passwd`), and the file counts as writable when both `[ -w file ]` and `[ -w directory ]` hold (the save writes a backup and a temporary file beside it). Values are passed as quoted positional arguments of a fixed `sh -c` script. When the file is not writable, the header shows the caution badge "owned by <owner> · save needs sudo" from the Editor artboard; an unknown name falls back to "uid <n>". Nothing is elevated automatically.
+- After the user opts in, the same badge slot reads "owned by <owner> · editing with sudo" (an extra state the artboard does not draw), and "Stop using sudo" returns the tab to normal saving. A saved password can be forgotten from the same toolbar.
 
 ## Known limitations
 
