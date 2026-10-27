@@ -49,6 +49,6 @@ Every save and rollback is an operation (`file.save`, `file.rollback`) with serv
 - Only UTF-8 text; other encodings are rejected as binary.
 - The version uses the SFTP mtime, which has one second resolution; the content hash covers changes within the same second.
 - There is no lock on the remote file: a change between the version check and the rename is not detected.
-- Backups live next to the file and need write access to its directory; read-only directories cannot be saved (sudo editing is a separate task).
+- Backups live next to the file and need write access to its directory; read-only directories cannot be saved without sudo (see [privileged-sudo-editing.md](privileged-sudo-editing.md)).
 - Ownership can be preserved only when the session user may `chown`; otherwise the file is written in place after a backup.
 - Merging the server change into the user's version is manual through the diff view.
