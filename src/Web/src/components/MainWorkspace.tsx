@@ -15,14 +15,14 @@ export function MainWorkspace() {
         <CollapsibleRegion id="terminals" title="Terminals" defaultSize="55%" minSize="15%" keepMounted>
           <TerminalWorkspace />
         </CollapsibleRegion>
-        <Separator className="separator separator-horizontal" />
+        <Separator className="separator separator-horizontal" aria-label="Resize panels" />
         <Panel id="files" defaultSize="45%" minSize="15%">
           <section aria-label="Files" className="region-content">
             <Group orientation="horizontal" id="file-panes" className="group" {...fileLayout}>
               <CollapsibleRegion id="local-files" title="Local" defaultSize="50%" minSize="15%">
                 <LocalFilePane />
               </CollapsibleRegion>
-              <Separator className="separator separator-vertical" />
+              <Separator className="separator separator-vertical" aria-label="Resize panels" />
               <CollapsibleRegion id="remote-files" title="Remote" defaultSize="50%" minSize="15%">
                 <RemoteFilePane />
               </CollapsibleRegion>

@@ -52,6 +52,7 @@ export function SessionBanner() {
   if (state === 'missing') {
     return (
       <div role="alert" className="session-banner">
+        <span className="status-dot status-dot-sm status-dot-danger" aria-hidden="true" />
         Session expired or missing. Restart TermForge to open a new session.
       </div>
     );

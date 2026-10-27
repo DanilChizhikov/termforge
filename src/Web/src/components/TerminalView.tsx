@@ -29,6 +29,7 @@ export interface TerminalViewProps {
   reconnect?: boolean;
   handleRef?: Ref<TerminalHandle>;
   onHistoryChanged?: (() => void) | undefined;
+  onResize?: ((size: TerminalSize) => void) | undefined;
   open?: ((size: TerminalSize) => Promise<TerminalSession>) | undefined;
 }
 
@@ -38,6 +39,7 @@ interface TerminalCallbacks {
   onOpened: (session: TerminalSession) => void;
   onStateChange: (state: TerminalState, reason: string | null) => void;
   onHistoryChanged?: (() => void) | undefined;
+  onResize?: ((size: TerminalSize) => void) | undefined;
 }
 
 export function TerminalView({
@@ -49,6 +51,7 @@ export function TerminalView({
   reconnect = false,
   handleRef,
   onHistoryChanged,
+  onResize,
   open,
 }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -56,10 +59,10 @@ export function TerminalView({
   const terminalRef = useRef<Terminal | null>(null);
   const reconnectRef = useRef(reconnect);
   const openRef = useRef(open);
-  const callbacksRef = useRef<TerminalCallbacks>({ onOpened, onStateChange, onHistoryChanged });
+  const callbacksRef = useRef<TerminalCallbacks>({ onOpened, onStateChange, onHistoryChanged, onResize });
 
   useEffect(() => {
-    callbacksRef.current = { onOpened, onStateChange, onHistoryChanged };
+    callbacksRef.current = { onOpened, onStateChange, onHistoryChanged, onResize };
     reconnectRef.current = reconnect;
     openRef.current = open;
   });
@@ -97,6 +100,7 @@ export function TerminalView({
     let disposed = false;
     let finished = false;
     let currentSize: TerminalSize = { columns: terminal.cols, rows: terminal.rows };
+    callbacksRef.current.onResize?.(currentSize);
 
     const report = (state: TerminalState, reason: string | null) => {
       if (finished || disposed) {
@@ -122,6 +126,7 @@ export function TerminalView({
         return;
       }
       currentSize = fitted;
+      callbacksRef.current.onResize?.(fitted);
       send(resizeMessage(fitted));
     };
     fitRef.current = fit;

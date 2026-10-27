@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
-import { closeTerminal } from '../api/terminals';
+import { closeTerminal, type TerminalSize } from '../api/terminals';
+import { useConnectionName } from '../state/connections';
 import { useSelectedServerId } from '../state/selectedServer';
 import {
   createTabKey,
@@ -14,7 +15,7 @@ import { CloseIcon, ListIcon, PlusIcon, RefreshIcon } from './icons/Icons';
 import { CommandHistoryPanel } from './CommandHistoryPanel';
 import { RegionToggle } from './CollapsibleRegion';
 import { ReconnectBar } from './ReconnectBar';
-import { TerminalRecordingBar } from './TerminalRecordingBar';
+import { TerminalMetaBar } from './TerminalMetaBar';
 import { TerminalView, type TerminalHandle } from './TerminalView';
 
 const STATE_LABELS = {
@@ -37,11 +38,21 @@ function stateLabel(tab: TerminalTab): string {
 }
 
 function stateDot(tab: TerminalTab): string {
-  return tab.restored ? RESTORED_DOT : STATE_DOTS[tab.state];
+  if (tab.restored) {
+    return RESTORED_DOT;
+  }
+  return tab.reconnecting && tab.state === 'connecting' ? 'status-dot-caution' : STATE_DOTS[tab.state];
+}
+
+function isReconnecting(tab: TerminalTab): boolean {
+  return tab.reconnecting && tab.state === 'connecting';
 }
 
 function terminalTabClassName(tab: TerminalTab, active: boolean): string {
   const classNames = ['terminal-tab', tab.restored ? 'terminal-tab-restored' : `terminal-tab-${tab.state}`];
+  if (isReconnecting(tab)) {
+    classNames.push('terminal-tab-reconnecting');
+  }
   if (active) {
     classNames.push('terminal-tab-active');
   }
@@ -57,6 +68,8 @@ export function TerminalWorkspace() {
   const [historyOpen, setHistoryOpen] = useState(true);
   const [historyVersion, setHistoryVersion] = useState(0);
   const [recordingKeys, setRecordingKeys] = useState<ReadonlySet<string>>(() => new Set());
+  const [sizes, setSizes] = useState<ReadonlyMap<string, TerminalSize>>(() => new Map());
+  const selectedServerName = useConnectionName(selectedServerId);
   const handles = useRef(new Map<string, TerminalHandle>());
   const visibleTab = tabs.find((tab) => tab.key === visibleKey) ?? null;
 
@@ -114,6 +127,18 @@ export function TerminalWorkspace() {
     });
   };
 
+  const recordSize = (key: string, size: TerminalSize) => {
+    setSizes((current) => {
+      const previous = current.get(key);
+      if (previous !== undefined && previous.columns === size.columns && previous.rows === size.rows) {
+        return current;
+      }
+      const next = new Map(current);
+      next.set(key, size);
+      return next;
+    });
+  };
+
   const closeTab = (tab: TerminalTab) => {
     if (tab.session !== null) {
       closeTerminal(tab.session.id).catch(() => undefined);
@@ -142,10 +167,9 @@ export function TerminalWorkspace() {
                         onClick={() => setActiveKey(tab.key)}
                       >
                         <span className={`status-dot status-dot-sm ${stateDot(tab)}`} aria-hidden="true" />
-                        {tabLabel(tab)}{' '}
-                        <span className={tab.state === 'connected' ? 'visually-hidden' : 'terminal-tab-state'}>
-                          ({stateLabel(tab)})
-                        </span>
+                        {tabLabel(tab)}
+                        {isReconnecting(tab) ? ' · reconnecting' : null}{' '}
+                        <span className="visually-hidden">({stateLabel(tab)})</span>
                         {recordingKeys.has(tab.key) ? (
                           <span className="badge badge-recording">
                             <span className="status-dot status-dot-xs status-dot-active" aria-hidden="true" />
@@ -183,7 +207,7 @@ export function TerminalWorkspace() {
           disabled={selectedServerId === null}
         >
           <PlusIcon size={13} />
-          New terminal
+          {selectedServerName === null ? 'New session' : `New session on ${selectedServerName}`}
         </button>
         <RegionToggle />
       </div>
@@ -217,12 +241,18 @@ export function TerminalWorkspace() {
             />
           ) : null}
           {tab.state === 'connecting' ? (
-            <p className="terminal-connecting">{tab.reconnecting ? 'Reconnecting…' : 'Connecting…'}</p>
+            <p className={tab.reconnecting ? 'terminal-connecting terminal-connecting-retry' : 'terminal-connecting'}>
+              <span
+                className={tab.reconnecting ? 'status-dot status-dot-sm status-dot-caution' : 'status-dot status-dot-sm status-dot-active'}
+                aria-hidden="true"
+              />
+              {tab.reconnecting ? 'Reconnecting…' : 'Connecting…'}
+            </p>
           ) : null}
           {tab.state === 'connected' && tab.session !== null ? (
-            <TerminalRecordingBar
-              key={tab.session.id}
-              terminalId={tab.session.id}
+            <TerminalMetaBar
+              session={tab.session}
+              size={sizes.get(tab.key) ?? null}
               onRecordingChange={(recording) => markRecording(tab.key, recording)}
             />
           ) : null}
@@ -234,6 +264,7 @@ export function TerminalWorkspace() {
             reconnect={tab.reconnecting}
             handleRef={registerHandle(tab.key)}
             onHistoryChanged={() => setHistoryVersion((version) => version + 1)}
+            onResize={(size) => recordSize(tab.key, size)}
             onOpened={(session) => dispatch({ type: 'opened', key: tab.key, session })}
             onStateChange={(state, reason) => dispatch({ type: 'state', key: tab.key, state, reason })}
           />

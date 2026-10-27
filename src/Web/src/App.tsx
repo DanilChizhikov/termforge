@@ -23,11 +23,11 @@ export function App() {
       <WorkspaceRestoreNotice />
       <div className="app-view" hidden={view !== 'workspace'}>
         <Group orientation="horizontal" id="app-layout" className="group" {...layout}>
-          <CollapsibleRegion id="servers" title="Servers" defaultSize="20%" minSize="10%">
+          <CollapsibleRegion id="servers" title="Servers" defaultSize="264px" minSize="200px">
             <ServerSidebar />
           </CollapsibleRegion>
-          <Separator className="separator separator-vertical" />
-          <Panel id="main" defaultSize="80%" minSize="30%">
+          <Separator className="separator separator-vertical" aria-label="Resize panels" />
+          <Panel id="main" minSize="30%">
             <WorkspaceTabs />
           </Panel>
         </Group>

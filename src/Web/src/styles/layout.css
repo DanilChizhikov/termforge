@@ -99,6 +99,9 @@
 }
 
 .session-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex: none;
   padding: 10px 14px;
   border-bottom: 1px solid var(--status-danger-border);
@@ -170,11 +173,40 @@
 }
 
 .separator-vertical {
-  width: 3px;
+  width: 5px;
+  background: linear-gradient(to right, transparent 2px, var(--border-subtle) 2px, var(--border-subtle) 3px, transparent 3px);
+}
+
+.separator-vertical:hover,
+.separator-vertical:focus-visible {
+  background: linear-gradient(to right, transparent 2px, var(--border-strong) 2px, var(--border-strong) 3px, transparent 3px);
 }
 
 .separator-horizontal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-chrome);
+}
+
+.separator-horizontal::after {
+  width: 36px;
   height: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
+  content: '';
+}
+
+.separator-horizontal:hover,
+.separator-horizontal:focus-visible {
+  background: var(--surface-raised);
+}
+
+.separator-horizontal:hover::after,
+.separator-horizontal:focus-visible::after {
+  background: var(--border-control);
 }
 
 .server-sidebar {
@@ -556,9 +588,12 @@
   gap: 4px;
 }
 
-.terminal-tab-group + .terminal-tab-group {
-  padding-left: 12px;
-  border-left: 1px solid var(--border-default);
+.terminal-tab-group + .terminal-tab-group::before {
+  width: 1px;
+  height: 18px;
+  margin-right: 8px;
+  background: var(--border-default);
+  content: '';
 }
 
 .terminal-group-label {
@@ -594,8 +629,8 @@
   color: var(--text-primary);
 }
 
-.terminal-tab-connecting,
-.terminal-tab-connecting:hover {
+.terminal-tab-reconnecting,
+.terminal-tab-reconnecting:hover {
   border-style: dashed;
   border-color: var(--status-caution-border);
   color: var(--status-caution);
@@ -621,10 +656,6 @@
   white-space: nowrap;
 }
 
-.terminal-tab-state {
-  color: inherit;
-}
-
 .terminal-panel {
   display: flex;
   flex: 1;
@@ -641,7 +672,20 @@
 }
 
 .terminal-connecting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent-text);
+}
+
+.terminal-connecting-retry {
   color: var(--status-caution);
+}
+
+.terminal-disconnected-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .terminal-disconnected {
@@ -684,7 +728,7 @@
 .terminal-view {
   flex: 1;
   min-height: 0;
-  padding: 10px 4px 4px 14px;
+  padding: 12px 14px;
   background: var(--surface-terminal);
 }
 
