@@ -943,7 +943,84 @@
   font-size: var(--text-small);
 }
 
+.diagnostics-view {
+  gap: 18px;
+  width: 100%;
+  max-width: 1280px;
+  padding: 20px 24px 28px;
+}
+
+.diagnostics-interval .input {
+  width: auto;
+}
+
+.metrics-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.metrics-paused {
+  justify-content: space-between;
+}
+
+.capability-card {
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-card);
+}
+
+.capability-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-faint);
+}
+
+.capability-card-title {
+  font-weight: 600;
+}
+
+.capability-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.capability-row {
+  display: grid;
+  grid-template-columns: 24px minmax(140px, 0.9fr) minmax(0, 2fr);
+  align-items: start;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-faint);
+}
+
+.capability-row:last-child {
+  border-bottom: 0;
+}
+
+.capability-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 18px;
+}
+
 .capability-name {
+  font-weight: 500;
+}
+
+.capability-detail {
+  color: var(--text-secondary);
+}
+
+.capability-status {
+  margin-right: 6px;
   font-weight: 500;
 }
 

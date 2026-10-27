@@ -622,7 +622,7 @@ dl.fingerprint {
 
 .metric-value-small {
   color: var(--text-soft);
-  font-size: var(--text-body);
+  font-size: var(--text-metric);
   font-weight: 600;
 }
 
