@@ -6,7 +6,13 @@ import { describeError } from '../../api/connections';
 import { fetchRecordingCast, type RecordingSummary } from '../../api/recordings';
 import { CastPlayback, IDLE_LIMIT_SECONDS, type PlaybackState } from '../../state/castPlayback';
 import { PauseIcon, PlayIcon, RefreshIcon } from '../icons/Icons';
-import { TERMINAL_FONT_FAMILY, TERMINAL_FONT_SIZE, TERMINAL_LINE_HEIGHT, createTerminalTheme } from '../terminalTheme';
+import {
+  TERMINAL_CURSOR_STYLE,
+  TERMINAL_FONT_FAMILY,
+  TERMINAL_FONT_SIZE,
+  TERMINAL_LINE_HEIGHT,
+  createTerminalTheme,
+} from '../terminalTheme';
 import { formatDuration, recordingTitle } from './recordingFormat';
 
 export interface RecordingPlayerProps {
@@ -47,6 +53,8 @@ export function RecordingPlayer({ recording, onClose }: RecordingPlayerProps) {
           fontFamily: TERMINAL_FONT_FAMILY,
           fontSize: TERMINAL_FONT_SIZE,
           lineHeight: TERMINAL_LINE_HEIGHT,
+          cursorStyle: TERMINAL_CURSOR_STYLE,
+          cursorInactiveStyle: TERMINAL_CURSOR_STYLE,
           theme: createTerminalTheme(),
         });
         player.open(container);

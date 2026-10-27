@@ -7,6 +7,8 @@ export const TERMINAL_FONT_SIZE = 12.5;
 
 export const TERMINAL_LINE_HEIGHT = 1.6;
 
+export const TERMINAL_CURSOR_STYLE = 'bar';
+
 export function createTerminalTheme(): ITheme {
   return {
     background: readThemeToken('--surface-terminal'),

@@ -19,11 +19,11 @@ export function MainWorkspace() {
         <Panel id="files" defaultSize="45%" minSize="15%">
           <section aria-label="Files" className="region-content">
             <Group orientation="horizontal" id="file-panes" className="group" {...fileLayout}>
-              <CollapsibleRegion id="local-files" title="Local" defaultSize="50%" minSize="15%">
+              <CollapsibleRegion id="local-files" title="Local" defaultSize="50%" minSize="15%" collapsedLayout="rail">
                 <LocalFilePane />
               </CollapsibleRegion>
               <Separator className="separator separator-vertical" aria-label="Resize panels" />
-              <CollapsibleRegion id="remote-files" title="Remote" defaultSize="50%" minSize="15%">
+              <CollapsibleRegion id="remote-files" title="Remote" defaultSize="50%" minSize="15%" collapsedLayout="rail">
                 <RemoteFilePane />
               </CollapsibleRegion>
             </Group>

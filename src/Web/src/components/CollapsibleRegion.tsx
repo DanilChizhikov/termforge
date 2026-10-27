@@ -9,8 +9,11 @@ export interface CollapsibleRegionProps {
   defaultSize: string;
   minSize: string;
   keepMounted?: boolean;
+  collapsedLayout?: CollapsedLayout;
   children: ReactNode;
 }
+
+export type CollapsedLayout = 'header' | 'rail';
 
 interface RegionToggleState {
   title: string;
@@ -18,7 +21,9 @@ interface RegionToggleState {
   toggle: () => void;
 }
 
-const COLLAPSED_SIZE_PX = 28;
+const COLLAPSED_HEADER_SIZE_PX = 28;
+
+const COLLAPSED_RAIL_SIZE_PX = 32;
 
 const RegionToggleContext = createContext<RegionToggleState | null>(null);
 
@@ -46,6 +51,7 @@ export function CollapsibleRegion({
   defaultSize,
   minSize,
   keepMounted = false,
+  collapsedLayout = 'header',
   children,
 }: CollapsibleRegionProps) {
   const panelRef = usePanelRef();
@@ -79,13 +85,15 @@ export function CollapsibleRegion({
   };
 
   const toggleState: RegionToggleState = { title, collapsed, toggle };
+  const isRail = collapsedLayout === 'rail';
+  const collapsedSize = isRail ? COLLAPSED_RAIL_SIZE_PX : COLLAPSED_HEADER_SIZE_PX;
 
   return (
     <Panel
       id={id}
       panelRef={panelRef}
       collapsible
-      collapsedSize={COLLAPSED_SIZE_PX}
+      collapsedSize={collapsedSize}
       defaultSize={defaultSize}
       minSize={minSize}
       onResize={syncCollapsedState}
@@ -93,7 +101,13 @@ export function CollapsibleRegion({
     >
       <RegionToggleContext.Provider value={toggleState}>
         <section aria-label={title} className="region-content">
-          {collapsed ? (
+          {collapsed && isRail ? (
+            <header className="region-rail">
+              <RegionToggle />
+              <span className="section-label region-rail-label">{title}</span>
+            </header>
+          ) : null}
+          {collapsed && !isRail ? (
             <header className="region-header">
               <span className="section-label">{title}</span>
               <RegionToggle />
