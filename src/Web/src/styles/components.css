@@ -50,6 +50,21 @@
   background: var(--status-destructive-hover);
 }
 
+.btn-destructive-outline {
+  border-color: var(--status-danger-border);
+  color: var(--status-danger-text);
+}
+
+.btn-destructive-outline:hover:not(:disabled) {
+  background: var(--status-danger-soft);
+}
+
+.btn.btn-destructive-outline:disabled {
+  border-color: var(--border-danger-strong);
+  background: transparent;
+  color: var(--text-muted);
+}
+
 .btn-danger-link {
   border-color: transparent;
   color: var(--status-danger-text);
@@ -419,6 +434,14 @@ select.input {
   gap: 10px;
   padding: 14px 24px 18px;
   border-top: 1px solid var(--border-subtle);
+}
+
+.dialog-footer-plain {
+  border-top: 0;
+}
+
+.dialog-card-danger {
+  border-color: var(--border-danger-strong);
 }
 
 .dialog-footer-spacer {
