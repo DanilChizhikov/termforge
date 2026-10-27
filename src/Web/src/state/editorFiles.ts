@@ -7,6 +7,13 @@ export interface EditorFile {
   path: string;
   name: string;
   dirty: boolean;
+  restored: boolean;
+}
+
+export interface RestoredEditorFile {
+  connectionId: string;
+  path: string;
+  dirty: boolean;
 }
 
 export interface EditorFilesState {
@@ -19,14 +26,14 @@ const EMPTY: EditorFilesState = { files: [], activeKey: null };
 let state: EditorFilesState = EMPTY;
 let listeners: Array<() => void> = [];
 
-function subscribe(listener: () => void): () => void {
+export function subscribeEditorFiles(listener: () => void): () => void {
   listeners = [...listeners, listener];
   return () => {
     listeners = listeners.filter((item) => item !== listener);
   };
 }
 
-function getSnapshot(): EditorFilesState {
+export function getEditorFiles(): EditorFilesState {
   return state;
 }
 
@@ -47,7 +54,9 @@ export function fileNameOf(path: string): string {
 export function openEditorFile(connectionId: string, path: string): void {
   const key = editorFileKey(connectionId, path);
   const exists = state.files.some((file) => file.key === key);
-  const files = exists ? state.files : [...state.files, { key, connectionId, path, name: fileNameOf(path), dirty: false }];
+  const files = exists
+    ? state.files.map((file) => (file.key === key ? { ...file, restored: false } : file))
+    : [...state.files, { key, connectionId, path, name: fileNameOf(path), dirty: false, restored: false }];
   update({ files, activeKey: key });
   activateWorkspaceTab('editor');
 }
@@ -77,10 +86,31 @@ export function setEditorFileDirty(key: string, dirty: boolean): void {
   update({ ...state, files: state.files.map((file) => (file.key === key ? { ...file, dirty } : file)) });
 }
 
+export function reopenEditorFile(key: string): void {
+  const target = state.files.find((file) => file.key === key);
+  if (target === undefined || !target.restored) {
+    return;
+  }
+  update({ ...state, files: state.files.map((file) => (file.key === key ? { ...file, restored: false } : file)) });
+}
+
+export function restoreEditorFiles(restored: readonly RestoredEditorFile[], activeKey: string | null): void {
+  const files = restored.map((file) => ({
+    key: editorFileKey(file.connectionId, file.path),
+    connectionId: file.connectionId,
+    path: file.path,
+    name: fileNameOf(file.path),
+    dirty: file.dirty,
+    restored: true,
+  }));
+  const hasActive = files.some((file) => file.key === activeKey);
+  update({ files, activeKey: hasActive ? activeKey : (files[0]?.key ?? null) });
+}
+
 export function resetEditorFiles(): void {
   update(EMPTY);
 }
 
 export function useEditorFiles(): EditorFilesState {
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return useSyncExternalStore(subscribeEditorFiles, getEditorFiles, getEditorFiles);
 }

@@ -483,6 +483,10 @@
   color: var(--status-danger-text);
 }
 
+.terminal-tab-restored {
+  color: var(--text-muted);
+}
+
 .terminal-tab-button {
   display: flex;
   align-items: center;
@@ -521,6 +525,35 @@
 .terminal-disconnected {
   background: var(--status-danger-soft);
   color: var(--status-danger-text);
+}
+
+.terminal-restored {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border-faint);
+  color: var(--text-secondary);
+  font-size: var(--text-caption);
+}
+
+.workspace-restore-notice {
+  flex: none;
+  margin: 8px 12px 0;
+}
+
+.editor-restored {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 16px;
+  color: var(--text-secondary);
+}
+
+.editor-restored p {
+  margin: 0;
 }
 
 .terminal-view {

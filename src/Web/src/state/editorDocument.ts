@@ -7,6 +7,8 @@ export interface ServerCopy {
   permissions: string;
 }
 
+export type DraftRecovery = 'none' | 'unchanged' | 'changed';
+
 export interface EditorDocumentState {
   status: 'loading' | 'ready' | 'failed';
   error: string | null;
@@ -15,6 +17,7 @@ export interface EditorDocumentState {
   conflict: SaveConflict | null;
   saving: boolean;
   warnings: string[];
+  recovery: DraftRecovery;
 }
 
 export type EditorDocumentAction =
@@ -25,7 +28,8 @@ export type EditorDocumentAction =
   | { type: 'saved'; saved: SavedFile; content: string }
   | { type: 'conflicted'; conflict: SaveConflict }
   | { type: 'saveFailed'; error: string }
-  | { type: 'reloadedFromConflict' };
+  | { type: 'reloadedFromConflict' }
+  | { type: 'recovered'; content: string; baseVersion: FileVersion | null };
 
 export const INITIAL_DOCUMENT_STATE: EditorDocumentState = {
   status: 'loading',
@@ -35,6 +39,7 @@ export const INITIAL_DOCUMENT_STATE: EditorDocumentState = {
   conflict: null,
   saving: false,
   warnings: [],
+  recovery: 'none',
 };
 
 function fromDocument(document: EditorDocument): ServerCopy {
@@ -57,6 +62,7 @@ export function editorDocumentReducer(state: EditorDocumentState, action: Editor
         draft: action.document.content,
         conflict: null,
         saving: false,
+        recovery: 'none',
       };
     case 'loadFailed':
       return { ...state, status: 'failed', error: action.error };
@@ -74,6 +80,7 @@ export function editorDocumentReducer(state: EditorDocumentState, action: Editor
         conflict: null,
         server: { ...state.server, content: action.content, version: action.saved.version },
         warnings: action.saved.warnings,
+        recovery: 'none',
       };
     case 'conflicted':
       return { ...state, saving: false, conflict: action.conflict };
@@ -81,7 +88,18 @@ export function editorDocumentReducer(state: EditorDocumentState, action: Editor
       return { ...state, saving: false, error: action.error };
     case 'reloadedFromConflict':
       return reloadFromConflict(state);
+    case 'recovered':
+      return recoverDraft(state, action.content, action.baseVersion);
   }
+}
+
+function recoverDraft(state: EditorDocumentState, content: string, baseVersion: FileVersion | null): EditorDocumentState {
+  if (state.server === null) {
+    return state;
+  }
+  const changedOnServer = baseVersion !== null && baseVersion.sha256 !== state.server.version?.sha256;
+  const server = changedOnServer ? { ...state.server, version: baseVersion } : state.server;
+  return { ...state, server, draft: content, recovery: changedOnServer ? 'changed' : 'unchanged' };
 }
 
 function reloadFromConflict(state: EditorDocumentState): EditorDocumentState {
@@ -95,7 +113,7 @@ function reloadFromConflict(state: EditorDocumentState): EditorDocumentState {
     hasByteOrderMark: state.conflict.currentHasByteOrderMark,
     version: state.conflict.currentVersion,
   };
-  return { ...state, server, draft: content, conflict: null, error: null };
+  return { ...state, server, draft: content, conflict: null, error: null, recovery: 'none' };
 }
 
 export function isDirty(state: EditorDocumentState): boolean {

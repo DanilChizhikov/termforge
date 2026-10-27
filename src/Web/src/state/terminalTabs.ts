@@ -9,6 +9,8 @@ export interface TerminalTab {
   generation: number;
   reconnecting: boolean;
   wasConnected: boolean;
+  connectionName: string | null;
+  restored: boolean;
 }
 
 export type TerminalTabsAction =
@@ -16,6 +18,7 @@ export type TerminalTabsAction =
   | { type: 'opened'; key: string; session: TerminalSession }
   | { type: 'state'; key: string; state: TerminalState; reason: string | null }
   | { type: 'reconnect'; key: string }
+  | { type: 'resume'; key: string }
   | { type: 'remove'; key: string };
 
 export interface TerminalTabGroup {
@@ -25,12 +28,29 @@ export interface TerminalTabGroup {
 }
 
 const CONNECTING_LABEL = 'Connecting…';
+const UNNAMED_LABEL = 'Terminal';
+const RESTORED_REASON = 'Restored from your last session.';
 
 let tabCounter = 0;
 
 export function createTabKey(): string {
   tabCounter += 1;
   return `terminal-${tabCounter}`;
+}
+
+export function restoredTerminalTab(key: string, connectionId: string, connectionName: string): TerminalTab {
+  return {
+    key,
+    connectionId,
+    session: null,
+    state: 'disconnected',
+    reason: RESTORED_REASON,
+    generation: 0,
+    reconnecting: false,
+    wasConnected: false,
+    connectionName: connectionName === '' ? null : connectionName,
+    restored: true,
+  };
 }
 
 export function terminalTabsReducer(tabs: TerminalTab[], action: TerminalTabsAction): TerminalTab[] {
@@ -47,10 +67,14 @@ export function terminalTabsReducer(tabs: TerminalTab[], action: TerminalTabsAct
           generation: 0,
           reconnecting: false,
           wasConnected: false,
+          connectionName: null,
+          restored: false,
         },
       ];
     case 'opened':
-      return tabs.map((tab) => (tab.key === action.key ? { ...tab, session: action.session } : tab));
+      return tabs.map((tab) =>
+        tab.key === action.key ? { ...tab, session: action.session, connectionName: action.session.connectionName } : tab,
+      );
     case 'state':
       return tabs.map((tab) =>
         tab.key === action.key
@@ -68,6 +92,12 @@ export function terminalTabsReducer(tabs: TerminalTab[], action: TerminalTabsAct
           ? { ...tab, session: null, state: 'connecting', reason: null, generation: tab.generation + 1, reconnecting: true }
           : tab,
       );
+    case 'resume':
+      return tabs.map((tab) =>
+        tab.key === action.key && tab.restored
+          ? { ...tab, restored: false, state: 'connecting', reason: null, generation: tab.generation + 1 }
+          : tab,
+      );
     case 'remove':
       return tabs.filter((tab) => tab.key !== action.key);
   }
@@ -80,6 +110,8 @@ export function groupTabsByServer(tabs: TerminalTab[]): TerminalTabGroup[] {
     group.tabs.push(tab);
     if (tab.session !== null) {
       group.name = tab.session.connectionName;
+    } else if (tab.connectionName !== null) {
+      group.name = tab.connectionName;
     }
     groups.set(tab.connectionId, group);
   }
@@ -88,7 +120,7 @@ export function groupTabsByServer(tabs: TerminalTab[]): TerminalTabGroup[] {
 
 export function tabLabel(tab: TerminalTab): string {
   if (tab.session === null) {
-    return CONNECTING_LABEL;
+    return tab.restored ? (tab.connectionName ?? UNNAMED_LABEL) : CONNECTING_LABEL;
   }
   return `${tab.session.connectionName} #${tab.session.sessionNumber}`;
 }

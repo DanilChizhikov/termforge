@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useReducer, useState, type KeyboardEvent } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useReducer, useRef, useState, type KeyboardEvent } from 'react';
 import {
   describeEditorError,
   openRemoteFile,
@@ -15,7 +15,8 @@ import {
   isDirty,
   lineEndingOf,
 } from '../../state/editorDocument';
-import { setEditorFileDirty, type EditorFile } from '../../state/editorFiles';
+import { clearEditorDraft, getEditorDraft, setEditorDraft } from '../../state/editorDrafts';
+import { reopenEditorFile, setEditorFileDirty, type EditorFile } from '../../state/editorFiles';
 import { EmptyState } from '../EmptyState';
 import { EditorConflictNotice } from './EditorConflictNotice';
 import { languageForPath } from './editorLanguage';
@@ -41,7 +42,29 @@ interface Cursor {
 }
 
 export function EditorDocumentView({ file }: EditorDocumentViewProps) {
+  if (file.restored) {
+    return <RestoredEditorFile file={file} />;
+  }
+  return <OpenedEditorDocument file={file} />;
+}
+
+function RestoredEditorFile({ file }: EditorDocumentViewProps) {
+  return (
+    <div className="editor-restored">
+      <p>
+        Restored from your last session: <code className="mono">{file.path}</code>
+      </p>
+      {file.dirty ? <p>Your unsaved changes were kept and are applied when the file is opened again.</p> : null}
+      <button type="button" className="btn btn-sm btn-primary" onClick={() => reopenEditorFile(file.key)}>
+        Open file
+      </button>
+    </div>
+  );
+}
+
+function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
   const [state, dispatch] = useReducer(editorDocumentReducer, INITIAL_DOCUMENT_STATE);
+  const pendingRecovery = useRef(getEditorDraft(file.key));
   const [view, setView] = useState<View>('edit');
   const [comparison, setComparison] = useState<Comparison | null>(null);
   const [cursor, setCursor] = useState<Cursor>({ line: 1, column: 1 });
@@ -57,6 +80,11 @@ export function EditorDocumentView({ file }: EditorDocumentViewProps) {
       .then((document) => {
         if (!cancelled) {
           dispatch({ type: 'loaded', document });
+          const recovered = pendingRecovery.current;
+          pendingRecovery.current = null;
+          if (recovered !== null && recovered.content !== document.content) {
+            dispatch({ type: 'recovered', content: recovered.content, baseVersion: recovered.baseVersion });
+          }
         }
       })
       .catch((error: unknown) => {
@@ -72,6 +100,19 @@ export function EditorDocumentView({ file }: EditorDocumentViewProps) {
   useEffect(() => {
     setEditorFileDirty(key, dirty);
   }, [key, dirty]);
+
+  const serverCopy = state.server;
+  const draftContent = state.draft;
+  useEffect(() => {
+    if (serverCopy === null) {
+      return;
+    }
+    if (dirty) {
+      setEditorDraft(key, { connectionId, path, content: draftContent, baseVersion: serverCopy.version });
+    } else {
+      clearEditorDraft(key);
+    }
+  }, [key, connectionId, path, dirty, draftContent, serverCopy]);
 
   const handleCursor = useCallback((line: number, column: number) => setCursor({ line, column }), []);
 
@@ -218,6 +259,14 @@ export function EditorDocumentView({ file }: EditorDocumentViewProps) {
           }}
           onOverwrite={() => void save(state.conflict?.currentVersion ?? null)}
         />
+      )}
+      {state.recovery === 'none' ? null : (
+        <div role="status" className="notice notice-caution editor-message">
+          <p>Recovered unsaved changes from your last session.</p>
+          {state.recovery === 'changed' ? (
+            <p>The file changed on the server since then. Saving shows the conflict so you can compare first.</p>
+          ) : null}
+        </div>
       )}
       {state.error === null ? null : (
         <p role="alert" className="notice notice-danger editor-message">

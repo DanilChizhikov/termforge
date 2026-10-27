@@ -5,18 +5,22 @@ import { HostKeyPrompt } from './components/HostKeyPrompt';
 import { ServerSidebar } from './components/ServerSidebar';
 import { SessionBanner } from './components/SessionBanner';
 import { SettingsView } from './components/settings/SettingsView';
+import { WorkspaceRestoreNotice } from './components/WorkspaceRestoreNotice';
 import { WorkspaceTabs } from './components/WorkspaceTabs';
 import { useAppView } from './state/appView';
+import { usePersistentLayout } from './state/workspaceLayout';
 
 export function App() {
   const view = useAppView();
+  const layout = usePersistentLayout('app-layout');
 
   return (
     <div className="app">
       <AppHeader />
       <SessionBanner />
+      <WorkspaceRestoreNotice />
       <div className="app-view" hidden={view !== 'workspace'}>
-        <Group orientation="horizontal" id="app-layout" className="group">
+        <Group orientation="horizontal" id="app-layout" className="group" {...layout}>
           <CollapsibleRegion id="servers" title="Servers" defaultSize="20%" minSize="10%">
             <ServerSidebar />
           </CollapsibleRegion>
