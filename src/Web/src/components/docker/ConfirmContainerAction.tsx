@@ -1,3 +1,4 @@
+import type { KeyboardEvent } from 'react';
 import type { ContainerAction } from '../../api/docker';
 
 export interface PendingContainerAction {
@@ -19,23 +20,33 @@ const CONSEQUENCES: Partial<Record<ContainerAction, string>> = {
 
 export function ConfirmContainerAction({ pending, serverName, onConfirm, onCancel }: ConfirmContainerActionProps) {
   const verb = pending.action === 'stop' ? 'Stop' : 'Restart';
+
+  const closeOnEscape = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      onCancel();
+    }
+  };
+
   return (
-    <div className="dialog-backdrop">
-      <div role="dialog" aria-modal="true" aria-labelledby="container-action-title" className="dialog-card">
-        <div className="dialog-header">
-          <h2 id="container-action-title" className="dialog-title">
-            {verb} <code>{pending.container}</code> on {serverName}?
-          </h2>
-          <p className="text-secondary">{CONSEQUENCES[pending.action]} The action is recorded in the journal.</p>
-        </div>
-        <div className="dialog-footer">
-          <button type="button" className="btn btn-destructive" onClick={onConfirm}>
-            {verb} container
-          </button>
-          <button type="button" className="btn btn-safe" autoFocus onClick={onCancel}>
-            Cancel
-          </button>
-        </div>
+    <div
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby="container-action-title"
+      className="docker-confirm"
+      onKeyDown={closeOnEscape}
+    >
+      <p id="container-action-title" className="docker-confirm-title">
+        {verb} {pending.container} on {serverName}?
+      </p>
+      <p className="docker-confirm-text">{CONSEQUENCES[pending.action]} The action is recorded in the journal.</p>
+      <div className="docker-confirm-actions">
+        <button type="button" className="btn btn-sm btn-safe" autoFocus onClick={onCancel}>
+          Cancel
+        </button>
+        <button type="button" className="btn btn-sm btn-destructive" onClick={onConfirm}>
+          {verb} container
+        </button>
       </div>
     </div>
   );

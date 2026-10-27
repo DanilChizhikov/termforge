@@ -191,6 +191,23 @@ export function ShieldAlertIcon({ size = 18 }: IconProps) {
   );
 }
 
+export function CheckIcon({ size = 12 }: IconProps) {
+  return (
+    <IconFrame size={size} strokeWidth={2.6}>
+      <path d="M5 12l4 4 10-10" />
+    </IconFrame>
+  );
+}
+
+export function RefreshArcIcon({ size = 15 }: IconProps) {
+  return (
+    <IconFrame size={size} strokeWidth={2}>
+      <path d="M20 12a8 8 0 1 1-2.34-5.66" />
+      <path d="M20 4v5h-5" />
+    </IconFrame>
+  );
+}
+
 export function WarningTriangleIcon({ size = 18 }: IconProps) {
   return (
     <IconFrame size={size} strokeWidth={2}>

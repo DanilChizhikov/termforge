@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { containerLogsUrl, LOG_TAIL_OPTIONS, parseLogMessage } from '../../api/docker';
-import { CloseIcon } from '../icons/Icons';
+import { CloseIcon, SearchIcon, TerminalIcon } from '../icons/Icons';
 
 export interface ContainerLogsProps {
   connectionId: string;
@@ -28,9 +28,7 @@ export function ContainerLogs({ connectionId, container, canOpenShell, onOpenShe
   return (
     <section aria-label={`Logs of ${container}`} className="docker-panel">
       <div className="docker-panel-bar">
-        <span className="docker-panel-title">
-          Logs · <code>{container}</code>
-        </span>
+        <span className="docker-panel-title">Logs · {container}</span>
         <label className="check-row docker-inline-control">
           <input type="checkbox" className="checkbox" checked={follow} onChange={(event) => setFollow(event.target.checked)} />
           Follow
@@ -49,17 +47,21 @@ export function ContainerLogs({ connectionId, container, canOpenShell, onOpenShe
             ))}
           </select>
         </label>
-        <input
-          type="search"
-          className="input input-sm docker-filter"
-          placeholder="Filter lines"
-          aria-label="Filter log lines"
-          value={filter}
-          onChange={(event) => setFilter(event.target.value)}
-        />
+        <span className="docker-filter">
+          <SearchIcon size={13} />
+          <input
+            type="search"
+            className="docker-filter-input"
+            placeholder="Filter lines"
+            aria-label="Filter log lines"
+            value={filter}
+            onChange={(event) => setFilter(event.target.value)}
+          />
+        </span>
         <span className="docker-panel-spacer" />
         {canOpenShell ? (
           <button type="button" className="btn btn-sm btn-primary" onClick={onOpenShell}>
+            <TerminalIcon size={13} />
             Open shell in container
           </button>
         ) : null}
@@ -137,7 +139,9 @@ function LogStream({ connectionId, container, tail, follow, filter }: LogStreamP
   return (
     <>
       <pre ref={outputRef} className="docker-log-output" aria-label="Log output" tabIndex={0}>
-        {visibleText}
+        {visibleText.split('\n').map((line, index) => (
+          <LogLine key={index} line={line} last={index === lineCount(visibleText) - 1} />
+        ))}
       </pre>
       <div className="docker-panel-footer">
         <StreamStatus stream={stream} />
@@ -169,6 +173,42 @@ function StreamStatus({ stream }: { stream: StreamState }) {
     <span className="status-text status-text-active">
       <span className="status-dot status-dot-sm status-dot-active" aria-hidden="true" />
       {label}
+    </span>
+  );
+}
+
+const TIMESTAMP_PATTERN = /^(\S*\d{2}:\d{2}:\d{2}\S*)(\s.*)?$/;
+const ERROR_PATTERN = /\b(ERROR|ERR|FATAL|CRIT(?:ICAL)?)\b/;
+const WARNING_PATTERN = /\bWARN(?:ING)?\b/;
+
+function lineCount(text: string): number {
+  return text.split('\n').length;
+}
+
+function levelClass(text: string): string | undefined {
+  if (ERROR_PATTERN.test(text)) {
+    return 'docker-log-error';
+  }
+  return WARNING_PATTERN.test(text) ? 'docker-log-warning' : undefined;
+}
+
+function LogLine({ line, last }: { line: string; last: boolean }) {
+  const ending = last ? '' : '\n';
+  const timestamp = TIMESTAMP_PATTERN.exec(line);
+  if (timestamp === null) {
+    return (
+      <span className={levelClass(line)}>
+        {line}
+        {ending}
+      </span>
+    );
+  }
+  const rest = timestamp[2] ?? '';
+  return (
+    <span>
+      <span className="docker-log-time">{timestamp[1]}</span>
+      <span className={levelClass(rest)}>{rest}</span>
+      {ending}
     </span>
   );
 }

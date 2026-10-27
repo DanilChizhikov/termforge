@@ -15,8 +15,17 @@
   background: var(--surface-control);
 }
 
-.docker-name code {
+.docker-table th {
+  padding: 9px 14px;
+}
+
+.docker-table td {
+  padding: 8px 14px;
+}
+
+.docker-name {
   color: var(--text-primary);
+  font-size: var(--text-body);
   font-weight: 600;
 }
 
@@ -26,6 +35,91 @@
   color: var(--text-soft);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.docker-image code,
+.docker-ports code {
+  font-size: var(--text-small);
+}
+
+.docker-ports {
+  color: var(--text-secondary);
+}
+
+.docker-state {
+  color: var(--text-primary);
+}
+
+.docker-header {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.docker-header-spacer {
+  flex: 1;
+}
+
+.docker-availability {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--status-ok-soft);
+  color: var(--status-ok-text);
+  font-size: var(--text-caption);
+}
+
+.icon-btn-outlined {
+  border-color: var(--border-default);
+}
+
+.docker-row-button {
+  border-color: var(--border-default);
+  border-radius: 5px;
+}
+
+.docker-row-button[aria-pressed='true'] {
+  border-color: var(--border-control);
+  background: var(--surface-selected);
+}
+
+.docker-row-button-armed {
+  border-color: var(--status-danger-border);
+  color: var(--status-danger-text);
+}
+
+.docker-confirm-row td,
+.docker-confirm-row:hover {
+  background: transparent;
+}
+
+.docker-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(300px, 100%);
+  margin-left: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-card);
+  background: var(--surface-selected);
+  box-shadow: var(--shadow-dialog);
+}
+
+.docker-confirm-title {
+  font-weight: 600;
+}
+
+.docker-confirm-text {
+  color: var(--text-secondary);
+  font-size: var(--text-small);
+}
+
+.docker-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .docker-actions {
@@ -72,7 +166,42 @@
 }
 
 .docker-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   width: 160px;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+}
+
+.docker-filter:focus-within {
+  border-color: var(--accent);
+}
+
+.docker-filter-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--text-small);
+}
+
+.docker-log-time {
+  color: var(--text-muted);
+}
+
+.docker-log-warning {
+  color: var(--status-caution);
+}
+
+.docker-log-error {
+  color: var(--status-danger-text);
 }
 
 .docker-panel-spacer {
