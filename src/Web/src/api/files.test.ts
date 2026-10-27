@@ -98,7 +98,10 @@ describe('describeFileError', () => {
 
 describe('sources', () => {
   function fakeClient(): ApiClient {
-    return { get: vi.fn().mockResolvedValue({}), post: vi.fn().mockResolvedValue(undefined) } as unknown as ApiClient;
+    const post = vi.fn((path: string) =>
+      Promise.resolve(path === '/api/confirmations' ? { token: 'confirm-1' } : undefined),
+    );
+    return { get: vi.fn().mockResolvedValue({}), post } as unknown as ApiClient;
   }
 
   it('lists local paths with an encoded query', async () => {
@@ -117,12 +120,21 @@ describe('sources', () => {
     expect(client.get).toHaveBeenCalledWith('/api/files/remote/abc/list');
   });
 
-  it('sends explicit confirmation on delete', async () => {
+  it('requests a single-use confirmation token before a remote delete', async () => {
     const client = fakeClient();
 
     await createRemoteSource('abc', client).remove('/x');
 
-    expect(client.post).toHaveBeenCalledWith('/api/files/remote/abc/delete', { path: '/x', confirm: true });
+    expect(client.post).toHaveBeenNthCalledWith(1, '/api/confirmations', { operation: 'RemoteDelete', connectionId: 'abc', target: '/x' });
+    expect(client.post).toHaveBeenNthCalledWith(2, '/api/files/remote/abc/delete', { path: '/x', confirmationToken: 'confirm-1' });
+  });
+
+  it('sends explicit confirmation on a local delete', async () => {
+    const client = fakeClient();
+
+    await createLocalSource(client).remove('/x');
+
+    expect(client.post).toHaveBeenCalledWith('/api/files/local/delete', { path: '/x', confirm: true });
   });
 
   it('sends rename and create requests', async () => {

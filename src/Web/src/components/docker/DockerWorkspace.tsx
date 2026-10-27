@@ -8,6 +8,7 @@ import {
   type DockerContainer,
   type DockerOverview,
 } from '../../api/docker';
+import { useConnection } from '../../state/connections';
 import { useSelectedServerId } from '../../state/selectedServer';
 import { EmptyState } from '../EmptyState';
 import { CheckIcon, RefreshArcIcon } from '../icons/Icons';
@@ -55,6 +56,8 @@ export function DockerWorkspace({ active }: { active: boolean }) {
 }
 
 function DockerView({ serverId }: { serverId: string }) {
+  const connection = useConnection(serverId);
+  const readOnly = connection?.readOnly ?? false;
   const [state, setState] = useState<OverviewState>({ overview: null, error: null, isLoading: true });
   const [filter, setFilter] = useState<ContainerFilter>('all');
   const [panel, setPanel] = useState<DetailPanel>(null);
@@ -179,6 +182,12 @@ function DockerView({ serverId }: { serverId: string }) {
           {notice.message}
         </p>
       ) : null}
+      {readOnly ? (
+        <p role="status" className="notice notice-caution">
+          {connection?.name ?? 'This server'} is read-only. Starting, stopping, restarting and opening shells are blocked;
+          logs stay available.
+        </p>
+      ) : null}
       {overview !== null && overview.availability.state !== 'Available' ? (
         <UnavailableCallout overview={overview} />
       ) : null}
@@ -190,6 +199,7 @@ function DockerView({ serverId }: { serverId: string }) {
             selectedContainer={panel?.container ?? null}
             logsContainer={panel?.kind === 'logs' ? panel.container : null}
             pending={pending}
+            readOnly={readOnly}
             confirmation={
               pending !== null && overview !== null ? (
                 <ConfirmContainerAction

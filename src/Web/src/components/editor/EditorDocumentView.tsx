@@ -28,7 +28,7 @@ import {
 } from '../../state/editorDocument';
 import { clearEditorDraft, getEditorDraft, setEditorDraft } from '../../state/editorDrafts';
 import { reopenEditorFile, setEditorFileDirty, type EditorFile } from '../../state/editorFiles';
-import { useConnectionName } from '../../state/connections';
+import { useConnection } from '../../state/connections';
 import { EmptyState } from '../EmptyState';
 import { ShieldIcon } from '../icons/Icons';
 import { formatClock, formatDayAndClock } from '../timeFormat';
@@ -92,7 +92,9 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
   const [elevated, setElevated] = useState(false);
   const [openDenied, setOpenDenied] = useState(false);
   const [openedAt] = useState(() => new Date());
-  const serverName = useConnectionName(file.connectionId);
+  const connection = useConnection(file.connectionId);
+  const serverName = connection?.name ?? null;
+  const readOnly = connection?.readOnly ?? false;
   const dirty = isDirty(state);
   const language = languageForPath(file.path);
   const { connectionId, path, key } = file;
@@ -298,7 +300,7 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
   }
 
   function requestSave(): void {
-    if (dirty && !state.saving && state.conflict === null && state.server !== null) {
+    if (dirty && !readOnly && !state.saving && state.conflict === null && state.server !== null) {
       void save(state.server.version);
     }
   }
@@ -389,7 +391,7 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
             Stop using sudo
           </button>
         ) : (
-          <button type="button" className="btn btn-sm" disabled={state.saving || sudo.busy} onClick={editWithSudo}>
+          <button type="button" className="btn btn-sm" disabled={state.saving || sudo.busy || readOnly} onClick={editWithSudo}>
             <ShieldIcon size={13} />
             Edit with sudo
           </button>
@@ -405,7 +407,8 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
         <button
           type="button"
           className="btn btn-sm btn-primary editor-save"
-          disabled={!dirty || state.saving || state.conflict !== null}
+          disabled={!dirty || state.saving || state.conflict !== null || readOnly}
+          title={readOnly ? 'Read-only server' : undefined}
           onClick={requestSave}
         >
           {state.saving ? 'Saving…' : 'Save'} <kbd className="kbd">⌘S</kbd>
@@ -425,6 +428,11 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
           onOverwrite={() => void save(state.conflict?.currentVersion ?? null)}
         />
       )}
+      {readOnly ? (
+        <p role="status" className="notice notice-caution editor-message">
+          {serverName ?? 'This server'} is read-only. Saving and rolling back are blocked; you can still read and compare.
+        </p>
+      ) : null}
       {state.recovery === 'none' ? null : (
         <div role="status" className="notice notice-caution editor-message">
           <p>Recovered unsaved changes from your last session.</p>
@@ -475,7 +483,7 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
           connectionId={connectionId}
           path={path}
           refreshToken={versionsToken}
-          canRollBack={!dirty && state.conflict === null}
+          canRollBack={!dirty && state.conflict === null && !readOnly}
           busy={state.saving}
           saveNote={elevated ? ELEVATED_SAVE_NOTE : null}
           onCompare={(backup) => void compareWithBackup(backup)}

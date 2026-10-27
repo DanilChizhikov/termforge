@@ -19,6 +19,8 @@ import { FileTable } from './FileTable';
 import { FileIcon, FolderPlusIcon, PencilIcon, RefreshIcon, SearchIcon, TrashIcon } from './icons/Icons';
 import { hasDraggedPaths, readDraggedPaths, writeDraggedPaths, type FilePaneTransfer } from './filePaneTransfer';
 
+const READ_ONLY_TITLE = 'Read-only server';
+
 export interface FilePaneProps {
   title: string;
   label?: string | null;
@@ -31,6 +33,7 @@ export interface FilePaneProps {
   transfer?: FilePaneTransfer;
   refreshToken?: number;
   search?: FileSearchSource;
+  readOnly?: boolean;
 }
 
 interface LoadState {
@@ -51,7 +54,7 @@ type PaneAction =
 
 const NO_SELECTION: ReadonlySet<string> = new Set();
 
-export function FilePane({ title, label = null, sourceKey, source, path, onPathChange, roots, onOpenFile, transfer, refreshToken = 0, search }: FilePaneProps) {
+export function FilePane({ title, label = null, sourceKey, source, path, onPathChange, roots, onOpenFile, transfer, refreshToken = 0, search, readOnly = false }: FilePaneProps) {
   const [loadState, setLoadState] = useState<LoadState | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [selection, setSelection] = useState<Selection | null>(null);
@@ -271,8 +274,8 @@ export function FilePane({ title, label = null, sourceKey, source, path, onPathC
             type="button"
             className="icon-btn"
             aria-label="New folder"
-            title="New folder"
-            disabled={listing === null || busy}
+            title={readOnly ? READ_ONLY_TITLE : 'New folder'}
+            disabled={listing === null || busy || readOnly}
             onClick={() => openAction({ type: 'createDirectory' })}
           >
             <FolderPlusIcon size={14} />
@@ -281,8 +284,8 @@ export function FilePane({ title, label = null, sourceKey, source, path, onPathC
             type="button"
             className="icon-btn"
             aria-label="Rename"
-            title="Rename"
-            disabled={selectedEntries.length !== 1 || busy}
+            title={readOnly ? READ_ONLY_TITLE : 'Rename'}
+            disabled={selectedEntries.length !== 1 || busy || readOnly}
             onClick={() => openRename(selectedEntries)}
           >
             <PencilIcon size={14} />
@@ -303,8 +306,8 @@ export function FilePane({ title, label = null, sourceKey, source, path, onPathC
             type="button"
             className="icon-btn icon-btn-danger"
             aria-label="Delete"
-            title="Delete"
-            disabled={selectedEntries.length === 0 || busy}
+            title={readOnly ? READ_ONLY_TITLE : 'Delete'}
+            disabled={selectedEntries.length === 0 || busy || readOnly}
             onClick={() => openAction({ type: 'delete', entries: selectedEntries })}
           >
             <TrashIcon size={14} />
@@ -376,11 +379,14 @@ export function FilePane({ title, label = null, sourceKey, source, path, onPathC
       {action !== null && action.type === 'delete' && (
         <div role="alertdialog" aria-label="Confirm delete" className="file-action file-action-danger">
           <p>
-            Delete {action.entries.length} item(s)? Only files and empty folders can be deleted.
+            Delete {action.entries.length} item(s) on <strong>{label ?? title}</strong>? Only files and empty folders
+            can be deleted.
           </p>
           <ul>
             {action.entries.map((entry) => (
-              <li key={entry.path}>{entry.name}</li>
+              <li key={entry.path}>
+                <code>{entry.path}</code>
+              </li>
             ))}
           </ul>
           <div className="file-action-buttons">

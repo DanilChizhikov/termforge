@@ -21,6 +21,7 @@ export interface ContainerTableProps {
   onLogs: (container: DockerContainer) => void;
   onShell: (container: DockerContainer) => void;
   onAction: (container: DockerContainer, action: ContainerAction) => void;
+  readOnly: boolean;
 }
 
 const COLUMN_COUNT = 6;
@@ -40,6 +41,7 @@ export function ContainerTable({
   onLogs,
   onShell,
   onAction,
+  readOnly,
 }: ContainerTableProps) {
   return (
     <div className="table-card">
@@ -94,7 +96,7 @@ export function ContainerTable({
                           type="button"
                           className="btn btn-sm docker-row-button"
                           aria-label={`Shell in ${container.name}`}
-                          disabled={!canOpenShell(container)}
+                          disabled={!canOpenShell(container) || readOnly}
                           onClick={() => onShell(container)}
                         >
                           Shell
@@ -107,7 +109,7 @@ export function ContainerTable({
                             key={action}
                             type="button"
                             className={pressed ? 'btn btn-sm docker-row-button docker-row-button-armed' : 'btn btn-sm docker-row-button'}
-                            disabled={isBusy}
+                            disabled={isBusy || readOnly}
                             aria-label={`${ACTION_LABELS[action]} ${container.name}`}
                             aria-expanded={action === 'start' ? undefined : pressed}
                             onClick={() => onAction(container, action)}

@@ -282,6 +282,10 @@ select.input:disabled {
   color: var(--status-caution);
 }
 
+.read-only-badge {
+  flex: none;
+}
+
 .badge-danger {
   background: var(--status-danger-badge);
   color: var(--status-danger-text);

@@ -1,4 +1,5 @@
 import { ApiError, apiClient, type ApiClient } from './client';
+import { requestConfirmationToken } from './confirmations';
 
 export type TransferDirection = 'upload' | 'download';
 
@@ -47,7 +48,8 @@ export async function startTransfers(
   client: ApiClient = apiClient,
 ): Promise<TransferStartResult> {
   try {
-    const transfers = await client.post<TransferRecord[]>(TRANSFERS_PATH, request);
+    const body = await withOverwriteConfirmation(request, client);
+    const transfers = await client.post<TransferRecord[]>(TRANSFERS_PATH, body);
     return { kind: 'queued', transfers };
   } catch (error) {
     const conflicts = readConflicts(error);
@@ -56,6 +58,18 @@ export async function startTransfers(
     }
     throw error;
   }
+}
+
+async function withOverwriteConfirmation(
+  request: TransferStartRequest,
+  client: ApiClient,
+): Promise<TransferStartRequest & { confirmationToken?: string }> {
+  if (!request.overwrite || request.direction !== 'upload') {
+    return request;
+  }
+  const scope = { operation: 'TransferOverwrite' as const, connectionId: request.connectionId, target: request.targetDirectory };
+  const confirmationToken = await requestConfirmationToken(scope, client);
+  return { ...request, confirmationToken };
 }
 
 export function cancelTransfer(id: string, client: ApiClient = apiClient): Promise<void> {

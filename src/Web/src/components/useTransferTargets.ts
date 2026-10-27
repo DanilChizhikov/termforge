@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { TransferDirection } from '../api/transfers';
 import { useLocalPath, useRemotePath } from '../state/filePaths';
-import { useConnectionName } from '../state/connections';
+import { useConnection, useConnectionName } from '../state/connections';
 import { useSelectedServerId } from '../state/selectedServer';
 import { requestTransfers, useTransfersState } from '../state/transfers';
 import type { FilePaneTransfer } from './filePaneTransfer';
@@ -18,7 +18,8 @@ export function useLocalPaneTransfer(): FilePaneTransfer {
   const serverId = useSelectedServerId();
   const localPath = useLocalPath();
   const remotePath = useRemotePath(serverId ?? '');
-  const canSend = serverId !== null && remotePath !== null;
+  const readOnly = useConnection(serverId)?.readOnly ?? false;
+  const canSend = serverId !== null && remotePath !== null && !readOnly;
   const canReceive = serverId !== null && localPath !== null;
   const serverName = useConnectionName(serverId);
   return useMemo(
@@ -27,22 +28,23 @@ export function useLocalPaneTransfer(): FilePaneTransfer {
       primary: true,
       Icon: ArrowRightIcon,
       canSend,
-      unavailableReason: 'Open a remote folder to upload into.',
+      unavailableReason: readOnly ? `${serverName ?? 'This server'} is read-only.` : 'Open a remote folder to upload into.',
       onSend: (paths) => startTransfer(serverId, 'upload', paths, remotePath),
       dragOrigin: 'local',
       acceptsFrom: 'remote',
       canReceive,
       onReceive: (paths) => startTransfer(serverId, 'download', paths, localPath),
     }),
-    [serverId, serverName, localPath, remotePath, canSend, canReceive],
+    [serverId, serverName, localPath, remotePath, canSend, canReceive, readOnly],
   );
 }
 
 export function useRemotePaneTransfer(serverId: string): FilePaneTransfer {
   const localPath = useLocalPath();
   const remotePath = useRemotePath(serverId);
+  const readOnly = useConnection(serverId)?.readOnly ?? false;
   const canSend = localPath !== null;
-  const canReceive = remotePath !== null;
+  const canReceive = remotePath !== null && !readOnly;
   return useMemo(
     () => ({
       label: 'Download',

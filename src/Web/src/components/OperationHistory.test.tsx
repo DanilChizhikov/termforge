@@ -24,6 +24,7 @@ function makeConnection(name: string): SavedConnection {
     reconnectMaxAttempts: 5,
     reconnectInitialDelaySeconds: 2,
     reconnectMaxDelaySeconds: 60,
+    readOnly: false,
   };
 }
 

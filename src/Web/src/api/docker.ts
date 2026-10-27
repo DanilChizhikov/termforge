@@ -1,4 +1,5 @@
 import { apiClient, type ApiClient } from './client';
+import { requestConfirmationToken, type DangerousOperation } from './confirmations';
 import type { TerminalSession, TerminalSize } from './terminals';
 import { buildWebSocketUrl, type LocationLike } from './webSocket';
 
@@ -56,6 +57,11 @@ export const LOG_TAIL_OPTIONS: readonly number[] = [100, 200, 1000, 5000];
 
 export const ACTIONS_REQUIRING_CONFIRMATION: ReadonlySet<ContainerAction> = new Set(['stop', 'restart']);
 
+const DANGEROUS_ACTIONS: Partial<Record<ContainerAction, DangerousOperation>> = {
+  stop: 'ContainerStop',
+  restart: 'ContainerRestart',
+};
+
 function dockerPath(connectionId: string): string {
   return `/api/connections/${encodeURIComponent(connectionId)}/docker`;
 }
@@ -68,14 +74,19 @@ export function getDockerOverview(connectionId: string, client: ApiClient = apiC
   return client.get<DockerOverview>(dockerPath(connectionId));
 }
 
-export function runContainerAction(
+export async function runContainerAction(
   connectionId: string,
   container: string,
   action: ContainerAction,
   confirmed: boolean,
   client: ApiClient = apiClient,
 ): Promise<ContainerActionResult> {
-  return client.post<ContainerActionResult>(`${containerPath(connectionId, container)}/${action}`, { confirmed });
+  const operation = DANGEROUS_ACTIONS[action];
+  const confirmationToken =
+    operation !== undefined && confirmed
+      ? await requestConfirmationToken({ operation, connectionId, target: container }, client)
+      : null;
+  return client.post<ContainerActionResult>(`${containerPath(connectionId, container)}/${action}`, { confirmationToken });
 }
 
 export function openContainerShell(

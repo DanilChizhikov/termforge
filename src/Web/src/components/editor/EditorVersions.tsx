@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { describeEditorError, listBackups, type FileBackup } from '../../api/editor';
+import { useConnectionName } from '../../state/connections';
 import { formatDayAndClock } from '../timeFormat';
 
 export interface EditorVersionsProps {
@@ -38,6 +39,7 @@ export function EditorVersions({
 }: EditorVersionsProps) {
   const [state, setState] = useState<BackupsState | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
+  const serverName = useConnectionName(connectionId);
   const requestKey = `${connectionId}|${path}|${refreshToken}`;
 
   useEffect(() => {
@@ -89,7 +91,13 @@ export function EditorVersions({
             <li key={backup.name} className="editor-version">
               <span className="editor-version-text" title={backup.name}>
                 <span>{formatDayAndClock(backup.createdAtUtc)}</span>
-                <span className="editor-version-note">Saved from TermForge · backup</span>
+                {confirming === backup.name ? (
+                  <span className="editor-version-note">
+                    Restore <code>{path}</code> on {serverName ?? 'this server'}?
+                  </span>
+                ) : (
+                  <span className="editor-version-note">Saved from TermForge · backup</span>
+                )}
               </span>
               {confirming === backup.name ? (
                 <span className="editor-version-actions">
