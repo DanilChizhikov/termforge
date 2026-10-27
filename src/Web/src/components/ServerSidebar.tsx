@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   createConnection,
   describeError,
   emptyInput,
   importSshConfig,
   inputFrom,
-  listConnections,
   removeConnection,
   removeGroup,
   renameGroup,
@@ -16,6 +15,7 @@ import {
   type SavedConnection,
   type SshConfigImportResult,
 } from '../api/connections';
+import { reloadConnections, useConnections } from '../state/connections';
 import { selectServer, useSelectedServerId } from '../state/selectedServer';
 import { EmptyState } from './EmptyState';
 import { ImportIcon, PlusIcon } from './icons/Icons';
@@ -28,7 +28,7 @@ type DialogState = { mode: 'add' } | { mode: 'edit'; connection: SavedConnection
 
 const UNGROUPED = '';
 
-function groupConnections(connections: SavedConnection[]): Map<string, SavedConnection[]> {
+function groupConnections(connections: readonly SavedConnection[]): Map<string, SavedConnection[]> {
   const groups = new Map<string, SavedConnection[]>();
   for (const connection of connections) {
     const key = connection.groupName ?? UNGROUPED;
@@ -39,33 +39,18 @@ function groupConnections(connections: SavedConnection[]): Map<string, SavedConn
 
 export function ServerSidebar() {
   const selectedId = useSelectedServerId();
-  const [connections, setConnections] = useState<SavedConnection[]>([]);
+  const connections = useConnections();
   const [statuses, setStatuses] = useState<Record<string, ServerStatus>>({});
   const [dialog, setDialog] = useState<DialogState>(null);
   const [importResult, setImportResult] = useState<SshConfigImportResult | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    const list = await listConnections();
-    setConnections(list);
+    const list = await reloadConnections();
     if (selectedId !== null && !list.some((connection) => connection.id === selectedId)) {
       selectServer(null);
     }
   }, [selectedId]);
-
-  useEffect(() => {
-    let cancelled = false;
-    listConnections()
-      .then((list) => {
-        if (!cancelled) {
-          setConnections(list);
-        }
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const run = async (action: () => Promise<void>) => {
     setMessage(null);

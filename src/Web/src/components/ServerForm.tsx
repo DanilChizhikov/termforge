@@ -13,7 +13,7 @@ export interface ServerFormProps {
   title: string;
   initial: ConnectionInput;
   editingId: string | null;
-  connections: SavedConnection[];
+  connections: readonly SavedConnection[];
   hasStoredPassword: boolean;
   onSubmit: (input: ConnectionInput) => Promise<void>;
   onCancel: () => void;
