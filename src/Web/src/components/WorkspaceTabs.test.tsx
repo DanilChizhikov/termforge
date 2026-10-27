@@ -28,6 +28,7 @@ const CONNECTION: SavedConnection = {
   reconnectMaxAttempts: 5,
   reconnectInitialDelaySeconds: 2,
   reconnectMaxDelaySeconds: 60,
+  readOnly: false,
 };
 
 function respond(body: unknown, status = 200): Promise<Response> {

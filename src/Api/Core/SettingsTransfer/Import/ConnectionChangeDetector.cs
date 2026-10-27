@@ -18,6 +18,7 @@ public static class ConnectionChangeDetector
         AddIf(changes, current.JumpHostId != imported.JumpHostId, "jump host");
         AddIf(changes, current.SshAlias != imported.SshAlias, "SSH alias");
         AddIf(changes, current.ReconnectPolicy != imported.ReconnectPolicy, "reconnect");
+        AddIf(changes, current.ReadOnly != imported.ReadOnly, "read-only");
         return changes;
     }
 

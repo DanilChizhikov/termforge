@@ -5,6 +5,7 @@ using DTech.Core.Operations;
 using DTech.Core.SavedConnections;
 using DTech.Core.Tests.Diagnostics.Support;
 using DTech.Core.Tests.Operations;
+using DTech.Core.Tests.Safety.Support;
 using DTech.Core.Tests.SavedConnections.Support;
 using NSubstitute;
 
@@ -27,6 +28,7 @@ internal sealed class DockerTestGraph
         var passwordStore = new ConnectionPasswordStore(credentialStore);
         TargetFactory = new ConnectionTargetFactory(passwordStore);
         TargetResolver = new DockerTargetResolver(Connections, TargetFactory);
+        Safety = new WriteSafetyFixture();
     }
 
     public ScriptedCommandRunner Runner { get; }
@@ -45,6 +47,8 @@ internal sealed class DockerTestGraph
 
     public DockerTargetResolver TargetResolver { get; }
 
+    public WriteSafetyFixture Safety { get; }
+
     public DockerOverviewService CreateOverviewService()
     {
         var probe = new DockerProbe();
@@ -56,7 +60,7 @@ internal sealed class DockerTestGraph
     public ContainerActionService CreateActionService()
     {
         var recorder = new DockerOperationRecorder(Journal);
-        return new ContainerActionService(TargetResolver, RunnerFactory, recorder);
+        return new ContainerActionService(TargetResolver, RunnerFactory, recorder, Safety.Gate);
     }
 
     public ContainerLogService CreateLogService()

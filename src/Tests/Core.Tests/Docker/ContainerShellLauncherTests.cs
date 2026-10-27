@@ -82,6 +82,20 @@ public sealed class ContainerShellLauncherTests
     }
 
     [TestMethod]
+    public async Task Launch_OnReadOnlyServer_IsBlockedBeforeOpeningTerminal()
+    {
+        var connection = await _graph.AddConnectionAsync("web", TestContext.CancellationToken);
+        _graph.Safety.MarkReadOnly(connection.Id);
+        var launch = new TerminalLaunchRequest(connection.Id, Owner, Size);
+        var request = new ContainerShellRequest(launch, "api_1", ContainerShell.Auto);
+
+        var launched = await CreateLauncher().LaunchAsync(request, TestContext.CancellationToken);
+
+        launched.Error!.Code.Should().Be(TerminalErrorCode.ReadOnlyServer);
+        await _sessionFactory.DidNotReceiveWithAnyArgs().OpenAsync(default!, default);
+    }
+
+    [TestMethod]
     public async Task Launch_WhenStartupWriteFails_ReleasesSession()
     {
         var connection = await _graph.AddConnectionAsync("web", TestContext.CancellationToken);
@@ -100,6 +114,6 @@ public sealed class ContainerShellLauncherTests
     private ContainerShellLauncher CreateLauncher()
     {
         var terminalLauncher = new TerminalLauncher(_graph.Connections, _graph.TargetFactory, _manager);
-        return new ContainerShellLauncher(terminalLauncher, _manager);
+        return new ContainerShellLauncher(terminalLauncher, _manager, _graph.Safety.Gate);
     }
 }

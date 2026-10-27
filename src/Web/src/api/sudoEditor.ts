@@ -1,4 +1,5 @@
 import { ApiError, apiClient, type ApiClient } from './client';
+import { requestConfirmationToken } from './confirmations';
 import {
   toOutcome,
   type EditorDocument,
@@ -77,13 +78,14 @@ export function readBackupWithSudo(
   return client.post<EditorDocument>(`${sudoPath(connectionId)}/backups/content`, { path, name: backupName, sudo });
 }
 
-export function rollbackRemoteFileWithSudo(
+export async function rollbackRemoteFileWithSudo(
   connectionId: string,
   request: RollbackFileRequest,
   sudo: SudoCredentials,
   client: ApiClient = apiClient,
 ): Promise<SaveOutcome> {
-  return toOutcome(client.post<SavedFile>(`${sudoPath(connectionId)}/rollback`, { ...request, sudo }));
+  const confirmationToken = await requestConfirmationToken({ operation: 'FileRollback', connectionId, target: request.path }, client);
+  return toOutcome(client.post<SavedFile>(`${sudoPath(connectionId)}/rollback`, { ...request, sudo, confirmationToken }));
 }
 
 export function forgetSudoPassword(connectionId: string, client: ApiClient = apiClient): Promise<void> {

@@ -2,6 +2,7 @@ import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DockerContainer, DockerOverview } from '../../api/docker';
+import { replaceConnections } from '../../state/connections';
 import { selectServer } from '../../state/selectedServer';
 import type { TerminalViewProps } from '../TerminalView';
 import { DockerWorkspace } from './DockerWorkspace';
@@ -92,6 +93,9 @@ function stubApi(current: () => DockerOverview, actionResponse: () => Response =
     }
     if (method === 'GET') {
       return Promise.resolve(json(current()));
+    }
+    if (url === '/api/confirmations') {
+      return Promise.resolve(json({ token: 'confirm-1', expiresAt: '', operation: 'ContainerRestart', serverName: 'web-01', target: 'web' }));
     }
     if (url.endsWith('/shell')) {
       return Promise.resolve(json({ id: 'shell-1', connectionId: 'srv-1', connectionName: 'web-01', sessionNumber: 1, openedAt: '' }));
@@ -239,8 +243,46 @@ describe('DockerWorkspace', () => {
     expect(await screen.findByText('Restarted web. Recorded in the journal.')).toBeInTheDocument();
     const action = actionRequests(requests)[0]!;
     expect(action.url).toBe('/api/connections/srv-1/docker/containers/web/restart');
-    expect(action.body).toEqual({ confirmed: true });
+    expect(action.body).toEqual({ confirmationToken: 'confirm-1' });
+    const confirmation = requests.find((request) => request.url === '/api/confirmations');
+    expect(confirmation?.body).toEqual({ operation: 'ContainerRestart', connectionId: 'srv-1', target: 'web' });
     expect(requests.filter((request) => request.method === 'GET' && request.url.endsWith('/docker'))).toHaveLength(2);
+  });
+
+  it('blocks container actions and shells on a read-only server', async () => {
+    act(() =>
+      replaceConnections([
+        {
+          id: 'srv-1',
+          name: 'web-01',
+          groupName: null,
+          host: 'web.example.test',
+          port: 22,
+          userName: 'deploy',
+          authMethod: 'Agent',
+          privateKeyPath: null,
+          jumpHostId: null,
+          sshAlias: null,
+          hasPassword: false,
+          lastConnectedAt: null,
+          reconnectMode: 'Manual',
+          reconnectMaxAttempts: 5,
+          reconnectInitialDelaySeconds: 2,
+          reconnectMaxDelaySeconds: 60,
+          readOnly: true,
+        },
+      ]),
+    );
+    act(() => selectServer('srv-1'));
+    stubApi(() => overview());
+    render(<DockerWorkspace active />);
+    await screen.findByText('Docker reachable');
+
+    expect(screen.getByText(/web-01 is read-only/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Stop web' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Start db' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Shell in web' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Logs of web' })).toBeEnabled();
   });
 
   it('starts a stopped container without a confirmation dialog', async () => {
@@ -254,7 +296,8 @@ describe('DockerWorkspace', () => {
 
     expect(await screen.findByText('Started db. Recorded in the journal.')).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(actionRequests(requests)[0]?.body).toEqual({ confirmed: false });
+    expect(actionRequests(requests)[0]?.body).toEqual({ confirmationToken: null });
+    expect(requests.some((request) => request.url === '/api/confirmations')).toBe(false);
   });
 
   it('shows the server reason when an action fails', async () => {

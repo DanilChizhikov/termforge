@@ -42,7 +42,7 @@ public static class DockerEndpoints
             return DockerErrorResults.ToProblem(unknownAction);
         }
 
-        var request = new ContainerActionRequest(call.Id, call.Container, parsedAction) { Confirmed = call.Body?.Confirmed ?? false };
+        var request = new ContainerActionRequest(call.Id, call.Container, parsedAction) { ConfirmationToken = call.Body?.ConfirmationToken };
         var result = await service.RunAsync(request, cancellationToken);
         if (!result.IsSuccess)
         {

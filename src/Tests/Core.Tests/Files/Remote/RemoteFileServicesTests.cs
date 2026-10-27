@@ -1,6 +1,8 @@
 using DTech.Core.Connections;
 using DTech.Core.Files;
 using DTech.Core.Files.Remote;
+using DTech.Core.Safety;
+using DTech.Core.Tests.Safety.Support;
 using FluentAssertions;
 using NSubstitute;
 
@@ -15,6 +17,7 @@ public sealed class RemoteFileServicesTests
     private IRemoteFileClient _client = null!;
     private RemoteFileOperations _operations = null!;
     private RemoteFileBrowser _browser = null!;
+    private WriteSafetyFixture _safety = null!;
 
     public TestContext TestContext { get; set; } = null!;
 
@@ -26,14 +29,15 @@ public sealed class RemoteFileServicesTests
         var opened = FileResult<IRemoteFileClient>.Success(_client);
         _opener.OpenAsync(ConnectionId, Arg.Any<CancellationToken>()).Returns(opened);
         var normalizer = new RemotePathNormalizer();
-        _operations = new RemoteFileOperations(_opener, normalizer);
+        _safety = new WriteSafetyFixture();
+        _operations = new RemoteFileOperations(_opener, normalizer, _safety.Gate);
         _browser = new RemoteFileBrowser(_opener, normalizer);
     }
 
     [TestMethod]
     public async Task Delete_WithoutConfirmation_NeverConnects()
     {
-        var request = new DeleteRequest("/home/user/file", false);
+        var request = new RemoteDeleteRequest("/home/user/file", null);
 
         var result = await _operations.DeleteAsync(ConnectionId, request, TestContext.CancellationToken);
 
@@ -46,7 +50,8 @@ public sealed class RemoteFileServicesTests
     public async Task Delete_WithConfirmation_DeletesNormalizedPath()
     {
         _client.DeleteAsync("/home/user/file", Arg.Any<CancellationToken>()).Returns(SshResult.Success());
-        var request = new DeleteRequest("/home//user/./file", true);
+        var token = _safety.Confirm(DangerousOperation.RemoteDelete, ConnectionId, "/home//user/./file");
+        var request = new RemoteDeleteRequest("/home//user/./file", token);
 
         var result = await _operations.DeleteAsync(ConnectionId, request, TestContext.CancellationToken);
 
@@ -55,9 +60,55 @@ public sealed class RemoteFileServicesTests
     }
 
     [TestMethod]
+    public async Task Delete_ReusedToken_RequiresConfirmationAgain()
+    {
+        _client.DeleteAsync("/home/user/file", Arg.Any<CancellationToken>()).Returns(SshResult.Success());
+        var token = _safety.Confirm(DangerousOperation.RemoteDelete, ConnectionId, "/home/user/file");
+        var request = new RemoteDeleteRequest("/home/user/file", token);
+
+        await _operations.DeleteAsync(ConnectionId, request, TestContext.CancellationToken);
+        var replay = await _operations.DeleteAsync(ConnectionId, request, TestContext.CancellationToken);
+
+        replay.Error!.Code.Should().Be(FileErrorCode.ConfirmationRequired);
+        await _client.Received(1).DeleteAsync("/home/user/file", Arg.Any<CancellationToken>());
+    }
+
+    [TestMethod]
+    public async Task Delete_TokenForOtherPath_IsRejected()
+    {
+        var token = _safety.Confirm(DangerousOperation.RemoteDelete, ConnectionId, "/home/user/other");
+        var request = new RemoteDeleteRequest("/home/user/file", token);
+
+        var result = await _operations.DeleteAsync(ConnectionId, request, TestContext.CancellationToken);
+
+        result.Error!.Code.Should().Be(FileErrorCode.ConfirmationRequired);
+        await _opener.DidNotReceive().OpenAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [TestMethod]
+    public async Task WriteOperations_OnReadOnlyServer_AreBlockedWithoutConnecting()
+    {
+        _safety.MarkReadOnly(ConnectionId);
+        var token = _safety.Confirm(DangerousOperation.RemoteDelete, ConnectionId, "/home/user/file");
+        var delete = new RemoteDeleteRequest("/home/user/file", token);
+        var rename = new RenameRequest("/home/user/file", "renamed");
+        var createDirectory = new CreateDirectoryRequest("/home/user", "new");
+
+        var deleted = await _operations.DeleteAsync(ConnectionId, delete, TestContext.CancellationToken);
+        var renamed = await _operations.RenameAsync(ConnectionId, rename, TestContext.CancellationToken);
+        var created = await _operations.CreateDirectoryAsync(ConnectionId, createDirectory, TestContext.CancellationToken);
+
+        deleted.Error!.Code.Should().Be(FileErrorCode.ReadOnlyServer);
+        renamed.Error!.Code.Should().Be(FileErrorCode.ReadOnlyServer);
+        created.Error!.Code.Should().Be(FileErrorCode.ReadOnlyServer);
+        await _opener.DidNotReceive().OpenAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [TestMethod]
     public async Task Delete_TraversalPath_IsRejectedWithoutConnecting()
     {
-        var request = new DeleteRequest("/home/user/../../etc/passwd", true);
+        var token = _safety.Confirm(DangerousOperation.RemoteDelete, ConnectionId, "/home/user/../../etc/passwd");
+        var request = new RemoteDeleteRequest("/home/user/../../etc/passwd", token);
 
         var result = await _operations.DeleteAsync(ConnectionId, request, TestContext.CancellationToken);
 
@@ -68,7 +119,8 @@ public sealed class RemoteFileServicesTests
     [TestMethod]
     public async Task Delete_Root_IsRejected()
     {
-        var request = new DeleteRequest("/", true);
+        var token = _safety.Confirm(DangerousOperation.RemoteDelete, ConnectionId, "/");
+        var request = new RemoteDeleteRequest("/", token);
 
         var result = await _operations.DeleteAsync(ConnectionId, request, TestContext.CancellationToken);
 
@@ -80,7 +132,8 @@ public sealed class RemoteFileServicesTests
     {
         var denied = new SshError(SshErrorKind.PermissionDenied, "denied");
         _client.DeleteAsync("/etc/shadow", Arg.Any<CancellationToken>()).Returns(SshResult.Failure(denied));
-        var request = new DeleteRequest("/etc/shadow", true);
+        var token = _safety.Confirm(DangerousOperation.RemoteDelete, ConnectionId, "/etc/shadow");
+        var request = new RemoteDeleteRequest("/etc/shadow", token);
 
         var result = await _operations.DeleteAsync(ConnectionId, request, TestContext.CancellationToken);
 
@@ -150,7 +203,8 @@ public sealed class RemoteFileServicesTests
         var failed = FileResult<IRemoteFileClient>.Failure(new FileError(FileErrorCode.ConnectionFailed, "unreachable"));
         var otherId = Guid.NewGuid();
         _opener.OpenAsync(otherId, Arg.Any<CancellationToken>()).Returns(failed);
-        var request = new DeleteRequest("/a/b", true);
+        var token = _safety.Confirm(DangerousOperation.RemoteDelete, otherId, "/a/b");
+        var request = new RemoteDeleteRequest("/a/b", token);
 
         var result = await _operations.DeleteAsync(otherId, request, TestContext.CancellationToken);
 

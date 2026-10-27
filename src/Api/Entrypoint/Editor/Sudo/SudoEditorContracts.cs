@@ -27,7 +27,7 @@ public sealed record SudoSaveBody(string? Path, string? Content, bool HasByteOrd
 
 public sealed record SudoReadBackupBody(string? Path, string? Name, SudoCredentialsContract? Sudo);
 
-public sealed record SudoRollbackBody(string? Path, string? BackupName, FileVersionContract? ExpectedVersion, SudoCredentialsContract? Sudo);
+public sealed record SudoRollbackBody(string? Path, string? BackupName, FileVersionContract? ExpectedVersion, SudoCredentialsContract? Sudo, string? ConfirmationToken);
 
 public sealed record SudoStatusResponse(string Availability, bool HasSavedPassword, string Message)
 {

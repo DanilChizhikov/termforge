@@ -1,3 +1,4 @@
+import { useConnectionName } from '../state/connections';
 import type { PendingConflict } from '../state/transfers';
 
 export interface TransferConflictDialogProps {
@@ -8,6 +9,8 @@ export interface TransferConflictDialogProps {
 
 export function TransferConflictDialog({ pending, onOverwrite, onCancel }: TransferConflictDialogProps) {
   const count = pending.conflicts.length;
+  const serverName = useConnectionName(pending.request.connectionId) ?? 'the server';
+  const location = pending.request.direction === 'upload' ? `on ${serverName}` : 'on this computer';
   return (
     <div className="dialog-backdrop">
       <div role="dialog" aria-modal="true" aria-labelledby="transfer-conflict-title" className="dialog-card">
@@ -16,8 +19,8 @@ export function TransferConflictDialog({ pending, onOverwrite, onCancel }: Trans
             {count === 1 ? 'Replace existing item?' : `Replace ${count} existing items?`}
           </h2>
           <p className="text-secondary">
-            The target already contains {count === 1 ? 'an item' : 'items'} with the same name. Nothing is transferred
-            until you decide.
+            <code>{pending.request.targetDirectory}</code> {location} already contains{' '}
+            {count === 1 ? 'an item' : 'items'} with the same name. Nothing is transferred until you decide.
           </p>
         </div>
         <div className="dialog-body">

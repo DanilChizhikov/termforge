@@ -426,6 +426,13 @@
   outline-offset: -1px;
 }
 
+.server-name-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .server-subtitle {
   overflow: hidden;
   color: var(--text-secondary);
@@ -738,6 +745,29 @@
   border-bottom: 1px solid var(--border-faint);
   color: var(--text-secondary);
   font-size: var(--text-caption);
+}
+
+.terminal-read-only {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border-faint);
+  background: var(--status-caution-soft);
+  color: var(--text-secondary);
+  font-size: var(--text-caption);
+}
+
+.terminal-read-only svg {
+  flex: none;
+  color: var(--status-caution);
+}
+
+.terminal-read-only strong {
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 .workspace-restore-notice {
@@ -1594,6 +1624,23 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.server-form-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0 2px;
+}
+
+.server-form-toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.server-form-toggle-title {
+  font-weight: 500;
 }
 
 .sudo-remember {

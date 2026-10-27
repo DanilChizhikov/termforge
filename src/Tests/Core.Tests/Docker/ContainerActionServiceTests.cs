@@ -1,5 +1,6 @@
 using DTech.Core.Docker;
 using DTech.Core.Operations;
+using DTech.Core.Safety;
 using DTech.Core.Tests.Docker.Support;
 using FluentAssertions;
 
@@ -63,7 +64,8 @@ public sealed class ContainerActionServiceTests
         var connection = await _graph.AddConnectionAsync("web", TestContext.CancellationToken);
         _graph.Runner.Respond("docker stop", 0, "web\n");
         var service = _graph.CreateActionService();
-        var request = new ContainerActionRequest(connection.Id, "web", DockerContainerAction.Stop) { Confirmed = true };
+        var token = _graph.Safety.Confirm(DangerousOperation.ContainerStop, connection.Id, "web");
+        var request = new ContainerActionRequest(connection.Id, "web", DockerContainerAction.Stop) { ConfirmationToken = token };
 
         var result = await service.RunAsync(request, TestContext.CancellationToken);
 
@@ -74,12 +76,46 @@ public sealed class ContainerActionServiceTests
     }
 
     [TestMethod]
+    public async Task Stop_WithTokenIssuedForRestart_IsRejected()
+    {
+        var connection = await _graph.AddConnectionAsync("web", TestContext.CancellationToken);
+        var service = _graph.CreateActionService();
+        var token = _graph.Safety.Confirm(DangerousOperation.ContainerRestart, connection.Id, "web");
+        var request = new ContainerActionRequest(connection.Id, "web", DockerContainerAction.Stop) { ConfirmationToken = token };
+
+        var result = await service.RunAsync(request, TestContext.CancellationToken);
+
+        result.Error!.Code.Should().Be(DockerErrorCode.ConfirmationRequired);
+        _graph.RunnerFactory.Connections.Should().Be(0);
+    }
+
+    [TestMethod]
+    [DataRow(DockerContainerAction.Start)]
+    [DataRow(DockerContainerAction.Stop)]
+    [DataRow(DockerContainerAction.Restart)]
+    public async Task Action_OnReadOnlyServer_IsBlockedBeforeAnyCommand(DockerContainerAction action)
+    {
+        var connection = await _graph.AddConnectionAsync("web", TestContext.CancellationToken);
+        _graph.Safety.MarkReadOnly(connection.Id);
+        var service = _graph.CreateActionService();
+        var request = new ContainerActionRequest(connection.Id, "web", action);
+
+        var result = await service.RunAsync(request, TestContext.CancellationToken);
+
+        result.Error!.Code.Should().Be(DockerErrorCode.ReadOnlyServer);
+        _graph.RunnerFactory.Connections.Should().Be(0);
+        var operations = await _graph.ListOperationsAsync(TestContext.CancellationToken);
+        operations.Should().BeEmpty();
+    }
+
+    [TestMethod]
     public async Task Restart_WhenDockerFails_RecordsFailedOperationWithReason()
     {
         var connection = await _graph.AddConnectionAsync("web", TestContext.CancellationToken);
         _graph.Runner.Respond("docker restart", 1, string.Empty, DockerRecordedOutputs.PermissionDenied);
         var service = _graph.CreateActionService();
-        var request = new ContainerActionRequest(connection.Id, "web", DockerContainerAction.Restart) { Confirmed = true };
+        var token = _graph.Safety.Confirm(DangerousOperation.ContainerRestart, connection.Id, "web");
+        var request = new ContainerActionRequest(connection.Id, "web", DockerContainerAction.Restart) { ConfirmationToken = token };
 
         var result = await service.RunAsync(request, TestContext.CancellationToken);
 
@@ -112,7 +148,8 @@ public sealed class ContainerActionServiceTests
     {
         var connection = await _graph.AddConnectionAsync("web", TestContext.CancellationToken);
         var service = _graph.CreateActionService();
-        var request = new ContainerActionRequest(connection.Id, container, DockerContainerAction.Restart) { Confirmed = true };
+        var token = _graph.Safety.Confirm(DangerousOperation.ContainerRestart, connection.Id, container);
+        var request = new ContainerActionRequest(connection.Id, container, DockerContainerAction.Restart) { ConfirmationToken = token };
 
         var result = await service.RunAsync(request, TestContext.CancellationToken);
 

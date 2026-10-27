@@ -42,6 +42,7 @@ This document describes the threat model, the protections implemented in `src/Ap
 - When opening the browser fails (no default browser, headless machine) or `Lifecycle:OpenBrowser` is `false`, the bootstrap URL is not shown anywhere, by design, because it must not appear in logs.
 - Plain HTTP on loopback: the cookie is marked `Secure` only when the request is HTTPS.
 - Network access mode: see the limitations in [Network access mode](#network-access-mode).
+- Read-only servers block uploads, deletes, renames, saves, privileged writes and Docker actions on the backend, but a terminal on such a server is only marked read-only: commands typed into the shell still run with the SSH user's rights. See [Read-only servers and confirmations](#read-only-servers-and-confirmations).
 
 ## Browser contract
 
@@ -229,6 +230,12 @@ With `NetworkAccess:AllowInsecureHttp=true` it starts, logs a `Critical` "INSECU
 - Behind a reverse proxy the client address is the proxy, so all clients share one per-client counter; forwarded headers are not trusted. The proxy must keep the original `Host` and `Origin`.
 - TermForge does not create certificates. Use a certificate trusted by the client devices (for example from a private CA); a self-signed certificate makes browsers warn on every visit.
 - When the only binding is a wildcard (`0.0.0.0`, `[::]`) the local browser is opened at `127.0.0.1` or `[::1]` on that port, where an HTTPS certificate may not match. Keep a separate loopback HTTP endpoint for local use.
+
+## Read-only servers and confirmations
+
+- A server marked read-only rejects writes with `423 Locked` (`code: ReadOnlyServer`) in the backend services, before any SSH connection is opened. The flag is not only a UI hint.
+- Dangerous operations (remote delete, Docker stop and restart, rollback, overwriting upload) require a confirmation token from `POST /api/confirmations`. The token is bound to the operation, server and target, expires after 2 minutes and is consumed on first use.
+- Details: `docs/decisions/read-only-mode-and-confirmations.md`.
 
 ## Logging
 

@@ -1,4 +1,5 @@
 import { ApiError, apiClient, type ApiClient } from './client';
+import { requestConfirmationToken } from './confirmations';
 
 export interface FileVersion {
   modifiedUtc: string;
@@ -109,12 +110,13 @@ export function readBackup(
   return client.get<EditorDocument>(`${basePath(connectionId)}/backups/content?${query}`);
 }
 
-export function rollbackRemoteFile(
+export async function rollbackRemoteFile(
   connectionId: string,
   request: RollbackFileRequest,
   client: ApiClient = apiClient,
 ): Promise<SaveOutcome> {
-  return toOutcome(client.post<SavedFile>(`${basePath(connectionId)}/rollback`, request));
+  const confirmationToken = await requestConfirmationToken({ operation: 'FileRollback', connectionId, target: request.path }, client);
+  return toOutcome(client.post<SavedFile>(`${basePath(connectionId)}/rollback`, { ...request, confirmationToken }));
 }
 
 export function describeEditorError(error: unknown): string {

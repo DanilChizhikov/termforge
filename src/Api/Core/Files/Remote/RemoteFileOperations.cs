@@ -1,8 +1,9 @@
 using DTech.Core.Connections;
+using DTech.Core.Safety;
 
 namespace DTech.Core.Files.Remote;
 
-public sealed class RemoteFileOperations(IRemoteConnectionOpener opener, RemotePathNormalizer normalizer)
+public sealed class RemoteFileOperations(IRemoteConnectionOpener opener, RemotePathNormalizer normalizer, ServerWriteGate writeGate)
 {
     public async Task<FileResult> CreateDirectoryAsync(Guid connectionId, CreateDirectoryRequest request, CancellationToken cancellationToken)
     {
@@ -16,6 +17,13 @@ public sealed class RemoteFileOperations(IRemoteConnectionOpener opener, RemoteP
         if (!parent.IsSuccess)
         {
             return FileResult.Failure(parent.Error);
+        }
+
+        var writeIntent = new WriteIntent(connectionId);
+        var denied = await CheckWriteAsync(writeIntent, request.ParentPath, cancellationToken);
+        if (denied is not null)
+        {
+            return FileResult.Failure(denied);
         }
 
         var target = normalizer.Combine(parent.Value, request.Name);
@@ -44,18 +52,31 @@ public sealed class RemoteFileOperations(IRemoteConnectionOpener opener, RemoteP
             return FileResult.Failure(root);
         }
 
+        var writeIntent = new WriteIntent(connectionId);
+        var denied = await CheckWriteAsync(writeIntent, request.Path, cancellationToken);
+        if (denied is not null)
+        {
+            return FileResult.Failure(denied);
+        }
+
         var target = normalizer.Combine(parent, request.NewName);
         var rename = new RemoteRenameRequest(source.Value, target);
         var operation = new RemoteOperation(connectionId, source.Value, (client, token) => client.RenameAsync(rename, token));
         return await RunAsync(operation, cancellationToken);
     }
 
-    public async Task<FileResult> DeleteAsync(Guid connectionId, DeleteRequest request, CancellationToken cancellationToken)
+    public async Task<FileResult> DeleteAsync(Guid connectionId, RemoteDeleteRequest request, CancellationToken cancellationToken)
     {
-        if (!request.Confirmed)
+        var writeIntent = new WriteIntent(connectionId)
         {
-            var confirmation = FileError.ConfirmationRequired(request.Path);
-            return FileResult.Failure(confirmation);
+            Operation = DangerousOperation.RemoteDelete,
+            Target = request.Path,
+            ConfirmationToken = request.ConfirmationToken,
+        };
+        var denied = await CheckWriteAsync(writeIntent, request.Path, cancellationToken);
+        if (denied is not null)
+        {
+            return FileResult.Failure(denied);
         }
 
         var source = normalizer.Normalize(request.Path);
@@ -72,6 +93,17 @@ public sealed class RemoteFileOperations(IRemoteConnectionOpener opener, RemoteP
 
         var operation = new RemoteOperation(connectionId, source.Value, (client, token) => client.DeleteAsync(source.Value, token));
         return await RunAsync(operation, cancellationToken);
+    }
+
+    private async Task<FileError?> CheckWriteAsync(WriteIntent intent, string path, CancellationToken cancellationToken)
+    {
+        var denial = await writeGate.CheckAsync(intent, cancellationToken);
+        return denial switch
+        {
+            WriteDenial.ReadOnlyServer => FileError.ReadOnlyServer(),
+            WriteDenial.ConfirmationRequired => FileError.ConfirmationRequired(path),
+            _ => null,
+        };
     }
 
     private async Task<FileResult> RunAsync(RemoteOperation operation, CancellationToken cancellationToken)

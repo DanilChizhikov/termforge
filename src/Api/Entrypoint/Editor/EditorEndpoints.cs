@@ -74,7 +74,7 @@ public static class EditorEndpoints
     private static async Task<IResult> Rollback(Guid connectionId, RollbackBody body, RemoteFileSaveService saves, CancellationToken cancellationToken)
     {
         var expectedVersion = body.ExpectedVersion?.ToVersion();
-        var request = new RollbackDocumentRequest(body.Path, body.BackupName, expectedVersion);
+        var request = new RollbackDocumentRequest(body.Path, body.BackupName, expectedVersion) { ConfirmationToken = body.ConfirmationToken };
         var result = await saves.RollbackAsync(connectionId, request, cancellationToken);
         return ToSaveResult(result);
     }

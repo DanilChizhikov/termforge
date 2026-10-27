@@ -10,4 +10,5 @@ public enum TerminalErrorCode
     ConnectionFailed,
     ReconnectDisabled,
     ReconnectFailed,
+    ReadOnlyServer,
 }

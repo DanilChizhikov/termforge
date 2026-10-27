@@ -16,6 +16,7 @@ import { CommandHistoryPanel } from './CommandHistoryPanel';
 import { RegionToggle } from './CollapsibleRegion';
 import { ReconnectBar } from './ReconnectBar';
 import { TerminalMetaBar } from './TerminalMetaBar';
+import { TerminalReadOnlyBanner } from './TerminalReadOnlyBanner';
 import { TerminalView, type TerminalHandle } from './TerminalView';
 
 const STATE_LABELS = {
@@ -223,6 +224,7 @@ export function TerminalWorkspace() {
           hidden={tab.key !== visibleKey}
           className="terminal-panel"
         >
+          <TerminalReadOnlyBanner connectionId={tab.connectionId} />
           {tab.restored ? (
             <p role="status" className="terminal-restored">
               <span>Restored from your last session. The previous shell was not kept.</span>

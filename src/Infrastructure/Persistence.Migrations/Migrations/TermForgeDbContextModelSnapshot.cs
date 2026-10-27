@@ -225,6 +225,11 @@ namespace DTech.Persistence.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("private_key_path");
 
+                    b.Property<bool>("ReadOnly")
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false)
+                        .HasColumnName("read_only");
+
                     b.Property<int>("ReconnectInitialDelaySeconds")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")

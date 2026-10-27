@@ -42,7 +42,7 @@ public sealed record FileBackupResponse(string Name, DateTime CreatedAtUtc)
 
 public sealed record SaveFileBody(string? Path, string? Content, bool HasByteOrderMark, FileVersionContract? ExpectedVersion);
 
-public sealed record RollbackBody(string? Path, string? BackupName, FileVersionContract? ExpectedVersion);
+public sealed record RollbackBody(string? Path, string? BackupName, FileVersionContract? ExpectedVersion, string? ConfirmationToken);
 
 public sealed record SavedFileResponse(FileVersionContract Version, string? BackupName, string Strategy, IReadOnlyList<string> Warnings, Guid OperationId)
 {

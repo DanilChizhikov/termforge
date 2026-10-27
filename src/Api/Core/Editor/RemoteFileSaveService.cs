@@ -1,3 +1,5 @@
+using DTech.Core.Safety;
+
 namespace DTech.Core.Editor;
 
 public sealed class RemoteFileSaveService
@@ -9,6 +11,7 @@ public sealed class RemoteFileSaveService
     private readonly RemoteFileRollback _rollback;
     private readonly RemoteDocumentReader _documents;
     private readonly EditorOperationRecorder _recorder;
+    private readonly ServerWriteGate _writeGate;
 
     public RemoteFileSaveService(
         IRemoteEditorConnectionOpener opener,
@@ -17,7 +20,8 @@ public sealed class RemoteFileSaveService
         RemoteFileSaver saver,
         RemoteFileRollback rollback,
         RemoteDocumentReader documents,
-        EditorOperationRecorder recorder)
+        EditorOperationRecorder recorder,
+        ServerWriteGate writeGate)
     {
         _opener = opener;
         _paths = paths;
@@ -26,6 +30,7 @@ public sealed class RemoteFileSaveService
         _rollback = rollback;
         _documents = documents;
         _recorder = recorder;
+        _writeGate = writeGate;
     }
 
     public async Task<EditorResult<JournaledSave>> SaveAsync(Guid connectionId, SaveDocumentRequest request, CancellationToken cancellationToken)
@@ -40,6 +45,14 @@ public sealed class RemoteFileSaveService
         if (!content.IsSuccess)
         {
             return EditorResult<JournaledSave>.Failure(content.Error);
+        }
+
+        var writeIntent = new WriteIntent(connectionId);
+        var saveDenial = await _writeGate.CheckAsync(writeIntent, cancellationToken);
+        if (saveDenial is not null)
+        {
+            var denied = EditorError.FromDenial(saveDenial.Value, request.Path);
+            return EditorResult<JournaledSave>.Failure(denied);
         }
 
         var opened = await _opener.OpenAsync(connectionId, cancellationToken);
@@ -69,6 +82,19 @@ public sealed class RemoteFileSaveService
         if (!location.IsSuccess)
         {
             return EditorResult<JournaledSave>.Failure(location.Error);
+        }
+
+        var rollbackIntent = new WriteIntent(connectionId)
+        {
+            Operation = DangerousOperation.FileRollback,
+            Target = request.Path ?? string.Empty,
+            ConfirmationToken = request.ConfirmationToken,
+        };
+        var rollbackDenial = await _writeGate.CheckAsync(rollbackIntent, cancellationToken);
+        if (rollbackDenial is not null)
+        {
+            var denied = EditorError.FromDenial(rollbackDenial.Value, request.Path);
+            return EditorResult<JournaledSave>.Failure(denied);
         }
 
         var opened = await _opener.OpenAsync(connectionId, cancellationToken);

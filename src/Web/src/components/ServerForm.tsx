@@ -9,6 +9,7 @@ import {
   type SavedConnection,
 } from '../api/connections';
 import { CloseIcon } from './icons/Icons';
+import { Switch } from './Switch';
 
 export interface ServerFormProps {
   title: string;
@@ -258,6 +259,13 @@ export function ServerForm({
                   </label>
                 </>
               ) : null}
+              <div className="server-form-toggle span-2">
+                <Switch label="Read-only server" checked={input.readOnly} onChange={(checked) => update('readOnly', checked)} />
+                <span className="server-form-toggle-text">
+                  <span className="server-form-toggle-title">Read-only</span>
+                  <span className="field-hint">Block uploads, saves and Docker actions on this server</span>
+                </span>
+              </div>
             </div>
             {error === null ? null : (
               <p role="alert" className="form-error">

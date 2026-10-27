@@ -29,6 +29,7 @@ internal sealed class SavedConnectionConfiguration : IEntityTypeConfiguration<Sa
         builder.Property(connection => connection.ReconnectMaxAttempts).HasDefaultValue(ReconnectPolicy.Default.MaxAttempts).IsRequired();
         builder.Property(connection => connection.ReconnectInitialDelaySeconds).HasDefaultValue(ReconnectPolicy.Default.InitialDelaySeconds).IsRequired();
         builder.Property(connection => connection.ReconnectMaxDelaySeconds).HasDefaultValue(ReconnectPolicy.Default.MaxDelaySeconds).IsRequired();
+        builder.Property(connection => connection.ReadOnly).HasDefaultValue(false).ValueGeneratedNever().IsRequired();
         builder.Property(connection => connection.CreatedAt).IsRequired();
         builder.Property(connection => connection.UpdatedAt).IsRequired();
         builder.HasOne<SavedConnectionEntity>()

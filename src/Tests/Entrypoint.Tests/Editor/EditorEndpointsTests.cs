@@ -5,6 +5,7 @@ using System.Text.Json;
 using DTech.Core.Connections;
 using DTech.Core.Editor;
 using DTech.Core.Files;
+using DTech.Core.Safety;
 using DTech.Entrypoint.Tests.Infrastructure;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
@@ -151,13 +152,28 @@ public sealed class EditorEndpointsTests
     [TestMethod]
     public async Task Rollback_UnknownBackupName_IsBadRequest()
     {
-        var body = new { path = FilePath, backupName = "../../etc/shadow" };
+        var confirmations = _factory.Services.GetRequiredService<IConfirmationTokenStore>();
+        var scope = new ConfirmationScope(DangerousOperation.FileRollback, ConnectionId, FilePath);
+        var grant = confirmations.Issue(scope);
+        var body = new { path = FilePath, backupName = "../../etc/shadow", confirmationToken = grant.Token };
 
         var path = $"/api/editor/remote/{ConnectionId}/rollback";
         using var response = await Send(HttpMethod.Post, path, body);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         await AssertErrorCode(response, "Invalid");
+    }
+
+    [TestMethod]
+    public async Task Rollback_WithoutConfirmationToken_IsPreconditionRequired()
+    {
+        var body = new { path = FilePath, backupName = "app.env.bak" };
+
+        var path = $"/api/editor/remote/{ConnectionId}/rollback";
+        using var response = await Send(HttpMethod.Post, path, body);
+
+        response.StatusCode.Should().Be(HttpStatusCode.PreconditionRequired);
+        await AssertErrorCode(response, "ConfirmationRequired");
     }
 
     [TestMethod]

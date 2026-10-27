@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { createRemoteSource, type FileEntry } from '../api/files';
 import { createRemoteSearch } from '../api/fileSearch';
-import { useConnectionName } from '../state/connections';
+import { useConnection } from '../state/connections';
 import { openEditorFile } from '../state/editorFiles';
 import { setRemotePath, useRemotePath } from '../state/filePaths';
 import { useSelectedServerId } from '../state/selectedServer';
@@ -22,11 +22,11 @@ function ServerFilePane({ serverId }: ServerFilePaneProps) {
   const handleOpenFile = useCallback((entry: FileEntry) => openEditorFile(serverId, entry.path), [serverId]);
   const transfer = useRemotePaneTransfer(serverId);
   const finishedUploads = useFinishedTransferCount('upload', serverId);
-  const serverName = useConnectionName(serverId);
+  const connection = useConnection(serverId);
   return (
     <FilePane
       title="Remote"
-      label={serverName}
+      label={connection?.name ?? null}
       sourceKey={`remote:${serverId}`}
       source={source}
       path={path}
@@ -35,6 +35,7 @@ function ServerFilePane({ serverId }: ServerFilePaneProps) {
       transfer={transfer}
       refreshToken={finishedUploads}
       search={search}
+      readOnly={connection?.readOnly ?? false}
     />
   );
 }

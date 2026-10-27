@@ -70,6 +70,9 @@ beforeEach(() => {
     if (path === '/api/session') {
       return Promise.resolve(json({ csrfToken: 'csrf' }));
     }
+    if (path === '/api/confirmations') {
+      return Promise.resolve(json({ token: 'confirm-1' }));
+    }
     if (path === '/api/transfers' && init?.method === 'POST') {
       return Promise.resolve(startResponses.shift() ?? json([]));
     }
@@ -186,7 +189,12 @@ describe('TransferPanel', () => {
     expect(within(dialog).getByRole('button', { name: 'Keep existing' })).toHaveFocus();
     await user.click(within(dialog).getByRole('button', { name: 'Overwrite' }));
 
-    await waitFor(() => expect(postedBodies('/api/transfers')).toEqual([request, { ...request, overwrite: true }]));
+    await waitFor(() =>
+      expect(postedBodies('/api/transfers')).toEqual([request, { ...request, overwrite: true, confirmationToken: 'confirm-1' }]),
+    );
+    expect(postedBodies('/api/confirmations')).toEqual([
+      { operation: 'TransferOverwrite', connectionId: 'c-1', target: '/var/www/site' },
+    ]);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 

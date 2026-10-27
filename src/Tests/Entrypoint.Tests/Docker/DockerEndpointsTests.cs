@@ -120,7 +120,7 @@ public sealed class DockerEndpointsTests
     {
         var id = await CreateConnectionAsync();
 
-        using var response = await SendAsync(HttpMethod.Post, $"/api/connections/{id}/docker/containers/web/stop", new { confirmed = false });
+        using var response = await SendAsync(HttpMethod.Post, $"/api/connections/{id}/docker/containers/web/stop", new { confirmationToken = (string?)null });
 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
         var body = await ReadJsonAsync(response);
@@ -133,8 +133,9 @@ public sealed class DockerEndpointsTests
     {
         _runner.Respond("docker restart", 0, "web\n");
         var id = await CreateConnectionAsync();
+        var token = await RequestConfirmationAsync("ContainerRestart", id, "web");
 
-        using var response = await SendAsync(HttpMethod.Post, $"/api/connections/{id}/docker/containers/web/restart", new { confirmed = true });
+        using var response = await SendAsync(HttpMethod.Post, $"/api/connections/{id}/docker/containers/web/restart", new { confirmationToken = token });
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await ReadJsonAsync(response);
@@ -149,6 +150,74 @@ public sealed class DockerEndpointsTests
     }
 
     [TestMethod]
+    public async Task Stop_ReusingConfirmationToken_IsConflictTheSecondTime()
+    {
+        _runner.Respond("docker stop", 0, "web\n");
+        var id = await CreateConnectionAsync();
+        var token = await RequestConfirmationAsync("ContainerStop", id, "web");
+        var body = new { confirmationToken = token };
+
+        using var first = await SendAsync(HttpMethod.Post, $"/api/connections/{id}/docker/containers/web/stop", body);
+        using var replay = await SendAsync(HttpMethod.Post, $"/api/connections/{id}/docker/containers/web/stop", body);
+
+        first.StatusCode.Should().Be(HttpStatusCode.OK);
+        replay.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        _runner.ExecutedCommands.Should().ContainSingle();
+    }
+
+    [TestMethod]
+    public async Task Stop_WithTokenForOtherContainer_IsConflict()
+    {
+        var id = await CreateConnectionAsync();
+        var token = await RequestConfirmationAsync("ContainerStop", id, "db");
+
+        using var response = await SendAsync(HttpMethod.Post, $"/api/connections/{id}/docker/containers/web/stop", new { confirmationToken = token });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        _runner.ExecutedCommands.Should().BeEmpty();
+    }
+
+    [TestMethod]
+    public async Task Confirmation_DescribesServerAndTarget()
+    {
+        var id = await CreateConnectionAsync();
+        var request = new { operation = "ContainerStop", connectionId = id, target = "web" };
+
+        using var response = await SendAsync(HttpMethod.Post, "/api/confirmations", request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await ReadJsonAsync(response);
+        body.GetProperty("serverName").GetString().Should().Be("web");
+        body.GetProperty("target").GetString().Should().Be("web");
+        body.GetProperty("operation").GetString().Should().Be("ContainerStop");
+        body.GetProperty("token").GetString().Should().NotBeNullOrEmpty();
+    }
+
+    [TestMethod]
+    [DataRow("Reboot")]
+    [DataRow("1")]
+    [DataRow(null)]
+    public async Task Confirmation_UnknownOperation_IsBadRequest(string? operation)
+    {
+        var id = await CreateConnectionAsync();
+        var request = new { operation, connectionId = id, target = "web" };
+
+        using var response = await SendAsync(HttpMethod.Post, "/api/confirmations", request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [TestMethod]
+    public async Task Confirmation_UnknownConnection_IsNotFound()
+    {
+        var request = new { operation = "ContainerStop", connectionId = Guid.NewGuid(), target = "web" };
+
+        using var response = await SendAsync(HttpMethod.Post, "/api/confirmations", request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [TestMethod]
     [DataRow("start", "web;reboot")]
     [DataRow("remove", "web")]
     [DataRow("1", "web")]
@@ -157,7 +226,7 @@ public sealed class DockerEndpointsTests
         var id = await CreateConnectionAsync();
         var encodedContainer = Uri.EscapeDataString(container);
 
-        using var response = await SendAsync(HttpMethod.Post, $"/api/connections/{id}/docker/containers/{encodedContainer}/{action}", new { confirmed = true });
+        using var response = await SendAsync(HttpMethod.Post, $"/api/connections/{id}/docker/containers/{encodedContainer}/{action}", new { confirmationToken = "any" });
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         _runner.ExecutedCommands.Should().BeEmpty();
@@ -265,6 +334,15 @@ public sealed class DockerEndpointsTests
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         var body = await ReadJsonAsync(response);
         return body.GetProperty("id").GetGuid();
+    }
+
+    private async Task<string> RequestConfirmationAsync(string operation, Guid connectionId, string target)
+    {
+        var request = new { operation, connectionId, target };
+        using var response = await SendAsync(HttpMethod.Post, "/api/confirmations", request);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await ReadJsonAsync(response);
+        return body.GetProperty("token").GetString()!;
     }
 
     private async Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, object? body)

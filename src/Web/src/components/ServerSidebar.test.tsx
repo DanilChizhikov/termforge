@@ -39,6 +39,7 @@ function makeConnection(overrides: Partial<SavedConnection> = {}): SavedConnecti
     reconnectMode: 'Manual',
     reconnectMaxAttempts: 5,
     reconnectInitialDelaySeconds: 2,
+    readOnly: false,
     reconnectMaxDelaySeconds: 60,
     ...overrides,
   };
@@ -73,6 +74,18 @@ describe('ServerSidebar', () => {
     const prod = await screen.findByRole('region', { name: 'Group prod' });
     expect(within(prod).getByText(/alpha/)).toBeInTheDocument();
     expect(within(screen.getByRole('region', { name: 'Ungrouped' })).getByText(/beta/)).toBeInTheDocument();
+  });
+
+  it('marks read-only servers with a badge', async () => {
+    listMock.mockResolvedValue([
+      makeConnection({ id: 'a', name: 'db-01', readOnly: true }),
+      makeConnection({ id: 'b', name: 'web-01' }),
+    ]);
+
+    render(<ServerSidebar />);
+
+    expect(await screen.findByRole('button', { name: 'db-01, read-only' })).toBeInTheDocument();
+    expect(screen.getAllByText('read-only')).toHaveLength(1);
   });
 
   it('stores the selected server in UI state', async () => {

@@ -1,9 +1,10 @@
 using System.Text;
+using DTech.Core.Safety;
 using DTech.Core.Terminal.Sessions;
 
 namespace DTech.Core.Docker;
 
-public sealed class ContainerShellLauncher(ITerminalLauncher launcher, TerminalSessionManager sessionManager)
+public sealed class ContainerShellLauncher(ITerminalLauncher launcher, TerminalSessionManager sessionManager, ServerWriteGate writeGate)
 {
     public async Task<TerminalResult<ManagedTerminalSession>> LaunchAsync(ContainerShellRequest request, CancellationToken cancellationToken)
     {
@@ -12,6 +13,12 @@ public sealed class ContainerShellLauncher(ITerminalLauncher launcher, TerminalS
             var invalidContainer = DockerError.InvalidContainer();
             var invalid = new TerminalError(TerminalErrorCode.InvalidRequest, invalidContainer.Message);
             return TerminalResult<ManagedTerminalSession>.Failure(invalid);
+        }
+
+        if (await writeGate.IsReadOnlyAsync(request.Launch.ConnectionId, cancellationToken))
+        {
+            var readOnly = new TerminalError(TerminalErrorCode.ReadOnlyServer, ServerWriteGate.ReadOnlyMessage);
+            return TerminalResult<ManagedTerminalSession>.Failure(readOnly);
         }
 
         var launched = await launcher.LaunchAsync(request.Launch, cancellationToken);

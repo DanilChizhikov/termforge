@@ -28,6 +28,7 @@ internal static class TerminalErrorResults
             TerminalErrorCode.ReconnectDisabled => StatusCodes.Status409Conflict,
             TerminalErrorCode.SessionLimitReached => StatusCodes.Status429TooManyRequests,
             TerminalErrorCode.ShuttingDown => StatusCodes.Status503ServiceUnavailable,
+            TerminalErrorCode.ReadOnlyServer => StatusCodes.Status423Locked,
             _ => StatusCodes.Status502BadGateway,
         };
     }

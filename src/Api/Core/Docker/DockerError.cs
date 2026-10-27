@@ -1,4 +1,5 @@
 using DTech.Core.Connections;
+using DTech.Core.Safety;
 
 namespace DTech.Core.Docker;
 
@@ -12,6 +13,11 @@ public sealed record DockerError(DockerErrorCode Code, string Message)
         {
             SshErrorKind = error.Kind,
         };
+    }
+
+    public static DockerError ReadOnlyServer()
+    {
+        return new DockerError(DockerErrorCode.ReadOnlyServer, ServerWriteGate.ReadOnlyMessage);
     }
 
     public static DockerError InvalidContainer()

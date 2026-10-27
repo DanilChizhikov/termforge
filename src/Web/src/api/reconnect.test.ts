@@ -37,6 +37,7 @@ describe('reconnect api', () => {
       reconnectMode: 'Automatic',
       reconnectMaxAttempts: 9,
       reconnectInitialDelaySeconds: 3,
+      readOnly: false,
       reconnectMaxDelaySeconds: 90,
     } satisfies SavedConnection;
 

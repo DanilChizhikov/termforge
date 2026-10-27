@@ -1,5 +1,7 @@
 using DTech.Core.Editor;
 using DTech.Core.Operations;
+using DTech.Core.Safety;
+using DTech.Core.Tests.Safety.Support;
 using FluentAssertions;
 using NSubstitute;
 
@@ -22,6 +24,7 @@ public sealed class RemoteFileSaveServiceTests
     private EditorGraph _graph = null!;
     private RemoteFileSaveService _service = null!;
     private RemoteFileEditor _editor = null!;
+    private WriteSafetyFixture _safety = null!;
 
     public TestContext TestContext { get; set; } = null!;
 
@@ -39,7 +42,8 @@ public sealed class RemoteFileSaveServiceTests
         var timeProvider = new SteppingTimeProvider(Start);
         _graph = EditorGraph.CreateDefault(timeProvider);
         var recorder = new EditorOperationRecorder(_journal);
-        _service = new RemoteFileSaveService(_opener, _graph.Paths, _graph.Codec, _graph.Saver, _graph.Rollback, _graph.Documents, recorder);
+        _safety = new WriteSafetyFixture();
+        _service = new RemoteFileSaveService(_opener, _graph.Paths, _graph.Codec, _graph.Saver, _graph.Rollback, _graph.Documents, recorder, _safety.Gate);
         _editor = new RemoteFileEditor(_opener, _graph.Paths, _graph.Documents, _graph.Catalog);
     }
 
@@ -140,7 +144,8 @@ public sealed class RemoteFileSaveServiceTests
         var saveRequest = new SaveDocumentRequest(FilePath, content, opened.Value.Version);
         var saved = await _service.SaveAsync(ConnectionId, saveRequest, TestContext.CancellationToken);
         var savedFile = saved.Value.Result.Saved!;
-        var rollbackRequest = new RollbackDocumentRequest(FilePath, savedFile.Backup!.Name, savedFile.Version);
+        var token = _safety.Confirm(DangerousOperation.FileRollback, ConnectionId, FilePath);
+        var rollbackRequest = new RollbackDocumentRequest(FilePath, savedFile.Backup!.Name, savedFile.Version) { ConfirmationToken = token };
 
         var rolledBack = await _service.RollbackAsync(ConnectionId, rollbackRequest, TestContext.CancellationToken);
         var backups = await _editor.ListBackupsAsync(ConnectionId, FilePath, TestContext.CancellationToken);
@@ -148,6 +153,35 @@ public sealed class RemoteFileSaveServiceTests
         rolledBack.Value.Document!.Content.Text.Should().Be("A=1\n");
         backups.Value.Should().HaveCount(2);
         await _journal.Received(1).Create(Arg.Is<CreateOperationRequest>(created => created.Kind == EditorOperationRecorder.RollbackKind && created.Details!["restoredFrom"] == savedFile.Backup.Name), Arg.Any<CancellationToken>());
+    }
+
+    [TestMethod]
+    public async Task Rollback_WithoutConfirmationToken_IsRejectedWithoutConnecting()
+    {
+        var rollbackRequest = new RollbackDocumentRequest(FilePath, "backup", null);
+
+        var result = await _service.RollbackAsync(ConnectionId, rollbackRequest, TestContext.CancellationToken);
+
+        result.Error!.Code.Should().Be(EditorErrorCode.ConfirmationRequired);
+        await _opener.DidNotReceive().OpenAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [TestMethod]
+    public async Task SaveAndRollback_OnReadOnlyServer_AreBlockedWithoutConnecting()
+    {
+        _safety.MarkReadOnly(ConnectionId);
+        var content = new TextContent("A=2\n", false);
+        var saveRequest = new SaveDocumentRequest(FilePath, content, null);
+        var token = _safety.Confirm(DangerousOperation.FileRollback, ConnectionId, FilePath);
+        var rollbackRequest = new RollbackDocumentRequest(FilePath, "backup", null) { ConfirmationToken = token };
+
+        var saved = await _service.SaveAsync(ConnectionId, saveRequest, TestContext.CancellationToken);
+        var rolledBack = await _service.RollbackAsync(ConnectionId, rollbackRequest, TestContext.CancellationToken);
+
+        saved.Error!.Code.Should().Be(EditorErrorCode.ReadOnlyServer);
+        rolledBack.Error!.Code.Should().Be(EditorErrorCode.ReadOnlyServer);
+        await _opener.DidNotReceive().OpenAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        _client.ReadText(FilePath).Should().Be("A=1\n");
     }
 
     [TestMethod]

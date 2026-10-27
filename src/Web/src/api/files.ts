@@ -1,4 +1,5 @@
 import { ApiError, apiClient, type ApiClient } from './client';
+import { requestConfirmationToken } from './confirmations';
 
 export type FileKind = 'File' | 'Directory' | 'SymbolicLink' | 'Other';
 
@@ -41,7 +42,9 @@ export interface Breadcrumb {
 
 const LOCAL_PATH = '/api/files/local';
 
-function createSource(basePath: string, client: ApiClient): FileSource {
+type DeleteBodyFactory = (path: string) => Promise<Record<string, unknown>>;
+
+function createSource(basePath: string, client: ApiClient, deleteBody: DeleteBodyFactory): FileSource {
   return {
     list(path) {
       const query = path === null ? '' : `?path=${encodeURIComponent(path)}`;
@@ -54,17 +57,22 @@ function createSource(basePath: string, client: ApiClient): FileSource {
       await client.post<void>(`${basePath}/rename`, { path, newName });
     },
     async remove(path) {
-      await client.post<void>(`${basePath}/delete`, { path, confirm: true });
+      const body = await deleteBody(path);
+      await client.post<void>(`${basePath}/delete`, body);
     },
   };
 }
 
 export function createLocalSource(client: ApiClient = apiClient): FileSource {
-  return createSource(LOCAL_PATH, client);
+  return createSource(LOCAL_PATH, client, (path) => Promise.resolve({ path, confirm: true }));
 }
 
 export function createRemoteSource(connectionId: string, client: ApiClient = apiClient): FileSource {
-  return createSource(`/api/files/remote/${encodeURIComponent(connectionId)}`, client);
+  const deleteBody = async (path: string) => {
+    const confirmationToken = await requestConfirmationToken({ operation: 'RemoteDelete', connectionId, target: path }, client);
+    return { path, confirmationToken };
+  };
+  return createSource(`/api/files/remote/${encodeURIComponent(connectionId)}`, client, deleteBody);
 }
 
 export function getLocalRoots(client: ApiClient = apiClient): Promise<LocalRoot[]> {

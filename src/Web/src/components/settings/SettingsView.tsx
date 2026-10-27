@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ImportExportSection } from './ImportExportSection';
+import { ReadOnlyServersSection } from './ReadOnlyServersSection';
 import { RecordingList } from './RecordingList';
 import { RecordingSettingsSection } from './RecordingSettingsSection';
 import { UpdatesCard } from './UpdatesCard';
@@ -27,6 +28,7 @@ export function SettingsView() {
           </div>
           <RecordingSettingsSection onChanged={() => setVersion((current) => current + 1)} />
           <RecordingList version={version} />
+          <ReadOnlyServersSection />
           <ImportExportSection />
           <UpdatesCard />
         </div>

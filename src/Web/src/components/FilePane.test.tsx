@@ -166,6 +166,30 @@ describe('FilePane', () => {
     await waitFor(() => expect(source.remove).toHaveBeenCalledWith('/home/alpha.txt'));
   });
 
+  it('names the server and full paths in the delete confirmation', async () => {
+    const user = userEvent.setup();
+    render(<FilePane title="Remote" label="web-01" sourceKey="remote" source={source} path="/home" onPathChange={vi.fn()} />);
+
+    await user.click(await screen.findByText('alpha.txt'));
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+
+    const dialog = screen.getByRole('alertdialog', { name: 'Confirm delete' });
+    expect(dialog).toHaveTextContent('Delete 1 item(s) on web-01?');
+    expect(within(dialog).getByText('/home/alpha.txt')).toBeInTheDocument();
+  });
+
+  it('disables every write action on a read-only server', async () => {
+    const user = userEvent.setup();
+    render(<FilePane title="Remote" sourceKey="remote" source={source} path="/home" onPathChange={vi.fn()} readOnly />);
+
+    await user.click(await screen.findByText('alpha.txt'));
+
+    expect(screen.getByRole('button', { name: 'New folder' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Rename' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Delete' })).toHaveAttribute('title', 'Read-only server');
+  });
+
   it('cancels a delete without calling the server', async () => {
     const user = userEvent.setup();
     render(<Harness source={source} initialPath="/home" />);

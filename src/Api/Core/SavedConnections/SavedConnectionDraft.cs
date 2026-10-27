@@ -23,4 +23,6 @@ public sealed record SavedConnectionDraft
     public string? SshAlias { get; init; }
 
     public ReconnectPolicy ReconnectPolicy { get; init; } = ReconnectPolicy.Default;
+
+    public bool ReadOnly { get; init; }
 }

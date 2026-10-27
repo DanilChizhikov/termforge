@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ConnectionTestResult, ConnectionTestState, SavedConnection } from '../api/connections';
+import { ReadOnlyBadge } from './ReadOnlyBadge';
 import { statusDotClass, type StatusTone } from './statusTone';
 import { formatRelativeTime } from './timeFormat';
 
@@ -69,9 +70,13 @@ export function ServerRow({ connection, status, sessionCount, selected, onSelect
       <div className="server-row-main">
         <span className={statusDotClass(tone)} aria-hidden="true" />
         <div className="server-row-text">
-          <button type="button" className="server-name" aria-pressed={selected} onClick={onSelect}>
-            {connection.name}
-          </button>
+          <span className="server-name-line">
+            <button type="button" className="server-name" aria-pressed={selected} onClick={onSelect}>
+              {connection.name}
+              {connection.readOnly ? <span className="visually-hidden">, read-only</span> : null}
+            </button>
+            {connection.readOnly ? <ReadOnlyBadge /> : null}
+          </span>
           {inline ? (
             <span className="server-subtitle">
               <code>{formatAddress(connection)}</code>

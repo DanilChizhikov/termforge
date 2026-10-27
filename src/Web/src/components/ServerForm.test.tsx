@@ -51,3 +51,17 @@ describe('ServerForm reconnect policy', () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ reconnectMode: 'Off' }));
   });
 });
+
+describe('ServerForm read-only mode', () => {
+  it('is off by default and submits the read-only flag when turned on', async () => {
+    const onSubmit = renderForm();
+    const toggle = screen.getByRole('switch', { name: 'Read-only server' });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByText('Block uploads, saves and Docker actions on this server')).toBeInTheDocument();
+
+    await userEvent.click(toggle);
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ readOnly: true }));
+  });
+});

@@ -29,6 +29,7 @@ internal static class FileErrorResults
             FileErrorCode.AlreadyExists => StatusCodes.Status409Conflict,
             FileErrorCode.NotEmpty => StatusCodes.Status409Conflict,
             FileErrorCode.ConfirmationRequired => StatusCodes.Status428PreconditionRequired,
+            FileErrorCode.ReadOnlyServer => StatusCodes.Status423Locked,
             FileErrorCode.ConnectionFailed => StatusCodes.Status502BadGateway,
             FileErrorCode.Cancelled => ClientClosedRequest,
             _ => StatusCodes.Status500InternalServerError,
