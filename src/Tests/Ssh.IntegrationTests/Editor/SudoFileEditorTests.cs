@@ -227,4 +227,49 @@ public sealed class SudoFileEditorTests
         attributes.Should().Be("2 4 640");
         backups.Value.Should().HaveCount(2);
     }
+
+    [TestMethod]
+    public async Task Access_RootOwnedFile_IsNotWritableAndNamesRoot()
+    {
+        await using var session = await SudoEditorSession.OpenAsync();
+        var directory = await session.CreateProtectedDirectoryAsync();
+        var file = new ProtectedFile(directory, "it's $(id) `x`.conf", Original) { Mode = "644" };
+        var path = await session.CreateProtectedFileAsync(file);
+
+        var access = await session.ProbeAccessAsTesterAsync(0, path);
+
+        var expected = new RemoteFileAccess(0, "root", false);
+        access.Should().Be(expected);
+    }
+
+    [TestMethod]
+    public async Task Access_OwnFileInOwnDirectory_IsWritable()
+    {
+        await using var session = await SudoEditorSession.OpenAsync();
+        var directory = $"{SshServerContainer.HomeDirectory}/access-{Guid.NewGuid():N}";
+        await session.ExecuteAsync($"mkdir '{directory}' && chown {SshServerContainer.UserName}: '{directory}'");
+        var file = new ProtectedFile(directory, "app.conf", Original) { Owner = $"{SshServerContainer.UserName}:", Mode = "644" };
+        var path = await session.CreateProtectedFileAsync(file);
+        var userId = await session.ExecuteAsync($"id -u {SshServerContainer.UserName}");
+        var ownerId = int.Parse(userId, System.Globalization.CultureInfo.InvariantCulture);
+
+        var access = await session.ProbeAccessAsTesterAsync(ownerId, path);
+
+        var expected = new RemoteFileAccess(ownerId, SshServerContainer.UserName, true);
+        access.Should().Be(expected);
+    }
+
+    [TestMethod]
+    public async Task Access_UidWithoutAccount_HasNoOwnerName()
+    {
+        await using var session = await SudoEditorSession.OpenAsync();
+        var directory = await session.CreateProtectedDirectoryAsync();
+        var file = new ProtectedFile(directory, "orphan.conf", Original) { Owner = "4242:4242", Mode = "644" };
+        var path = await session.CreateProtectedFileAsync(file);
+
+        var access = await session.ProbeAccessAsTesterAsync(4242, path);
+
+        var expected = new RemoteFileAccess(4242, null, false);
+        access.Should().Be(expected);
+    }
 }

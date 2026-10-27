@@ -37,3 +37,11 @@ public sealed record SudoStatusResponse(string Availability, bool HasSavedPasswo
         return new SudoStatusResponse(availability, status.HasSavedPassword, status.Message);
     }
 }
+
+public sealed record FileAccessResponse(int OwnerId, string? OwnerName, bool Writable)
+{
+    public static FileAccessResponse From(RemoteFileAccess access)
+    {
+        return new FileAccessResponse(access.OwnerId, access.OwnerName, access.Writable);
+    }
+}

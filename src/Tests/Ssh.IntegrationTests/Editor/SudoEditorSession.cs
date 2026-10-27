@@ -97,6 +97,21 @@ internal sealed class SudoEditorSession : IAsyncDisposable
         return elevated.Value;
     }
 
+    public async Task<RemoteFileAccess?> ProbeAccessAsTesterAsync(int ownerId, string path)
+    {
+        var runner = await ConnectAsync(SshServerContainer.UserName, SshServerContainer.Password);
+        var commands = new FileAccessCommands();
+        var location = Locate(path);
+        var text = commands.Probe(ownerId, location);
+        var timeout = TimeSpan.FromSeconds(20);
+        var command = new RemoteShellCommand(text, timeout, 4096);
+        var executed = await runner.RunAsync(command, CancellationToken.None);
+        executed.IsSuccess.Should().BeTrue(executed.Error?.Message);
+        executed.Value.Succeeded.Should().BeTrue(executed.Value.StandardError);
+        var output = executed.Value.StandardOutputText;
+        return FileAccessOutputParser.Parse(output, ownerId);
+    }
+
     public RemoteFileLocation Locate(string path)
     {
         return _paths.Resolve(path).Value;

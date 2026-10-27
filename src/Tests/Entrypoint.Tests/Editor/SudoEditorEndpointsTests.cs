@@ -22,6 +22,7 @@ public sealed class SudoEditorEndpointsTests
     private const string Content = "worker_processes 1;\n";
     private const string Password = "hunter2-sudo";
     private const int FileMode = 0b110_000_000;
+    private const int OwnerId = 33;
 
     private static readonly Guid ConnectionId = Guid.NewGuid();
     private static readonly DateTime ModifiedUtc = new(2026, 4, 1, 10, 0, 0, DateTimeKind.Utc);
@@ -29,6 +30,7 @@ public sealed class SudoEditorEndpointsTests
     private IRemoteEditorFileClient _fileClient = null!;
     private ISudoEditorSessionOpener _opener = null!;
     private ISudoStatusReader _statuses = null!;
+    private IFileAccessReader _accessReader = null!;
     private ICredentialStore _credentialStore = null!;
     private TermForgeApplicationFactory _factory = null!;
     private HttpClient _client = null!;
@@ -46,6 +48,7 @@ public sealed class SudoEditorEndpointsTests
         _opener = Substitute.For<ISudoEditorSessionOpener>();
         _opener.OpenAsync(ConnectionId, Arg.Any<SudoCredentials>(), Arg.Any<CancellationToken>()).Returns(_ => OpenSession());
         _statuses = Substitute.For<ISudoStatusReader>();
+        _accessReader = Substitute.For<IFileAccessReader>();
         _credentialStore = Substitute.For<ICredentialStore>();
         _factory = new TermForgeApplicationFactory { ConfigureServices = ReplaceServices };
         _client = _factory.CreateClientWithoutCookies();
@@ -75,6 +78,36 @@ public sealed class SudoEditorEndpointsTests
     }
 
     [TestMethod]
+    public async Task Access_ReturnsOwnerNameAndWritability()
+    {
+        FileAccessRequest? received = null;
+        var access = new RemoteFileAccess(OwnerId, "www-data", false);
+        var accessResult = EditorResult<RemoteFileAccess>.Success(access);
+        _accessReader.ReadAsync(Arg.Do<FileAccessRequest>(request => received = request), Arg.Any<CancellationToken>()).Returns(accessResult);
+        var escapedPath = Uri.EscapeDataString(FilePath);
+
+        using var response = await Send(HttpMethod.Get, $"{RoutePrefix}/access?path={escapedPath}&ownerId={OwnerId}", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.CancellationToken);
+        body.GetProperty("ownerId").GetInt32().Should().Be(OwnerId);
+        body.GetProperty("ownerName").GetString().Should().Be("www-data");
+        body.GetProperty("writable").GetBoolean().Should().BeFalse();
+        var expected = new FileAccessRequest(ConnectionId, FilePath, OwnerId);
+        received.Should().Be(expected);
+    }
+
+    [TestMethod]
+    public async Task Access_WithoutOwnerId_IsBadRequest()
+    {
+        var escapedPath = Uri.EscapeDataString(FilePath);
+
+        using var response = await Send(HttpMethod.Get, $"{RoutePrefix}/access?path={escapedPath}", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [TestMethod]
     public async Task Open_PassesPasswordToOpenerAndNeverReturnsOrLogsIt()
     {
         SudoCredentials? received = null;
@@ -89,6 +122,7 @@ public sealed class SudoEditorEndpointsTests
         var document = JsonDocument.Parse(text).RootElement;
         document.GetProperty("content").GetString().Should().Be(Content);
         document.GetProperty("permissions").GetString().Should().Be("rw-------");
+        document.GetProperty("ownerId").GetInt32().Should().Be(OwnerId);
         received!.Password.Should().Be(Password);
         received.RememberPassword.Should().BeTrue();
         _factory.Logs.Messages.Should().NotContain(message => message.Contains(Password, StringComparison.Ordinal));
@@ -158,9 +192,11 @@ public sealed class SudoEditorEndpointsTests
     {
         services.RemoveAll<ISudoEditorSessionOpener>();
         services.RemoveAll<ISudoStatusReader>();
+        services.RemoveAll<IFileAccessReader>();
         services.RemoveAll<ICredentialStore>();
         services.AddSingleton(_opener);
         services.AddSingleton(_statuses);
+        services.AddSingleton(_accessReader);
         services.AddSingleton(_credentialStore);
     }
 
@@ -173,7 +209,7 @@ public sealed class SudoEditorEndpointsTests
     private void StubExistingFile()
     {
         var bytes = Encoding.UTF8.GetBytes(Content);
-        var attributes = new RemoteFileAttributes(RemoteFileKind.File, bytes.Length, ModifiedUtc) { Mode = FileMode };
+        var attributes = new RemoteFileAttributes(RemoteFileKind.File, bytes.Length, ModifiedUtc) { Mode = FileMode, UserId = OwnerId };
         var attributesResult = SshResult<RemoteFileAttributes>.Success(attributes);
         var readResult = SshResult<byte[]>.Success(bytes);
         _fileClient.GetAttributesAsync(FilePath, Arg.Any<CancellationToken>()).Returns(attributesResult);

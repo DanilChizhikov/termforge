@@ -1,6 +1,7 @@
 using DTech.Core.Connections;
 using DTech.Core.Editor;
 using DTech.Core.Editor.Sudo;
+using DTech.Core.Files.Remote;
 using DTech.Core.SavedConnections;
 using DTech.Core.Tests.SavedConnections.Support;
 using NSubstitute;
@@ -32,6 +33,10 @@ internal sealed class SudoEditorTestGraph
         Opener = new SudoEditorSessionOpener(connector, resolver, Store, shells, authenticator);
         var probe = new SudoAvailabilityProbe(commands, classifier);
         StatusReader = new SudoStatusReader(connector, probe, Store);
+        var normalizer = new RemotePathNormalizer();
+        var paths = new EditorPathResolver(normalizer);
+        var accessCommands = new FileAccessCommands();
+        AccessReader = new FileAccessReader(connector, paths, accessCommands);
     }
 
     public ScriptedShellRunner Runner { get; }
@@ -47,6 +52,8 @@ internal sealed class SudoEditorTestGraph
     public SudoEditorSessionOpener Opener { get; }
 
     public SudoStatusReader StatusReader { get; }
+
+    public FileAccessReader AccessReader { get; }
 
     public async Task<Guid> AddConnectionAsync(CancellationToken cancellationToken)
     {

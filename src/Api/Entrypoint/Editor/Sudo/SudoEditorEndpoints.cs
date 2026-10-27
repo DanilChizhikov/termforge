@@ -13,6 +13,7 @@ public static class SudoEditorEndpoints
     {
         var group = endpoints.MapGroup(RoutePrefix);
         group.MapGet("/status", ReadStatus);
+        group.MapGet("/access", ReadAccess);
         group.MapPost("/open", Open);
         group.MapPut("/file", Save);
         group.MapPost("/backups/content", ReadBackup);
@@ -30,6 +31,25 @@ public static class SudoEditorEndpoints
         }
 
         var response = SudoStatusResponse.From(result.Value);
+        return Results.Ok(response);
+    }
+
+    private static async Task<IResult> ReadAccess(Guid connectionId, string? path, int? ownerId, IFileAccessReader accessReader, CancellationToken cancellationToken)
+    {
+        if (ownerId is null)
+        {
+            var missing = EditorError.Invalid("The owner id is required.");
+            return EditorErrorResults.ToProblem(missing);
+        }
+
+        var request = new FileAccessRequest(connectionId, path, ownerId.Value);
+        var result = await accessReader.ReadAsync(request, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return EditorErrorResults.ToProblem(result.Error);
+        }
+
+        var response = FileAccessResponse.From(result.Value);
         return Results.Ok(response);
     }
 
