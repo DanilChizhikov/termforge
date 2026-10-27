@@ -30,6 +30,7 @@ builder.Services.AddSudoFileEditor();
 builder.Services.AddTransfers(builder.Configuration);
 builder.Services.AddDockerManagement();
 builder.Services.AddWorkspacePersistence();
+builder.Services.AddSettingsTransfer();
 
 var app = builder.Build();
 await app.MigrateDatabaseAsync();
@@ -54,6 +55,7 @@ app.MapSudoEditorEndpoints();
 app.MapTransferEndpoints();
 app.MapDockerEndpoints();
 app.MapWorkspaceEndpoints();
+app.MapSettingsTransferEndpoints();
 app.UseSpaHosting();
 
 app.Run();
