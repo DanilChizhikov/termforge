@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { RecordingList } from './RecordingList';
 import { RecordingSettingsSection } from './RecordingSettingsSection';
+import { UpdatesCard } from './UpdatesCard';
+import { UpdatesNavLink } from './UpdatesNavLink';
 
 export function SettingsView() {
   const [version, setVersion] = useState(0);
@@ -11,6 +13,7 @@ export function SettingsView() {
         <a href="#settings-security" aria-current="page" className="settings-nav-link">
           Security
         </a>
+        <UpdatesNavLink />
       </nav>
       <main id="settings-security" className="settings-main">
         <div className="settings-content">
@@ -20,6 +23,7 @@ export function SettingsView() {
           </div>
           <RecordingSettingsSection onChanged={() => setVersion((current) => current + 1)} />
           <RecordingList version={version} />
+          <UpdatesCard />
         </div>
       </main>
     </div>

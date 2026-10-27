@@ -16,7 +16,7 @@ body {
   color: var(--text-primary);
   font-family: var(--font-ui);
   font-size: var(--text-body);
-  line-height: 1.45;
+  line-height: 1.4;
   -webkit-font-smoothing: antialiased;
 }
 

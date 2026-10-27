@@ -104,6 +104,23 @@ public sealed class OperationRepositoryTests
     }
 
     [TestMethod]
+    public async Task Query_filters_by_kind_family()
+    {
+        await Seed(
+            NewOperation("transfer.upload", "web-1", OperationStatus.Succeeded, BaseTime),
+            NewOperation("transfer.download", "web-1", OperationStatus.Failed, BaseTime.AddMinutes(1)),
+            NewOperation("transferred", "web-1", OperationStatus.Failed, BaseTime.AddMinutes(2)),
+            NewOperation("docker.stop", "web-1", OperationStatus.Succeeded, BaseTime.AddMinutes(3)));
+        await using var context = CreateRepository(out var repository);
+
+        var family = await repository.Query(Query(kind: "transfer"), TestContext.CancellationToken);
+        var exact = await repository.Query(Query(kind: "transfer.upload"), TestContext.CancellationToken);
+
+        family.Items.Select(item => item.Kind).Should().BeEquivalentTo("transfer.upload", "transfer.download");
+        exact.Items.Select(item => item.Kind).Should().Equal("transfer.upload");
+    }
+
+    [TestMethod]
     public async Task Query_filters_by_time_range_inclusive()
     {
         await Seed(

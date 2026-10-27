@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EditorDocument, FileVersion } from '../../api/editor';
 import { getEditorDraft, resetEditorDrafts, restoreEditorDrafts } from '../../state/editorDrafts';
 import { editorFileKey, resetEditorFiles, restoreEditorFiles } from '../../state/editorFiles';
-import { EditorWorkspace } from './EditorWorkspace';
+import { EditorHarness } from '../../test/EditorHarness';
 
 vi.mock('./CodeEditor', () => ({
   default: ({ value, label, onChange }: { value: string; label: string; onChange: (text: string) => void }) => (
@@ -78,7 +78,7 @@ describe('EditorWorkspace restore', () => {
   it('shows a restored tab without reading the file until it is opened', () => {
     restoreFileWithDraft('name: mine\n');
 
-    render(<EditorWorkspace />);
+    render(<EditorHarness />);
 
     expect(screen.getByText(/Restored from your last session/)).toBeInTheDocument();
     expect(screen.getByText(/unsaved changes were kept/)).toBeInTheDocument();
@@ -89,7 +89,7 @@ describe('EditorWorkspace restore', () => {
   it('recovers the unsaved content after opening the restored file', async () => {
     restoreFileWithDraft('name: mine\n');
     const user = userEvent.setup();
-    render(<EditorWorkspace />);
+    render(<EditorHarness />);
 
     await user.click(screen.getByRole('button', { name: 'Open file' }));
 
@@ -103,7 +103,7 @@ describe('EditorWorkspace restore', () => {
     serverDocument = { ...serverDocument, content: 'name: server\n', version: CHANGED_VERSION };
     restoreFileWithDraft('name: mine\n');
     const user = userEvent.setup();
-    render(<EditorWorkspace />);
+    render(<EditorHarness />);
 
     await user.click(screen.getByRole('button', { name: 'Open file' }));
     await screen.findByLabelText(`Editing ${PATH}`);
@@ -118,7 +118,7 @@ describe('EditorWorkspace restore', () => {
   it('opens a restored file without draft as it is on the server', async () => {
     restoreFileWithDraft(null);
     const user = userEvent.setup();
-    render(<EditorWorkspace />);
+    render(<EditorHarness />);
 
     await user.click(screen.getByRole('button', { name: 'Open file' }));
 
@@ -129,7 +129,7 @@ describe('EditorWorkspace restore', () => {
   it('keeps the draft while editing and drops it when the changes are discarded', async () => {
     restoreFileWithDraft('name: mine\n');
     const user = userEvent.setup();
-    render(<EditorWorkspace />);
+    render(<EditorHarness />);
     await user.click(screen.getByRole('button', { name: 'Open file' }));
     const editor = await screen.findByLabelText(`Editing ${PATH}`);
 

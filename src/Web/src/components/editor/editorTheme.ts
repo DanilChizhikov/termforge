@@ -1,38 +1,42 @@
 import type { editor } from 'monaco-editor/editor/editor.api';
+import { readThemeToken, readThemeTokenHex } from '../themeTokens';
 import { TERMINAL_FONT_FAMILY, TERMINAL_FONT_SIZE } from '../terminalTheme';
 
 export const EDITOR_THEME_NAME = 'termforge-dark';
 
-export const EDITOR_THEME: editor.IStandaloneThemeData = {
-  base: 'vs-dark',
-  inherit: true,
-  rules: [
-    { token: 'comment', foreground: '858b94', fontStyle: 'italic' },
-    { token: 'keyword', foreground: 'ffb27f' },
-    { token: 'string', foreground: '7fd8ae' },
-    { token: 'number', foreground: '9cc3ff' },
-    { token: 'type', foreground: '9cc3ff' },
-    { token: 'variable', foreground: 'c9cdd3' },
-  ],
-  colors: {
-    'editor.background': '#08090b',
-    'editor.foreground': '#d5d8dd',
-    'editorCursor.foreground': '#ff8a3d',
-    'editor.lineHighlightBackground': '#121417',
-    'editor.selectionBackground': '#ff8a3d47',
-    'editorLineNumber.foreground': '#6b717a',
-    'editorLineNumber.activeForeground': '#a9aeb6',
-    'editorGutter.background': '#08090b',
-    'diffEditor.insertedTextBackground': '#46c08a2e',
-    'diffEditor.removedTextBackground': '#ff6b5e2e',
-    'diffEditor.insertedLineBackground': '#46c08a14',
-    'diffEditor.removedLineBackground': '#ff6b5e14',
-  },
-};
+export function createEditorTheme(): editor.IStandaloneThemeData {
+  return {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+      { token: 'comment', foreground: readThemeTokenHex('--text-muted'), fontStyle: 'italic' },
+      { token: 'keyword', foreground: readThemeTokenHex('--status-info-text') },
+      { token: 'string', foreground: readThemeTokenHex('--code-string') },
+      { token: 'number', foreground: readThemeTokenHex('--status-info-text') },
+      { token: 'type', foreground: readThemeTokenHex('--status-info-text') },
+      { token: 'variable', foreground: readThemeTokenHex('--text-soft') },
+    ],
+    colors: {
+      'editor.background': readThemeToken('--surface-terminal'),
+      'editor.foreground': readThemeToken('--text-primary'),
+      'editorCursor.foreground': readThemeToken('--accent'),
+      'editor.lineHighlightBackground': readThemeToken('--surface-card'),
+      'editor.selectionBackground': readThemeToken('--code-selection'),
+      'editorLineNumber.foreground': readThemeToken('--code-line-number'),
+      'editorLineNumber.activeForeground': readThemeToken('--text-secondary'),
+      'editorGutter.background': readThemeToken('--surface-terminal'),
+      'diffEditor.insertedTextBackground': readThemeToken('--diff-local-text'),
+      'diffEditor.removedTextBackground': readThemeToken('--diff-server-text'),
+      'diffEditor.insertedLineBackground': readThemeToken('--diff-local-line'),
+      'diffEditor.removedLineBackground': readThemeToken('--diff-server-line'),
+    },
+  };
+}
 
 export const EDITOR_OPTIONS: editor.IStandaloneEditorConstructionOptions = {
   fontFamily: TERMINAL_FONT_FAMILY,
   fontSize: TERMINAL_FONT_SIZE,
+  lineHeight: 21,
   minimap: { enabled: false },
   scrollBeyondLastLine: false,
   automaticLayout: true,

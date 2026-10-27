@@ -8,6 +8,7 @@ import {
   discardTransfer,
   formatBytes,
   isActive,
+  parentDirectoryOf,
   percentOf,
   retryTransfer,
   type TransferRecord,
@@ -19,6 +20,7 @@ import {
   reportTransferError,
   useTransfersState,
 } from '../state/transfers';
+import { activateWorkspaceTab } from '../state/workspaceTab';
 import { ArrowDownIcon, ArrowUpIcon, CloseIcon } from './icons/Icons';
 import { TransferConflictDialog } from './TransferConflictDialog';
 import { useTransferFeed } from './useTransferFeed';
@@ -51,7 +53,15 @@ function summarize(transfers: readonly TransferRecord[]): string {
 }
 
 function describeRoute(transfer: TransferRecord): string {
-  return `${baseName(transfer.sourcePath)} → ${transfer.targetPath}`;
+  const folderSuffix = transfer.totalFiles > 1 ? '/' : '';
+  return `${baseName(transfer.sourcePath)}${folderSuffix} → ${parentDirectoryOf(transfer.targetPath)}`;
+}
+
+function directionClassName(transfer: TransferRecord): string {
+  if (transfer.status === 'failed') {
+    return 'transfer-direction transfer-direction-failed';
+  }
+  return transfer.direction === 'upload' ? 'transfer-direction' : 'transfer-direction transfer-direction-down';
 }
 
 function TransferCard({ transfer }: { transfer: TransferRecord }) {
@@ -62,7 +72,7 @@ function TransferCard({ transfer }: { transfer: TransferRecord }) {
   return (
     <li className={failed ? 'transfer-card transfer-card-failed' : 'transfer-card'} aria-label={describeRoute(transfer)}>
       <div className="transfer-card-header">
-        <span className={transfer.direction === 'upload' ? 'transfer-direction' : 'transfer-direction transfer-direction-down'}>
+        <span className={directionClassName(transfer)}>
           {transfer.direction === 'upload' ? <ArrowUpIcon size={13} /> : <ArrowDownIcon size={13} />}
           <span className="visually-hidden">{transfer.direction === 'upload' ? 'Upload' : 'Download'}</span>
         </span>
@@ -121,6 +131,9 @@ export function TransferPanel() {
         <span className="text-secondary">{summarize(transfers)}</span>
         {!live && <span className="text-muted">Live progress disconnected.</span>}
         <span className="transfer-panel-spacer" />
+        <button type="button" className="link-button" onClick={() => activateWorkspaceTab('history')}>
+          Open in journal
+        </button>
         <button
           type="button"
           className="btn btn-xs btn-ghost"

@@ -5,11 +5,26 @@
   align-items: center;
   gap: 14px;
   min-height: 30px;
-  padding: 3px 14px;
-  border-bottom: 1px solid var(--border-faint);
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border-meta);
   background: var(--surface-terminal);
   color: var(--text-muted);
   font-size: var(--text-caption);
+}
+
+.terminal-meta-identity {
+  color: var(--text-soft);
+}
+
+.terminal-meta code {
+  font-size: inherit;
+}
+
+.terminal-recording {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
 }
 
 .recording-player {

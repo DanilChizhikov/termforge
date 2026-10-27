@@ -40,7 +40,7 @@ describe('layout', () => {
 });
 
 describe('collapsible regions', () => {
-  it.each(['Servers', 'Terminals', 'Files', 'Local', 'Remote'])('collapses and expands %s', async (title) => {
+  it.each(['Servers', 'Terminals', 'Local', 'Remote'])('collapses and expands %s', async (title) => {
     const user = userEvent.setup();
     render(<App />);
     const region = screen.getByRole('region', { name: title });
@@ -68,10 +68,10 @@ describe('collapsible regions', () => {
 });
 
 describe('workspace tabs', () => {
-  it('starts on the workspace tab and switches to empty-state tabs', async () => {
+  it('starts on the terminals tab and switches to empty-state tabs', async () => {
     const user = userEvent.setup();
     render(<App />);
-    const workspaceTab = screen.getByRole('tab', { name: 'Workspace' });
+    const workspaceTab = screen.getByRole('tab', { name: 'Terminals & files' });
     expect(workspaceTab).toHaveAttribute('aria-selected', 'true');
 
     await user.click(screen.getByRole('tab', { name: 'Docker' }));
@@ -83,7 +83,7 @@ describe('workspace tabs', () => {
     expect(document.getElementById('panel-workspace')).not.toBeVisible();
   });
 
-  it.each(['Editor', 'Docker', 'Diagnostics', 'History'])('offers the %s tab', async (title) => {
+  it.each(['Docker', 'Diagnostics', 'Journal'])('offers the %s tab', async (title) => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -92,13 +92,24 @@ describe('workspace tabs', () => {
     expect(screen.getByRole('tabpanel', { name: title })).toBeVisible();
   });
 
-  it('returns to the workspace tab', async () => {
+  it('offers no file tabs while nothing is open', () => {
+    render(<App />);
+
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'Terminals & files',
+      'Docker',
+      'Diagnostics',
+      'Journal',
+    ]);
+  });
+
+  it('returns to the terminals tab', async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole('tab', { name: 'History' }));
-    await user.click(screen.getByRole('tab', { name: 'Workspace' }));
+    await user.click(screen.getByRole('tab', { name: 'Journal' }));
+    await user.click(screen.getByRole('tab', { name: 'Terminals & files' }));
 
-    expect(screen.getByRole('tabpanel', { name: 'Workspace' })).toBeVisible();
+    expect(screen.getByRole('tabpanel', { name: 'Terminals & files' })).toBeVisible();
   });
 });

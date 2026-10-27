@@ -52,7 +52,7 @@ describe('TerminalWorkspace', () => {
   it('requires a selected server before opening a terminal', () => {
     render(<TerminalWorkspace />);
 
-    expect(screen.getByRole('button', { name: 'New terminal' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^New session/ })).toBeDisabled();
     expect(screen.getByText('Select a server to open a terminal.')).toBeInTheDocument();
     expect(screen.getByText(/No terminal sessions/)).toBeInTheDocument();
   });
@@ -62,7 +62,7 @@ describe('TerminalWorkspace', () => {
     act(() => selectServer('web-id'));
     render(<TerminalWorkspace />);
 
-    await user.click(screen.getByRole('button', { name: 'New terminal' }));
+    await user.click(screen.getByRole('button', { name: /^New session/ }));
     expect(screen.getByRole('tab', { name: 'Connecting… (connecting)' })).toBeInTheDocument();
     expect(screen.getByTestId('terminal-view')).toHaveAttribute('data-connection', 'web-id');
 
@@ -78,10 +78,10 @@ describe('TerminalWorkspace', () => {
     const user = userEvent.setup();
     act(() => selectServer('web-id'));
     render(<TerminalWorkspace />);
-    await user.click(screen.getByRole('button', { name: 'New terminal' }));
-    await user.click(screen.getByRole('button', { name: 'New terminal' }));
+    await user.click(screen.getByRole('button', { name: /^New session/ }));
+    await user.click(screen.getByRole('button', { name: /^New session/ }));
     act(() => selectServer('db-id'));
-    await user.click(screen.getByRole('button', { name: 'New terminal' }));
+    await user.click(screen.getByRole('button', { name: /^New session/ }));
 
     act(() => latestPropsFor('web-id', 0).onOpened(session('web-id', 'web', 1)));
     act(() => latestPropsFor('web-id', 1).onOpened(session('web-id', 'web', 2)));
@@ -101,8 +101,8 @@ describe('TerminalWorkspace', () => {
     const user = userEvent.setup();
     act(() => selectServer('web-id'));
     render(<TerminalWorkspace />);
-    await user.click(screen.getByRole('button', { name: 'New terminal' }));
-    await user.click(screen.getByRole('button', { name: 'New terminal' }));
+    await user.click(screen.getByRole('button', { name: /^New session/ }));
+    await user.click(screen.getByRole('button', { name: /^New session/ }));
     act(() => latestPropsFor('web-id', 0).onOpened(session('web-id', 'web', 1)));
     act(() => latestPropsFor('web-id', 1).onOpened(session('web-id', 'web', 2)));
 
@@ -119,7 +119,7 @@ describe('TerminalWorkspace', () => {
     const user = userEvent.setup();
     act(() => selectServer('web-id'));
     render(<TerminalWorkspace />);
-    await user.click(screen.getByRole('button', { name: 'New terminal' }));
+    await user.click(screen.getByRole('button', { name: /^New session/ }));
     const view = latestPropsFor('web-id');
     act(() => view.onOpened(session('web-id', 'web', 1)));
 
@@ -133,7 +133,7 @@ describe('TerminalWorkspace', () => {
     const user = userEvent.setup();
     act(() => selectServer('web-id'));
     render(<TerminalWorkspace />);
-    await user.click(screen.getByRole('button', { name: 'New terminal' }));
+    await user.click(screen.getByRole('button', { name: /^New session/ }));
     act(() => latestPropsFor('web-id').onOpened(session('web-id', 'web', 1)));
 
     await user.click(screen.getByRole('button', { name: 'Close web #1' }));

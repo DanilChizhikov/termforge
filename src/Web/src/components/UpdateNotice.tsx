@@ -1,52 +1,21 @@
-import { useCallback, useEffect, useState } from 'react';
-import { checkForUpdates, getUpdateStatus, type UpdateStatus } from '../api/updates';
+import { showAppView } from '../state/appView';
+import { useUpdates } from '../state/updates';
 
 export function UpdateNotice() {
-  const [status, setStatus] = useState<UpdateStatus | null>(null);
-  const [checking, setChecking] = useState(false);
+  const { status } = useUpdates();
 
-  useEffect(() => {
-    let active = true;
-    getUpdateStatus()
-      .then((result) => {
-        if (active) {
-          setStatus(result);
-        }
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const checkNow = useCallback(() => {
-    setChecking(true);
-    checkForUpdates()
-      .then(setStatus)
-      .catch(() => undefined)
-      .finally(() => setChecking(false));
-  }, []);
-
-  if (status === null) {
+  if (status === null || status.state !== 'updateavailable' || status.latestVersion === null) {
     return null;
   }
 
   return (
-    <div className="update-notice" data-testid="update-notice">
-      <span>TermForge {status.currentVersion}</span>
-      {status.state === 'updateavailable' && status.releaseUrl !== null && (
-        <span className="chip chip-info">
-          Update available: {status.latestVersion}{' '}
-          <a href={status.releaseUrl} target="_blank" rel="noopener noreferrer">
-            Download
-          </a>
-        </span>
-      )}
-      {status.state === 'uptodate' && <span className="status-text status-text-ok">Up to date</span>}
-      {status.state === 'checkfailed' && <span>Update check unavailable</span>}
-      <button type="button" className="btn btn-sm btn-ghost" onClick={checkNow} disabled={checking}>
-        {checking ? 'Checking...' : 'Check for updates'}
-      </button>
-    </div>
+    <button
+      type="button"
+      className="update-pill"
+      data-testid="update-notice"
+      onClick={() => showAppView('settings')}
+    >
+      Update v{status.latestVersion} available
+    </button>
   );
 }

@@ -51,7 +51,8 @@ public sealed class OperationRepository : IOperationRepository
         if (!string.IsNullOrWhiteSpace(query.Kind))
         {
             var kind = query.Kind;
-            filtered = filtered.Where(operation => operation.Kind == kind);
+            var kindFamilyPrefix = kind + ".";
+            filtered = filtered.Where(operation => operation.Kind == kind || operation.Kind.StartsWith(kindFamilyPrefix));
         }
 
         if (query.Status is not null)

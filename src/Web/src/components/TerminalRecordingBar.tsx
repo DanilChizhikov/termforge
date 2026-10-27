@@ -78,7 +78,7 @@ export function TerminalRecordingBar({ terminalId, onRecordingChange }: Terminal
   };
 
   return (
-    <div className="terminal-meta">
+    <span className="terminal-recording">
       {isRecording && status !== null ? (
         <>
           <span className="status-text status-text-active">
@@ -120,6 +120,6 @@ export function TerminalRecordingBar({ terminalId, onRecordingChange }: Terminal
           onCancel={() => setConfirming(false)}
         />
       ) : null}
-    </div>
+    </span>
   );
 }

@@ -7,6 +7,7 @@ import {
   type SortKey,
 } from '../api/files';
 import { FileIcon, FolderIcon, LinkIcon, SortAscendingIcon, SortDescendingIcon } from './icons/Icons';
+import { formatCompactTimestamp } from './timeFormat';
 
 export interface FileTableProps {
   entries: FileEntry[];
@@ -17,13 +18,14 @@ export interface FileTableProps {
   onSelect: (entry: FileEntry, additive: boolean) => void;
   onOpen: (entry: FileEntry) => void;
   onDragStart?: ((entry: FileEntry, event: DragEvent<HTMLElement>) => void) | undefined;
+  parentPath?: string | null;
+  onNavigate?: ((path: string) => void) | undefined;
 }
 
 const COLUMNS: ReadonlyArray<{ key: SortKey; label: string }> = [
   { key: 'name', label: 'Name' },
   { key: 'size', label: 'Size' },
   { key: 'modified', label: 'Modified' },
-  { key: 'kind', label: 'Type' },
 ];
 
 function describeKind(entry: FileEntry): string {
@@ -59,11 +61,17 @@ function SortMarker({ direction }: { direction: SortDirection }) {
 }
 
 function formatModified(modifiedUtc: string | null): string {
-  return modifiedUtc === null ? '' : new Date(modifiedUtc).toLocaleString();
+  return modifiedUtc === null ? '' : formatCompactTimestamp(modifiedUtc);
+}
+
+function describeEntry(entry: FileEntry): string {
+  const permissions = entry.permissions === null ? '' : ` · ${entry.permissions}`;
+  const modified = entry.modifiedUtc === null ? '' : ` · ${new Date(entry.modifiedUtc).toLocaleString()}`;
+  return `${describeKind(entry)}${permissions}${modified}`;
 }
 
 export function FileTable(props: FileTableProps) {
-  const { entries, selected, sortKey, sortDirection, onSort, onSelect, onOpen, onDragStart } = props;
+  const { entries, selected, sortKey, sortDirection, onSort, onSelect, onOpen, onDragStart, parentPath = null, onNavigate } = props;
   return (
     <table className="data-table">
       <thead>
@@ -71,7 +79,7 @@ export function FileTable(props: FileTableProps) {
           {COLUMNS.map((column) => (
             <th
               key={column.key}
-              className={column.key === 'size' ? 'cell-end' : undefined}
+              className={column.key === 'name' ? undefined : `cell-end file-column-${column.key}`}
               aria-sort={ariaSort(sortKey === column.key, sortDirection)}
             >
               <button type="button" className="th-button" onClick={() => onSort(column.key)}>
@@ -80,10 +88,18 @@ export function FileTable(props: FileTableProps) {
               </button>
             </th>
           ))}
-          <th>Permissions</th>
         </tr>
       </thead>
       <tbody>
+        {parentPath === null || onNavigate === undefined ? null : (
+          <tr className="file-row file-row-parent">
+            <td colSpan={COLUMNS.length}>
+              <button type="button" className="file-parent" aria-label="Parent folder" onClick={() => onNavigate(parentPath)}>
+                ..
+              </button>
+            </td>
+          </tr>
+        )}
         {entries.map((entry) => (
           <tr
             key={entry.path}
@@ -93,17 +109,16 @@ export function FileTable(props: FileTableProps) {
             onDoubleClick={() => onOpen(entry)}
             draggable={onDragStart !== undefined}
             onDragStart={onDragStart === undefined ? undefined : (event) => onDragStart(entry, event)}
+            title={describeEntry(entry)}
           >
             <td>
               <span className="file-name">
                 <EntryIcon entry={entry} />
-                {isNavigable(entry) ? `${entry.name}/` : entry.name}
+                {entry.name}
               </span>
             </td>
-            <td className="cell-end cell-muted">{formatSize(entry)}</td>
-            <td className="cell-muted">{formatModified(entry.modifiedUtc)}</td>
-            <td className="cell-muted">{describeKind(entry)}</td>
-            <td className="cell-mono cell-muted">{entry.permissions ?? ''}</td>
+            <td className="cell-end cell-muted">{entry.kind === 'Directory' ? <span className="text-muted">—</span> : formatSize(entry)}</td>
+            <td className="cell-end cell-muted">{formatModified(entry.modifiedUtc)}</td>
           </tr>
         ))}
       </tbody>

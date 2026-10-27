@@ -72,7 +72,7 @@ function Harness({ source, search }: { source: FileSource; search: FileSearchSou
 
 async function openSearchAndRun(pattern: string): Promise<ReturnType<typeof userEvent.setup>> {
   const user = userEvent.setup();
-  await screen.findByText('logs/');
+  await screen.findByText('logs');
   await user.click(screen.getByRole('button', { name: 'Search files' }));
   await user.type(screen.getByLabelText('Name pattern'), pattern);
   await user.click(screen.getByRole('button', { name: 'Search' }));
@@ -122,7 +122,7 @@ describe('FilePane search', () => {
     );
     const user = userEvent.setup();
     render(<Harness source={makeSource()} search={search} />);
-    await screen.findByText('logs/');
+    await screen.findByText('logs');
     await user.click(screen.getByRole('button', { name: 'Search files' }));
 
     await user.selectOptions(screen.getByLabelText('Method'), 'find');

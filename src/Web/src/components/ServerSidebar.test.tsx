@@ -94,7 +94,7 @@ describe('ServerSidebar', () => {
     await user.click(screen.getByRole('button', { name: 'Add server' }));
     const dialog = screen.getByRole('dialog', { name: 'Add server' });
     await user.type(within(dialog).getByLabelText('Name'), 'web');
-    await user.type(within(dialog).getByLabelText('Host'), 'example.org');
+    await user.type(within(dialog).getByLabelText('Host or SSH alias'), 'example.org');
     await user.type(within(dialog).getByLabelText('User'), 'deploy');
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
 
@@ -109,16 +109,30 @@ describe('ServerSidebar', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
+  it('closes the add dialog with the close button and with Escape', async () => {
+    const user = userEvent.setup();
+    render(<ServerSidebar />);
+
+    await user.click(screen.getByRole('button', { name: 'Add server' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Add server' }));
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('shows the password field only for password authentication', async () => {
     const user = userEvent.setup();
     render(<ServerSidebar />);
     await user.click(screen.getByRole('button', { name: 'Add server' }));
     const dialog = screen.getByRole('dialog');
 
-    expect(within(dialog).queryByLabelText('Password')).not.toBeInTheDocument();
-    await user.selectOptions(within(dialog).getByLabelText('Authentication'), 'Password');
+    expect(within(dialog).getByRole('radio', { name: 'SSH agent' })).toBeChecked();
+    expect(within(dialog).queryByLabelText('Server password')).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole('radio', { name: 'Password' }));
 
-    expect(within(dialog).getByLabelText('Password')).toHaveAttribute('type', 'password');
+    expect(within(dialog).getByLabelText('Server password')).toHaveAttribute('type', 'password');
   });
 
   it('shows the server error inside the dialog and keeps it open', async () => {
@@ -131,7 +145,7 @@ describe('ServerSidebar', () => {
     await user.click(screen.getByRole('button', { name: 'Add server' }));
     const dialog = screen.getByRole('dialog');
     await user.type(within(dialog).getByLabelText('Name'), 'web');
-    await user.type(within(dialog).getByLabelText('Host'), 'h');
+    await user.type(within(dialog).getByLabelText('Host or SSH alias'), 'h');
     await user.type(within(dialog).getByLabelText('User'), 'u');
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
 
@@ -146,9 +160,9 @@ describe('ServerSidebar', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Edit web' }));
     const dialog = screen.getByRole('dialog', { name: 'Edit server' });
-    expect(within(dialog).getByLabelText('Host')).toHaveValue('example.org');
-    await user.clear(within(dialog).getByLabelText('Host'));
-    await user.type(within(dialog).getByLabelText('Host'), 'new.example.org');
+    expect(within(dialog).getByLabelText('Host or SSH alias')).toHaveValue('example.org');
+    await user.clear(within(dialog).getByLabelText('Host or SSH alias'));
+    await user.type(within(dialog).getByLabelText('Host or SSH alias'), 'new.example.org');
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(api.updateConnection).toHaveBeenCalledTimes(1));
@@ -184,7 +198,7 @@ describe('ServerSidebar', () => {
     render(<ServerSidebar />);
 
     await user.click(await screen.findByRole('button', { name: 'Test web' }));
-    expect(await screen.findByText('Connected 42 ms')).toBeInTheDocument();
+    expect(await screen.findByText('Connected · 42 ms')).toBeInTheDocument();
 
     testMock.mockResolvedValueOnce({
       state: 'AuthenticationFailed',
@@ -195,7 +209,7 @@ describe('ServerSidebar', () => {
       lastConnectedAt: null,
     });
     await user.click(screen.getByRole('button', { name: 'Test web' }));
-    expect(await screen.findByText('AuthenticationFailed')).toBeInTheDocument();
+    expect(await screen.findByText('Authentication failed')).toBeInTheDocument();
     expect(screen.getByText(/Authentication failed for deploy/)).toBeInTheDocument();
   });
 
@@ -217,12 +231,43 @@ describe('ServerSidebar', () => {
     });
     render(<ServerSidebar />);
 
-    await user.click(screen.getByRole('button', { name: 'Import SSH config' }));
+    await user.click(screen.getByRole('button', { name: 'Import ~/.ssh/config' }));
 
     const report = await screen.findByRole('status');
     expect(report).toHaveTextContent('2 added, 1 updated');
     expect(report).toHaveTextContent('ForwardAgent');
     expect(report).toHaveTextContent('Hosts: web');
+    expect(screen.getByText(/3 hosts · imported \d\d:\d\d/)).toBeInTheDocument();
+  });
+
+  it('collapses a group', async () => {
+    const user = userEvent.setup();
+    listMock.mockResolvedValue([makeConnection({ groupName: 'prod' })]);
+    render(<ServerSidebar />);
+
+    const toggle = await screen.findByRole('button', { name: 'prod', expanded: true });
+    await user.click(toggle);
+
+    expect(screen.getByRole('button', { name: 'prod', expanded: false })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'web', pressed: false })).not.toBeInTheDocument();
+  });
+
+  it('describes an unreachable server as offline', async () => {
+    const user = userEvent.setup();
+    listMock.mockResolvedValue([makeConnection()]);
+    vi.mocked(api.testConnection).mockResolvedValueOnce({
+      state: 'Unreachable',
+      testedAt: '2026-10-25T10:00:00Z',
+      message: 'Host is unreachable.',
+      detail: null,
+      latencyMilliseconds: null,
+      lastConnectedAt: null,
+    });
+    render(<ServerSidebar />);
+
+    await user.click(await screen.findByRole('button', { name: 'Test web' }));
+
+    expect(await screen.findByText('Offline')).toBeInTheDocument();
   });
 
   it('renames and ungroups a group', async () => {
@@ -230,10 +275,12 @@ describe('ServerSidebar', () => {
     listMock.mockResolvedValue([makeConnection({ groupName: 'prod' })]);
     vi.mocked(api.renameGroup).mockResolvedValue(undefined);
     vi.mocked(api.removeGroup).mockResolvedValue(undefined);
-    vi.spyOn(window, 'prompt').mockReturnValue('live');
     render(<ServerSidebar />);
 
     await user.click(await screen.findByRole('button', { name: 'Rename group prod' }));
+    const nameInput = screen.getByRole('textbox', { name: 'New name for group prod' });
+    await user.clear(nameInput);
+    await user.type(nameInput, 'live{Enter}');
     await waitFor(() => expect(api.renameGroup).toHaveBeenCalledWith('prod', 'live'));
     await user.click(screen.getByRole('button', { name: 'Ungroup prod' }));
     await waitFor(() => expect(api.removeGroup).toHaveBeenCalledWith('prod'));

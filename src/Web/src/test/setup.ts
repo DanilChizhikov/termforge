@@ -11,7 +11,11 @@ class ResizeObserverStub {
 
 globalThis.ResizeObserver = ResizeObserverStub;
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
   resetWorkspaceLayout();
+  const { resetConnections } = await import('../state/connections');
+  resetConnections();
+  const { resetUpdates } = await import('../state/updates');
+  resetUpdates();
 });

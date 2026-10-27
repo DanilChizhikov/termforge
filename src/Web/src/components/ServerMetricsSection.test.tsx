@@ -59,7 +59,7 @@ describe('ServerMetricsSection', () => {
     expect(within(screen.getByRole('group', { name: 'Uptime' })).getByText('12 d 4 h')).toBeInTheDocument();
     expect(within(screen.getByRole('group', { name: 'CPU' })).getByText('23%')).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Memory' })).toHaveTextContent('of 4.0 GB');
-    expect(screen.getByRole('group', { name: 'Disk' })).toHaveTextContent('25.0 GB');
+    expect(screen.getByRole('group', { name: 'Disk' })).toHaveTextContent('25 GB free of 80');
     expect(screen.getByRole('progressbar', { name: 'Disk used' })).toHaveValue(69);
   });
 
