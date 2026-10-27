@@ -12,6 +12,10 @@
   --surface-badge: #22262c;
   --surface-track: #262a30;
   --surface-disabled: #2a2f36;
+  --surface-pressed: #2a2f36;
+  --surface-row-selected: #1a1d21;
+  --surface-counter: #2e333a;
+  --surface-conflict: #1f1a12;
   --surface-overlay: rgb(6 7 8 / 72%);
 
   --border-faint: #1c1f24;
@@ -19,6 +23,8 @@
   --border-default: #2c3138;
   --border-strong: #343a42;
   --border-control: #3a3f46;
+  --border-meta: #16191d;
+  --border-danger-strong: #5c2a26;
 
   --text-primary: #eceae6;
   --text-soft: #c9cdd3;
@@ -38,12 +44,14 @@
 
   --status-ok: #46c08a;
   --status-ok-text: #7fd8ae;
+  --status-ok-soft: rgb(70 192 138 / 12%);
   --status-caution: #e9b949;
   --status-caution-soft: rgb(233 185 73 / 12%);
   --status-caution-border: #5a4a22;
   --status-danger: #ff6b5e;
   --status-danger-text: #ff8a80;
   --status-danger-soft: rgb(255 107 94 / 7%);
+  --status-danger-faint: rgb(255 107 94 / 6%);
   --status-danger-badge: rgb(255 107 94 / 14%);
   --status-danger-border: rgb(255 107 94 / 30%);
   --status-destructive: #e5554a;
@@ -56,6 +64,8 @@
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 7px;
+  --radius-panel: 8px;
+  --radius-card: 9px;
   --radius-lg: 10px;
   --radius-xl: 12px;
   --radius-pill: 999px;
@@ -74,6 +84,24 @@
   --text-badge: 10.5px;
   --text-mono: 12.5px;
   --text-fingerprint: 14px;
+  --text-metric: 15px;
+  --text-banner-title: 13.5px;
+
+  --terminal-foreground: #d5d8dd;
+  --terminal-selection: #ff8a3d1f;
+  --terminal-magenta: #c49cff;
+  --terminal-cyan: #5cc8b0;
+  --terminal-bright-yellow: #f2c14e;
+  --terminal-bright-magenta: #dcbcff;
+  --terminal-bright-cyan: #8fe0cc;
+
+  --code-string: #a6d9b8;
+  --code-line-number: #5e646d;
+  --code-selection: #ff8a3d47;
+  --diff-server-line: #6fa8ff14;
+  --diff-server-text: #6fa8ff21;
+  --diff-local-line: #46c08a14;
+  --diff-local-text: #46c08a2e;
 
   --shadow-dialog: 0 30px 80px rgb(0 0 0 / 60%);
 }

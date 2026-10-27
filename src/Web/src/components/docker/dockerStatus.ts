@@ -1,6 +1,7 @@
 import type { ContainerAction, DockerAvailabilityState, DockerContainer } from '../../api/docker';
+import type { StatusTone } from '../statusTone';
 
-export type StatusTone = 'ok' | 'caution' | 'danger' | 'idle';
+export type { StatusTone } from '../statusTone';
 
 export type ContainerFilter = 'all' | 'running' | 'problems';
 
@@ -61,7 +62,7 @@ export function availabilityTone(state: DockerAvailabilityState): StatusTone {
   if (state === 'Available') {
     return 'ok';
   }
-  return state === 'Unknown' ? 'caution' : 'danger';
+  return state === 'Unknown' ? 'idle' : 'danger';
 }
 
 export const AVAILABILITY_TITLES: Record<DockerAvailabilityState, string> = {

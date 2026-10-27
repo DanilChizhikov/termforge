@@ -81,17 +81,27 @@
 }
 
 .btn-sm {
-  height: 30px;
-  padding: 0 10px;
+  height: 32px;
+  padding: 0 12px;
   border-radius: var(--radius-sm);
   font-size: var(--text-small);
 }
 
 .btn-xs {
-  height: 24px;
-  padding: 0 7px;
+  position: relative;
+  height: 28px;
+  padding: 0 10px;
+  border-color: var(--border-default);
   border-radius: var(--radius-xs);
-  font-size: var(--text-label);
+  color: var(--text-soft);
+  font-size: var(--text-small);
+}
+
+.btn-xs::after,
+.icon-btn-sm::after {
+  position: absolute;
+  inset: -2px;
+  content: '';
 }
 
 .btn-block {
@@ -123,8 +133,9 @@
 }
 
 .icon-btn-sm {
-  width: 24px;
-  height: 24px;
+  position: relative;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-xs);
 }
 
@@ -250,8 +261,8 @@ select.input {
 .status-dot {
   display: inline-block;
   flex: none;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
 }
 
@@ -566,7 +577,7 @@ dl.fingerprint {
   min-width: 0;
   padding: 14px 16px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   background: var(--surface-card);
 }
 
@@ -694,16 +705,16 @@ dl.fingerprint {
 .segmented {
   display: inline-flex;
   padding: 2px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--surface-control);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
 }
 
 .segmented button {
-  min-height: 24px;
-  padding: 0 10px;
+  min-height: 30px;
+  padding: 0 12px;
   border: 0;
-  border-radius: var(--radius-xs);
+  border-radius: 5px;
   background: transparent;
   color: var(--text-secondary);
   font-size: var(--text-small);
@@ -714,7 +725,7 @@ dl.fingerprint {
 }
 
 .segmented button[aria-pressed='true'] {
-  background: var(--surface-selected);
+  background: var(--surface-pressed);
   color: var(--text-primary);
   font-weight: 600;
 }

@@ -1,11 +1,12 @@
 import { canRetry, type OperationRecord, type OperationStatus } from '../api/operations';
+import type { StatusTone } from './statusTone';
 
-const STATUS_TONES: Record<OperationStatus, string> = {
+const STATUS_TONES: Record<OperationStatus, StatusTone> = {
   queued: 'idle',
   running: 'active',
   succeeded: 'ok',
   failed: 'danger',
-  cancelled: 'caution',
+  cancelled: 'idle',
 };
 
 interface OperationTableProps {

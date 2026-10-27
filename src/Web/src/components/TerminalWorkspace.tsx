@@ -23,7 +23,7 @@ const STATE_LABELS = {
 } as const;
 
 const STATE_DOTS = {
-  connecting: 'status-dot-caution',
+  connecting: 'status-dot-active',
   connected: 'status-dot-ok',
   disconnected: 'status-dot-danger',
 } as const;

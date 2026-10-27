@@ -10,7 +10,7 @@ import 'monaco-editor/languages/definitions/yaml/register';
 import 'monaco-editor/languages/features/json/register';
 import EditorWorker from 'monaco-editor/editor/editor.worker?worker';
 import JsonWorker from 'monaco-editor/languages/features/json/json.worker?worker';
-import { EDITOR_THEME, EDITOR_THEME_NAME } from './editorTheme';
+import { createEditorTheme, EDITOR_THEME_NAME } from './editorTheme';
 
 globalThis.MonacoEnvironment = {
   getWorker(_workerId: string, label: string) {
@@ -18,5 +18,6 @@ globalThis.MonacoEnvironment = {
   },
 };
 
-monaco.editor.defineTheme(EDITOR_THEME_NAME, EDITOR_THEME);
+const editorTheme = createEditorTheme();
+monaco.editor.defineTheme(EDITOR_THEME_NAME, editorTheme);
 loader.config({ monaco });
