@@ -1033,10 +1033,30 @@
 .history-row {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 4px 2px 8px;
+  gap: 8px;
+  min-height: 32px;
+  padding: 2px 8px;
   border-radius: var(--radius-sm);
+}
+
+.history-row-pinned {
   background: var(--surface-raised);
+}
+
+.history-row-recent:hover,
+.history-row-recent:focus-within {
+  background: var(--surface-raised);
+}
+
+.history-row-failed,
+.history-row-failed:hover {
+  background: var(--status-danger-soft);
+}
+
+.history-pin {
+  display: inline-flex;
+  flex: none;
+  color: var(--text-secondary);
 }
 
 .history-command {
@@ -1044,9 +1064,38 @@
   min-width: 0;
   overflow: hidden;
   font-family: var(--font-mono);
-  font-size: var(--text-mono);
+  font-size: var(--text-caption);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.history-actions {
+  display: none;
+  flex: none;
+  gap: 2px;
+}
+
+.history-row:hover .history-actions,
+.history-row:focus-within .history-actions {
+  display: inline-flex;
+}
+
+.history-time {
+  flex: none;
+  color: var(--text-muted);
+  font-size: var(--text-label);
+}
+
+.history-exit {
+  flex: none;
+  min-width: 1ch;
+  font-size: var(--text-badge);
+  text-align: right;
+}
+
+.history-privacy {
+  color: var(--text-muted);
+  font-size: var(--text-label);
 }
 
 .history-footer {
