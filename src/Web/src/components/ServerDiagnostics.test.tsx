@@ -77,7 +77,7 @@ describe('ServerDiagnostics', () => {
 
     render(<ServerDiagnostics />);
     await screen.findByText('SFTP file transfer');
-    await user.click(screen.getByRole('button', { name: 'Refresh' }));
+    await user.click(screen.getByRole('button', { name: 'Run checks again' }));
 
     expect(await screen.findByText('no route to host')).toBeInTheDocument();
     const refreshCalls = fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/refresh'));

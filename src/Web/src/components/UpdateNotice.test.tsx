@@ -2,6 +2,9 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { UpdateStatus } from '../api/updates';
+import { useAppView } from '../state/appView';
+import { resetUpdates } from '../state/updates';
+import { UpdatesCard } from './settings/UpdatesCard';
 import { UpdateNotice } from './UpdateNotice';
 
 function makeStatus(overrides: Partial<UpdateStatus> = {}): UpdateStatus {
@@ -27,29 +30,39 @@ function json(body: unknown): Response {
   return new Response(JSON.stringify(body), { status: 200 });
 }
 
+function ViewProbe() {
+  return <span data-testid="view">{useAppView()}</span>;
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
+  resetUpdates();
 });
 
 describe('UpdateNotice', () => {
-  it('shows version and a download link when an update is available', async () => {
+  it('shows a pill that opens settings when an update is available', async () => {
+    const user = userEvent.setup();
     const releaseUrl = 'https://github.com/DanilChizhikov/termforge/releases/tag/v0.2.0';
     stubFetch(() => json(makeStatus({ state: 'updateavailable', latestVersion: '0.2.0', releaseUrl })));
 
-    render(<UpdateNotice />);
+    render(
+      <>
+        <UpdateNotice />
+        <ViewProbe />
+      </>,
+    );
+    await user.click(await screen.findByRole('button', { name: 'Update v0.2.0 available' }));
 
-    expect(await screen.findByText(/Update available: 0.2.0/)).toBeInTheDocument();
-    expect(screen.getByText(/TermForge 0.1.0/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Download' })).toHaveAttribute('href', releaseUrl);
+    expect(screen.getByTestId('view')).toHaveTextContent('settings');
   });
 
-  it('shows up to date without a link', async () => {
-    stubFetch(() => json(makeStatus()));
+  it('renders nothing when up to date', async () => {
+    const fetchMock = stubFetch(() => json(makeStatus()));
 
     render(<UpdateNotice />);
 
-    expect(await screen.findByText(/Up to date/)).toBeInTheDocument();
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(screen.queryByTestId('update-notice')).not.toBeInTheDocument();
   });
 
   it('renders nothing when the status request fails', async () => {
@@ -59,6 +72,28 @@ describe('UpdateNotice', () => {
 
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
     expect(screen.queryByTestId('update-notice')).not.toBeInTheDocument();
+  });
+});
+
+describe('UpdatesCard', () => {
+  it('shows versions and the release page when an update is available', async () => {
+    const releaseUrl = 'https://github.com/DanilChizhikov/termforge/releases/tag/v0.2.0';
+    stubFetch(() => json(makeStatus({ state: 'updateavailable', latestVersion: '0.2.0', releaseUrl })));
+
+    render(<UpdatesCard />);
+
+    expect(await screen.findByText(/v0.2.0 is available/)).toBeInTheDocument();
+    expect(screen.getByText(/you have v0.1.0/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open the release page' })).toHaveAttribute('href', releaseUrl);
+  });
+
+  it('shows up to date without a link', async () => {
+    stubFetch(() => json(makeStatus()));
+
+    render(<UpdatesCard />);
+
+    expect(await screen.findByText(/Up to date/)).toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
   it('checks on demand and shows the new result', async () => {
@@ -74,16 +109,16 @@ describe('UpdateNotice', () => {
       return json(makeStatus({ state: 'notchecked', latestVersion: null }));
     });
 
-    render(<UpdateNotice />);
+    render(<UpdatesCard />);
     await user.click(await screen.findByRole('button', { name: 'Check for updates' }));
 
-    expect(await screen.findByText(/Update available: 0.3.0/)).toBeInTheDocument();
+    expect(await screen.findByText(/v0.3.0 is available/)).toBeInTheDocument();
   });
 
   it('reports an unavailable check quietly', async () => {
     stubFetch(() => json(makeStatus({ state: 'checkfailed', latestVersion: null })));
 
-    render(<UpdateNotice />);
+    render(<UpdatesCard />);
 
     expect(await screen.findByText(/Update check unavailable/)).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();

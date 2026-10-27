@@ -47,7 +47,10 @@ export function ReconnectBar({ connectionId, reason, wasConnected, onReconnect }
 
   return (
     <p role="status" className="terminal-disconnected">
-      <span>Disconnected: {reason}</span>
+      <span className="terminal-disconnected-text">
+        <span className="status-dot status-dot-sm status-dot-danger" aria-hidden="true" />
+        {reason === null || reason === '' ? 'Disconnected' : `Disconnected: ${reason}`}
+      </span>
       {canReconnectManually ? (
         <button type="button" className="btn btn-sm" onClick={onReconnect}>
           <RefreshIcon size={13} />

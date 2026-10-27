@@ -1,5 +1,5 @@
 import type { ServerMetrics } from '../api/monitoring';
-import { formatBytes, formatUptime, percentOf, unitIndexOf } from './metricsFormat';
+import { formatBytes, formatUptime, percentOf, unitIndexOf, type ByteSize } from './metricsFormat';
 
 export interface MetricCardsProps {
   metrics: ServerMetrics;
@@ -98,8 +98,8 @@ function DiskCard({ metrics }: MetricCardsProps) {
     return <UnavailableCard label="Disk" reason={disk.reason} />;
   }
   const unitIndex = unitIndexOf(disk.value.totalBytes);
-  const free = formatBytes(disk.value.freeBytes, unitIndex);
-  const total = formatBytes(disk.value.totalBytes, unitIndex);
+  const free = roundedAmount(formatBytes(disk.value.freeBytes, unitIndex));
+  const total = roundedAmount(formatBytes(disk.value.totalBytes, unitIndex));
   const usedPercent = 100 - percentOf(disk.value.freeBytes, disk.value.totalBytes);
   return (
     <div className="metric-card" role="group" aria-label="Disk">
@@ -110,14 +110,17 @@ function DiskCard({ metrics }: MetricCardsProps) {
         <span>{usedPercent}% used</span>
       </span>
       <span className="metric-value">
-        {free.amount} {free.unit}
-        <span className="metric-unit">
-          free of {total.amount} {total.unit}
-        </span>
+        {free.amount} {free.unit}{' '}
+        <span className="metric-unit">free of {total.amount}</span>
       </span>
       <Meter label="Disk used" percent={usedPercent} />
     </div>
   );
+}
+
+function roundedAmount(size: ByteSize): ByteSize {
+  const amount = Number(size.amount);
+  return amount >= 10 ? { ...size, amount: String(Math.round(amount)) } : size;
 }
 
 function Meter({ label, percent }: { label: string; percent: number }) {

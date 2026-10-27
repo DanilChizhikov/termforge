@@ -10,7 +10,7 @@ import {
 } from '../../api/docker';
 import { useSelectedServerId } from '../../state/selectedServer';
 import { EmptyState } from '../EmptyState';
-import { RefreshIcon } from '../icons/Icons';
+import { CheckIcon, RefreshArcIcon } from '../icons/Icons';
 import { ConfirmContainerAction, type PendingContainerAction } from './ConfirmContainerAction';
 import { ContainerLogs } from './ContainerLogs';
 import { ContainerShellPanel } from './ContainerShellPanel';
@@ -128,19 +128,18 @@ function DockerView({ serverId }: { serverId: string }) {
 
   return (
     <section aria-label="Docker containers" className="view docker-view">
-      <div className="view-header">
-        <div className="view-header-text">
-          <h2 className="page-title">
-            Containers
-            {overview !== null ? (
-              <>
-                {' '}
-                <span className="docker-title-server">on {overview.serverName}</span>
-              </>
-            ) : null}
-          </h2>
-        </div>
+      <div className="view-header docker-header">
+        <h2 className="page-title">
+          Containers
+          {overview !== null ? (
+            <>
+              {' '}
+              <span className="docker-title-server">on {overview.serverName}</span>
+            </>
+          ) : null}
+        </h2>
         {overview !== null ? <AvailabilityBadge overview={overview} /> : null}
+        <span className="docker-header-spacer" />
         {overview?.availability.state === 'Available' ? (
           <div role="group" aria-label="Filter containers" className="segmented">
             <FilterButton filter="all" current={filter} label={`All ${containers.length}`} onSelect={setFilter} />
@@ -158,8 +157,15 @@ function DockerView({ serverId }: { serverId: string }) {
             />
           </div>
         ) : null}
-        <button type="button" className="icon-btn" aria-label="Refresh containers" disabled={state.isLoading} onClick={refresh}>
-          <RefreshIcon />
+        <button
+          type="button"
+          className="icon-btn icon-btn-lg icon-btn-outlined"
+          aria-label="Refresh"
+          title="Refresh containers"
+          disabled={state.isLoading}
+          onClick={refresh}
+        >
+          <RefreshArcIcon />
         </button>
       </div>
       {state.isLoading && overview === null ? <p className="text-secondary">Checking Docker on the server...</p> : null}
@@ -182,6 +188,18 @@ function DockerView({ serverId }: { serverId: string }) {
             containers={visible}
             busyContainer={busyContainer}
             selectedContainer={panel?.container ?? null}
+            logsContainer={panel?.kind === 'logs' ? panel.container : null}
+            pending={pending}
+            confirmation={
+              pending !== null && overview !== null ? (
+                <ConfirmContainerAction
+                  pending={pending}
+                  serverName={overview.serverName}
+                  onConfirm={confirmPending}
+                  onCancel={() => setPending(null)}
+                />
+              ) : null
+            }
             onLogs={(container) => setPanel({ kind: 'logs', container: container.name })}
             onShell={(container) => setPanel({ kind: 'shell', container: container.name })}
             onAction={requestAction}
@@ -208,20 +226,20 @@ function DockerView({ serverId }: { serverId: string }) {
           onClose={() => setPanel(null)}
         />
       ) : null}
-      {pending !== null && overview !== null ? (
-        <ConfirmContainerAction
-          pending={pending}
-          serverName={overview.serverName}
-          onConfirm={confirmPending}
-          onCancel={() => setPending(null)}
-        />
-      ) : null}
     </section>
   );
 }
 
 function AvailabilityBadge({ overview }: { overview: DockerOverview }) {
   const tone = availabilityTone(overview.availability.state);
+  if (tone === 'ok') {
+    return (
+      <span className="docker-availability" title={overview.availability.reason}>
+        <CheckIcon size={12} />
+        {AVAILABILITY_TITLES[overview.availability.state]}
+      </span>
+    );
+  }
   return (
     <span className={`status-text status-text-${tone}`}>
       <span className={`status-dot status-dot-sm status-dot-${tone}`} aria-hidden="true" />

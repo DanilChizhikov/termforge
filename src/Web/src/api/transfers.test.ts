@@ -54,7 +54,7 @@ describe('transfer formatting', () => {
   it('describes file counts for directory transfers', () => {
     const transfer = makeTransfer({ transferredBytes: 1024, totalBytes: 2048, completedFiles: 3, totalFiles: 10 });
 
-    expect(describeAmount(transfer)).toBe('1.0 KB of 2.0 KB · 50% · 3 of 10 files');
+    expect(describeAmount(transfer)).toBe('3 of 10 files');
   });
 
   it('describes rate only while running', () => {

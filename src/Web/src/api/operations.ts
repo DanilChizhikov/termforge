@@ -68,7 +68,8 @@ export function retryOperation(id: string, client: ApiClient = apiClient): Promi
 }
 
 export function matchesFilters(operation: OperationRecord, filters: OperationFilters): boolean {
-  if (filters.kind.trim() !== '' && operation.kind !== filters.kind.trim()) return false;
+  const kind = filters.kind.trim();
+  if (kind !== '' && operation.kind !== kind && !operation.kind.startsWith(`${kind}.`)) return false;
   if (filters.status !== '' && operation.status !== filters.status) return false;
   if (filters.server.trim() !== '' && operation.server !== filters.server.trim()) return false;
   const created = Date.parse(operation.createdAt);

@@ -50,6 +50,21 @@
   background: var(--status-destructive-hover);
 }
 
+.btn-destructive-outline {
+  border-color: var(--status-danger-border);
+  color: var(--status-danger-text);
+}
+
+.btn-destructive-outline:hover:not(:disabled) {
+  background: var(--status-danger-soft);
+}
+
+.btn.btn-destructive-outline:disabled {
+  border-color: var(--border-danger-strong);
+  background: transparent;
+  color: var(--text-muted);
+}
+
 .btn-danger-link {
   border-color: transparent;
   color: var(--status-danger-text);
@@ -81,17 +96,42 @@
 }
 
 .btn-sm {
-  height: 30px;
-  padding: 0 10px;
+  height: 32px;
+  padding: 0 12px;
   border-radius: var(--radius-sm);
   font-size: var(--text-small);
 }
 
 .btn-xs {
-  height: 24px;
-  padding: 0 7px;
+  position: relative;
+  height: 28px;
+  padding: 0 10px;
+  border-color: var(--border-default);
   border-radius: var(--radius-xs);
-  font-size: var(--text-label);
+  color: var(--text-soft);
+  font-size: var(--text-small);
+}
+
+.btn-xs::after,
+.icon-btn-sm::after {
+  position: absolute;
+  inset: -2px;
+  content: '';
+}
+
+.link-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--link);
+  font-size: var(--text-small);
+}
+
+.link-button:hover {
+  color: var(--link-hover);
 }
 
 .btn-block {
@@ -123,8 +163,9 @@
 }
 
 .icon-btn-sm {
-  width: 24px;
-  height: 24px;
+  position: relative;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-xs);
 }
 
@@ -250,8 +291,8 @@ select.input {
 .status-dot {
   display: inline-block;
   flex: none;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
 }
 
@@ -270,6 +311,10 @@ select.input {
 
 .status-dot-caution {
   background: var(--status-caution);
+}
+
+.status-dot-info {
+  background: var(--status-info);
 }
 
 .status-dot-danger {
@@ -389,6 +434,14 @@ select.input {
   gap: 10px;
   padding: 14px 24px 18px;
   border-top: 1px solid var(--border-subtle);
+}
+
+.dialog-footer-plain {
+  border-top: 0;
+}
+
+.dialog-card-danger {
+  border-color: var(--border-danger-strong);
 }
 
 .dialog-footer-spacer {
@@ -566,7 +619,7 @@ dl.fingerprint {
   min-width: 0;
   padding: 14px 16px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   background: var(--surface-card);
 }
 
@@ -592,7 +645,7 @@ dl.fingerprint {
 
 .metric-value-small {
   color: var(--text-soft);
-  font-size: var(--text-body);
+  font-size: var(--text-metric);
   font-weight: 600;
 }
 
@@ -632,32 +685,6 @@ dl.fingerprint {
   background: var(--text-primary);
 }
 
-.sidebar-metrics {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--surface-card);
-  color: var(--text-secondary);
-  font-size: var(--text-small);
-}
-
-.sidebar-metrics-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.sidebar-metrics-value {
-  color: var(--text-primary);
-}
-
-.sidebar-metrics-missing {
-  color: var(--text-muted);
-}
-
 .progress {
   display: block;
   width: 100%;
@@ -694,16 +721,16 @@ dl.fingerprint {
 .segmented {
   display: inline-flex;
   padding: 2px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--surface-control);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
 }
 
 .segmented button {
-  min-height: 24px;
-  padding: 0 10px;
+  min-height: 30px;
+  padding: 0 12px;
   border: 0;
-  border-radius: var(--radius-xs);
+  border-radius: 5px;
   background: transparent;
   color: var(--text-secondary);
   font-size: var(--text-small);
@@ -714,7 +741,7 @@ dl.fingerprint {
 }
 
 .segmented button[aria-pressed='true'] {
-  background: var(--surface-selected);
+  background: var(--surface-pressed);
   color: var(--text-primary);
   font-weight: 600;
 }

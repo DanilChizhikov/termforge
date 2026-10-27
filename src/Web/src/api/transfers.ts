@@ -125,9 +125,16 @@ export function percentOf(transfer: TransferRecord): number {
 }
 
 export function describeAmount(transfer: TransferRecord): string {
-  const percent = percentOf(transfer);
-  const amount = `${formatBytes(transfer.transferredBytes)} of ${formatBytes(transfer.totalBytes)} · ${percent}%`;
-  return transfer.totalFiles > 1 ? `${amount} · ${transfer.completedFiles} of ${transfer.totalFiles} files` : amount;
+  if (transfer.totalFiles > 1) {
+    return `${transfer.completedFiles} of ${transfer.totalFiles} files`;
+  }
+  return `${formatBytes(transfer.transferredBytes)} of ${formatBytes(transfer.totalBytes)} · ${percentOf(transfer)}%`;
+}
+
+export function parentDirectoryOf(path: string): string {
+  const trimmed = path.replace(/[\\/]+$/, '');
+  const index = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'));
+  return index < 0 ? trimmed : trimmed.slice(0, index + 1);
 }
 
 export function describeRate(transfer: TransferRecord): string {

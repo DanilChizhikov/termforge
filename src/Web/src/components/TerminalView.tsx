@@ -3,7 +3,7 @@ import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import { describeError } from '../api/connections';
-import { TERMINAL_FONT_FAMILY, TERMINAL_FONT_SIZE, TERMINAL_LINE_HEIGHT, TERMINAL_THEME } from './terminalTheme';
+import { TERMINAL_FONT_FAMILY, TERMINAL_FONT_SIZE, TERMINAL_LINE_HEIGHT, createTerminalTheme } from './terminalTheme';
 import {
   closeTerminal,
   openTerminal,
@@ -29,6 +29,7 @@ export interface TerminalViewProps {
   reconnect?: boolean;
   handleRef?: Ref<TerminalHandle>;
   onHistoryChanged?: (() => void) | undefined;
+  onResize?: ((size: TerminalSize) => void) | undefined;
   open?: ((size: TerminalSize) => Promise<TerminalSession>) | undefined;
 }
 
@@ -38,6 +39,7 @@ interface TerminalCallbacks {
   onOpened: (session: TerminalSession) => void;
   onStateChange: (state: TerminalState, reason: string | null) => void;
   onHistoryChanged?: (() => void) | undefined;
+  onResize?: ((size: TerminalSize) => void) | undefined;
 }
 
 export function TerminalView({
@@ -49,6 +51,7 @@ export function TerminalView({
   reconnect = false,
   handleRef,
   onHistoryChanged,
+  onResize,
   open,
 }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -56,10 +59,10 @@ export function TerminalView({
   const terminalRef = useRef<Terminal | null>(null);
   const reconnectRef = useRef(reconnect);
   const openRef = useRef(open);
-  const callbacksRef = useRef<TerminalCallbacks>({ onOpened, onStateChange, onHistoryChanged });
+  const callbacksRef = useRef<TerminalCallbacks>({ onOpened, onStateChange, onHistoryChanged, onResize });
 
   useEffect(() => {
-    callbacksRef.current = { onOpened, onStateChange, onHistoryChanged };
+    callbacksRef.current = { onOpened, onStateChange, onHistoryChanged, onResize };
     reconnectRef.current = reconnect;
     openRef.current = open;
   });
@@ -85,7 +88,7 @@ export function TerminalView({
       fontFamily: TERMINAL_FONT_FAMILY,
       fontSize: TERMINAL_FONT_SIZE,
       lineHeight: TERMINAL_LINE_HEIGHT,
-      theme: TERMINAL_THEME,
+      theme: createTerminalTheme(),
     });
     const fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
@@ -97,6 +100,7 @@ export function TerminalView({
     let disposed = false;
     let finished = false;
     let currentSize: TerminalSize = { columns: terminal.cols, rows: terminal.rows };
+    callbacksRef.current.onResize?.(currentSize);
 
     const report = (state: TerminalState, reason: string | null) => {
       if (finished || disposed) {
@@ -122,6 +126,7 @@ export function TerminalView({
         return;
       }
       currentSize = fitted;
+      callbacksRef.current.onResize?.(fitted);
       send(resizeMessage(fitted));
     };
     fitRef.current = fit;

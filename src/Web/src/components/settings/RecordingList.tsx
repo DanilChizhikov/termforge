@@ -3,6 +3,7 @@ import { describeError } from '../../api/connections';
 import { deleteRecording, listRecordings, type RecordingSummary } from '../../api/recordings';
 import { RefreshIcon } from '../icons/Icons';
 import { RecordingPlayer } from './RecordingPlayer';
+import { formatDayAndClock } from '../timeFormat';
 import {
   formatRecordingSize,
   recordingDuration,
@@ -105,7 +106,9 @@ export function RecordingList({ version }: RecordingListProps) {
                     <td>
                       <code className="mono">{title}</code>
                     </td>
-                    <td className="cell-muted">{new Date(recording.startedAt).toLocaleString()}</td>
+                    <td className="cell-muted" title={new Date(recording.startedAt).toLocaleString()}>
+                      {formatDayAndClock(recording.startedAt)}
+                    </td>
                     <td className="cell-muted">{recordingDuration(recording) ?? '—'}</td>
                     <td className="cell-end cell-mono">{formatRecordingSize(recording.sizeBytes)}</td>
                     <td>

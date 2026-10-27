@@ -27,8 +27,9 @@ describe('HostKeyDialog', () => {
 
     const dialog = screen.getByRole('dialog', { name: /Unknown host key for web-1.example:2222/ });
     expect(dialog).toHaveAttribute('aria-modal', 'true');
-    expect(screen.getByText('ssh-ed25519')).toBeInTheDocument();
+    expect(screen.getByText('ED25519')).toBeInTheDocument();
     expect(screen.getByText(PRESENTED.fingerprint)).toBeInTheDocument();
+    expect(screen.getByText('ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub')).toBeInTheDocument();
   });
 
   it.each([
@@ -50,9 +51,10 @@ describe('HostKeyDialog', () => {
 
     render(<HostKeyDialog pending={pending} error={null} busy={false} onDecide={vi.fn()} />);
 
-    expect(screen.getByRole('dialog', { name: /Host key CHANGED/ })).toBeInTheDocument();
-    expect(screen.getByText(/WARNING/)).toBeInTheDocument();
+    expect(screen.getByRole('alertdialog', { name: 'The host key for web-1.example has changed' })).toBeInTheDocument();
+    expect(screen.getByText(/Connection blocked/)).toBeInTheDocument();
     expect(screen.getByText(STALE.fingerprint)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Keep blocked' })).toHaveFocus();
     expect(screen.queryByRole('button', { name: 'Accept once' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Accept and save' })).not.toBeInTheDocument();
   });
@@ -62,13 +64,26 @@ describe('HostKeyDialog', () => {
     const user = userEvent.setup();
     const pending = makePending({ status: 'changed', knownKeys: [STALE] });
     render(<HostKeyDialog pending={pending} error={null} busy={false} onDecide={onDecide} />);
-    const replace = screen.getByRole('button', { name: 'Replace saved key' });
+    const replace = screen.getByRole('button', { name: 'Replace trusted key' });
+    const confirmation = screen.getByRole('textbox', { name: 'Type web-1.example to enable replacing' });
 
     expect(replace).toBeDisabled();
-    await user.click(screen.getByRole('checkbox', { name: /replace the saved key/ }));
+    await user.type(confirmation, 'web-1');
+    expect(replace).toBeDisabled();
+    await user.type(confirmation, '.example');
     await user.click(replace);
 
     expect(onDecide).toHaveBeenCalledWith('replace', true);
+  });
+
+  it('keeps a changed key blocked on Escape', async () => {
+    const onDecide = vi.fn();
+    const user = userEvent.setup();
+    render(<HostKeyDialog pending={makePending({ status: 'changed', knownKeys: [STALE] })} error={null} busy={false} onDecide={onDecide} />);
+
+    await user.keyboard('{Escape}');
+
+    expect(onDecide).toHaveBeenCalledWith('reject', false);
   });
 
   it('shows the decision error', () => {

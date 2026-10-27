@@ -152,7 +152,7 @@ describe('DockerWorkspace', () => {
     expect(screen.getByRole('heading', { name: 'Containers on web-01' })).toBeInTheDocument();
     const rows = screen.getAllByRole('row');
     expect(within(rows[1]!).getByText('running · healthy')).toBeInTheDocument();
-    expect(within(rows[2]!).getByText('exited')).toBeInTheDocument();
+    expect(within(rows[2]!).getByText('exited (1) · 2 h ago')).toBeInTheDocument();
     expect(within(rows[1]!).getByRole('button', { name: 'Shell in web' })).toBeInTheDocument();
     expect(within(rows[2]!).queryByRole('button', { name: /Shell/ })).not.toBeInTheDocument();
     expect(within(rows[2]!).getByRole('button', { name: 'Start db' })).toBeInTheDocument();
@@ -169,7 +169,7 @@ describe('DockerWorkspace', () => {
     expect(screen.getAllByRole('row')).toHaveLength(2);
 
     await user.click(screen.getByRole('button', { name: 'Problems 2' }));
-    const names = screen.getAllByRole('row').slice(1).map((row) => row.querySelector('code')?.textContent);
+    const names = screen.getAllByRole('row').slice(1).map((row) => row.querySelector('.docker-name')?.textContent);
     expect(names).toEqual(['db', 'cache']);
   });
 

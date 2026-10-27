@@ -12,7 +12,7 @@ import {
 import { ApiError } from '../api/client';
 import { openWebSocket } from '../api/webSocket';
 import { EmptyState } from './EmptyState';
-import { OperationFilterForm } from './OperationFilterForm';
+import { OperationFilterBar, periodStart, type OperationPeriod } from './OperationFilterBar';
 import { OperationTable } from './OperationTable';
 
 const OPERATION_CHANGED = 'operation.changed';
@@ -42,8 +42,23 @@ function describeError(error: unknown): string {
   return 'Request failed.';
 }
 
+const PERIOD_SUMMARIES: Record<OperationPeriod, string> = {
+  today: 'today',
+  week: 'in the last 7 days',
+  month: 'in the last 30 days',
+  all: 'in total',
+};
+
+function describeTotal(total: number, period: OperationPeriod): string {
+  const noun = total === 1 ? 'operation' : 'operations';
+  return `${total} ${noun} ${PERIOD_SUMMARIES[period]}`;
+}
+
+const INITIAL_PERIOD: OperationPeriod = 'today';
+
 export function OperationHistory() {
-  const [filters, setFilters] = useState<OperationFilters>(EMPTY_FILTERS);
+  const [period, setPeriod] = useState<OperationPeriod>(INITIAL_PERIOD);
+  const [filters, setFilters] = useState<OperationFilters>(() => ({ ...EMPTY_FILTERS, from: periodStart(INITIAL_PERIOD) }));
   const [offset, setOffset] = useState(0);
   const [page, setPage] = useState<OperationPage | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -91,9 +106,10 @@ export function OperationHistory() {
     };
   }, []);
 
-  const applyFilters = useCallback((next: OperationFilters) => {
+  const applyFilters = useCallback((next: OperationFilters, nextPeriod: OperationPeriod) => {
     setOffset(0);
     setFilters(next);
+    setPeriod(nextPeriod);
   }, []);
 
   const retry = useCallback((operation: OperationRecord) => {
@@ -110,14 +126,15 @@ export function OperationHistory() {
     <div className="view">
       <div className="view-header">
         <div className="view-header-text">
-          <h2 className="page-title">Operation history</h2>
+          <h2 className="page-title">Operation journal</h2>
+          <span className="view-subtitle">{describeTotal(total, period)}</span>
         </div>
         <span className={live ? 'status-text status-text-ok' : 'status-text status-text-idle'}>
-          <span className={live ? 'status-dot status-dot-ok' : 'status-dot status-dot-idle'} aria-hidden="true" />
-          {live ? 'Live updates connected.' : 'Live updates disconnected.'}
+          <span className={live ? 'status-dot status-dot-sm status-dot-ok' : 'status-dot status-dot-sm status-dot-idle'} aria-hidden="true" />
+          {live ? 'Live' : 'Live updates disconnected'}
         </span>
       </div>
-      <OperationFilterForm onApply={applyFilters} />
+      <OperationFilterBar filters={filters} period={period} onChange={applyFilters} />
       {error === null ? null : (
         <p role="alert" className="notice notice-danger">
           {error}
@@ -144,6 +161,9 @@ export function OperationHistory() {
           Next
         </button>
       </div>
+      <p className="operation-privacy">
+        The journal keeps status, timing and errors. It never stores file contents, passwords or terminal output.
+      </p>
     </div>
   );
 }

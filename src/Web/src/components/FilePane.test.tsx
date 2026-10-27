@@ -69,7 +69,7 @@ function Harness({ source, initialPath }: { source: FileSource; initialPath: str
 
 function renderedNames(): string[] {
   const rows = screen.getAllByRole('row').slice(1);
-  return rows.map((row) => within(row).getAllByRole('cell')[0]?.textContent ?? '');
+  return rows.map((row) => within(row).getAllByRole('cell')[0]?.textContent ?? '').filter((name) => name !== '..');
 }
 
 describe('FilePane', () => {
@@ -90,7 +90,7 @@ describe('FilePane', () => {
     render(<Harness source={source} initialPath="/home" />);
     await screen.findByText('alpha.txt');
 
-    expect(renderedNames()).toEqual(['docs/', 'alpha.txt', 'zeta.txt']);
+    expect(renderedNames()).toEqual(['docs', 'alpha.txt', 'zeta.txt']);
   });
 
   it('reverses the order when the active sort header is clicked', async () => {
@@ -100,17 +100,17 @@ describe('FilePane', () => {
 
     await user.click(screen.getByRole('button', { name: /^Name/ }));
 
-    expect(renderedNames()).toEqual(['docs/', 'zeta.txt', 'alpha.txt']);
+    expect(renderedNames()).toEqual(['docs', 'zeta.txt', 'alpha.txt']);
   });
 
-  it('navigates into a directory on double click and back with Up', async () => {
+  it('navigates into a directory on double click and back to the parent folder', async () => {
     const user = userEvent.setup();
     render(<Harness source={source} initialPath="/home" />);
 
-    await user.dblClick(await screen.findByText('docs/'));
+    await user.dblClick(await screen.findByText('docs'));
     expect(await screen.findByText('readme.md')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Up' }));
+    await user.click(screen.getByRole('button', { name: 'Parent folder' }));
     expect(await screen.findByText('alpha.txt')).toBeInTheDocument();
   });
 
@@ -183,7 +183,7 @@ describe('FilePane', () => {
     vi.mocked(source.remove).mockRejectedValue(new ApiError(409, { detail: 'Directory is not empty: /home/docs' }));
     render(<Harness source={source} initialPath="/home" />);
 
-    await user.click(await screen.findByText('docs/'));
+    await user.click(await screen.findByText('docs'));
     await user.click(screen.getByRole('button', { name: 'Delete' }));
     await user.click(screen.getByRole('button', { name: 'Confirm delete' }));
 

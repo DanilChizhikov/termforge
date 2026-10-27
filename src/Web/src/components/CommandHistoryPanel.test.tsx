@@ -63,6 +63,7 @@ describe('CommandHistoryPanel', () => {
     expect(recent).toHaveTextContent('make test');
     expect(recent).toHaveTextContent('exit 2');
     expect(recent).not.toHaveTextContent('docker ps');
+    expect(screen.getByText('Commands only — terminal output is never stored.')).toBeInTheDocument();
   });
 
   it('inserts a command into the terminal without running it', async () => {

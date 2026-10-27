@@ -11,6 +11,7 @@ import {
 } from '../api/commandHistory';
 import { describeError } from '../api/connections';
 import { ChevronRightIcon, InsertIcon, PinIcon, TrashIcon } from './icons/Icons';
+import { formatClock } from './timeFormat';
 
 export interface CommandHistoryPanelProps {
   connectionId: string;
@@ -22,35 +23,40 @@ export interface CommandHistoryPanelProps {
 
 const SHELLS: readonly ShellName[] = ['bash', 'zsh'];
 
-function CommandRow({
-  entry,
-  onInsert,
-  onTogglePin,
-  onDelete,
-}: {
+interface CommandRowProps {
   entry: CommandHistoryEntry;
   onInsert: (entry: CommandHistoryEntry) => void;
   onTogglePin: (entry: CommandHistoryEntry) => void;
   onDelete: (entry: CommandHistoryEntry) => void;
-}) {
-  const failed = entry.exitCode !== null && entry.exitCode !== 0;
+}
+
+function insertTitle(insertable: boolean): string {
+  return insertable ? 'Insert into the terminal. Press Enter there to run it.' : 'Multi-line commands cannot be inserted safely.';
+}
+
+function exitCodeClass(exitCode: number | null): string {
+  if (exitCode === null) {
+    return 'history-exit text-muted';
+  }
+  return exitCode === 0 ? 'history-exit status-text-ok' : 'history-exit status-text-danger';
+}
+
+function RowActions({ entry, onInsert, onTogglePin, onDelete, showInsert }: CommandRowProps & { showInsert: boolean }) {
   const insertable = isInsertable(entry);
   return (
-    <li className="history-row">
-      <code className="history-command" title={entry.command}>
-        {entry.command}
-      </code>
-      {failed ? <span className="badge badge-danger">exit {entry.exitCode}</span> : null}
-      <button
-        type="button"
-        className="icon-btn icon-btn-sm"
-        aria-label={`Insert ${entry.command} into the terminal`}
-        title={insertable ? 'Insert into the terminal. Press Enter there to run it.' : 'Multi-line commands cannot be inserted safely.'}
-        disabled={!insertable}
-        onClick={() => onInsert(entry)}
-      >
-        <InsertIcon size={13} />
-      </button>
+    <span className="history-actions">
+      {showInsert ? (
+        <button
+          type="button"
+          className="icon-btn icon-btn-sm"
+          aria-label={`Insert ${entry.command} into the terminal`}
+          title={insertTitle(insertable)}
+          disabled={!insertable}
+          onClick={() => onInsert(entry)}
+        >
+          <InsertIcon size={13} />
+        </button>
+      ) : null}
       <button
         type="button"
         className="icon-btn icon-btn-sm"
@@ -68,6 +74,59 @@ function CommandRow({
       >
         <TrashIcon size={13} />
       </button>
+    </span>
+  );
+}
+
+function PinnedRow(props: CommandRowProps) {
+  const { entry, onInsert } = props;
+  const insertable = isInsertable(entry);
+  return (
+    <li className="history-row history-row-pinned">
+      <span className="history-pin" aria-hidden="true">
+        <PinIcon size={12} />
+      </span>
+      <code className="history-command" title={entry.command}>
+        {entry.command}
+      </code>
+      <RowActions {...props} showInsert={false} />
+      <button
+        type="button"
+        className="btn btn-xs"
+        aria-label={`Insert ${entry.command} into the terminal`}
+        title={insertTitle(insertable)}
+        disabled={!insertable}
+        onClick={() => onInsert(entry)}
+      >
+        Insert
+      </button>
+    </li>
+  );
+}
+
+function RecentRow(props: CommandRowProps) {
+  const { entry } = props;
+  const failed = entry.exitCode !== null && entry.exitCode !== 0;
+  return (
+    <li className={failed ? 'history-row history-row-recent history-row-failed' : 'history-row history-row-recent'}>
+      <code className="history-command" title={entry.command}>
+        {entry.command}
+      </code>
+      <RowActions {...props} showInsert />
+      <span className="history-time">{formatClock(entry.executedAt)}</span>
+      <code className={exitCodeClass(entry.exitCode)}>
+        {entry.exitCode === null ? (
+          <>
+            <span className="visually-hidden">exit code unknown</span>
+            <span aria-hidden="true">—</span>
+          </>
+        ) : (
+          <>
+            <span className="visually-hidden">exit </span>
+            {entry.exitCode}
+          </>
+        )}
+      </code>
     </li>
   );
 }
@@ -133,7 +192,7 @@ export function CommandHistoryPanel({
         <span className="history-title">
           History <span className="text-muted">· {connectionName}</span>
         </span>
-        <button type="button" className="icon-btn" aria-label="Collapse history" onClick={onCollapse}>
+        <button type="button" className="icon-btn icon-btn-sm" aria-label="Collapse history" onClick={onCollapse}>
           <ChevronRightIcon size={14} />
         </button>
       </div>
@@ -152,7 +211,7 @@ export function CommandHistoryPanel({
           <h3 className="section-label">Pinned</h3>
           <ul className="history-list">
             {pinned.map((entry) => (
-              <CommandRow
+              <PinnedRow
                 key={entry.id}
                 entry={entry}
                 onInsert={insertCommand}
@@ -174,7 +233,7 @@ export function CommandHistoryPanel({
         ) : (
           <ul className="history-list">
             {recent.map((entry) => (
-              <CommandRow
+              <RecentRow
                 key={entry.id}
                 entry={entry}
                 onInsert={insertCommand}
@@ -186,6 +245,7 @@ export function CommandHistoryPanel({
         )}
       </section>
       <div className="history-footer">
+        <p className="history-privacy">Commands only — terminal output is never stored.</p>
         <button
           type="button"
           className="btn btn-xs"
