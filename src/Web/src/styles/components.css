@@ -277,6 +277,10 @@ select.input {
   background: var(--status-danger);
 }
 
+.status-dot-neutral {
+  background: var(--text-primary);
+}
+
 .status-dot-idle {
   border: 1.5px solid var(--text-idle);
 }

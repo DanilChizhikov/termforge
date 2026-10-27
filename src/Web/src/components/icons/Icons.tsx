@@ -285,6 +285,15 @@ export function PauseIcon({ size = 14 }: IconProps) {
   );
 }
 
+export function InfoIcon({ size = 16 }: IconProps) {
+  return (
+    <IconFrame size={size} strokeWidth={2}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5M12 8h.01" />
+    </IconFrame>
+  );
+}
+
 export function SearchIcon({ size = 14 }: IconProps) {
   return (
     <IconFrame size={size} strokeWidth={2}>

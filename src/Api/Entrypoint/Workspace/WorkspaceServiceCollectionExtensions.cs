@@ -1,4 +1,6 @@
 using DTech.Core.Workspace;
+using DTech.Entrypoint.Lifecycle;
+using DTech.Entrypoint.Workspace;
 using DTech.Persistence.Workspace;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -16,6 +18,7 @@ public static class WorkspaceServiceCollectionExtensions
         services.AddScoped<WorkspaceConnectionFilter>();
         services.AddScoped<WorkspaceStateLoader>();
         services.AddScoped<WorkspaceStateSaver>();
+        services.AddSingleton<IShutdownStep, WorkspaceShutdownStep>();
         return services;
     }
 }

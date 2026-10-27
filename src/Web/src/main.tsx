@@ -12,6 +12,7 @@ import './styles/layout.css';
 import './styles/docker.css';
 import './styles/settings.css';
 import './styles/recording.css';
+import './styles/exit.css';
 
 const container = document.getElementById('root');
 if (container === null) {

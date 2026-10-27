@@ -1,10 +1,14 @@
+import { useCallback, useState } from 'react';
 import { showAppView, useAppView } from '../state/appView';
+import { ExitDialog } from './ExitDialog';
 import { BrandMarkIcon, ChevronLeftIcon, SettingsIcon } from './icons/Icons';
 import { UpdateNotice } from './UpdateNotice';
 
 export function AppHeader() {
   const view = useAppView();
   const inSettings = view === 'settings';
+  const [exiting, setExiting] = useState(false);
+  const closeExit = useCallback(() => setExiting(false), []);
 
   return (
     <header className="app-header">
@@ -37,8 +41,12 @@ export function AppHeader() {
           >
             <SettingsIcon />
           </button>
+          <button type="button" className="btn btn-sm" onClick={() => setExiting(true)}>
+            Exit app
+          </button>
         </>
       )}
+      {exiting ? <ExitDialog onClose={closeExit} /> : null}
     </header>
   );
 }
