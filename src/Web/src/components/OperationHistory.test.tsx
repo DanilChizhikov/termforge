@@ -2,7 +2,30 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OperationPage, OperationRecord } from '../api/operations';
+import type { SavedConnection } from '../api/connections';
+import { replaceConnections } from '../state/connections';
 import { mergeOperation, OperationHistory } from './OperationHistory';
+
+function makeConnection(name: string): SavedConnection {
+  return {
+    id: `id-${name}`,
+    name,
+    groupName: null,
+    host: `${name}.example`,
+    port: 22,
+    userName: 'deploy',
+    authMethod: 'Agent',
+    privateKeyPath: null,
+    jumpHostId: null,
+    sshAlias: null,
+    hasPassword: false,
+    lastConnectedAt: null,
+    reconnectMode: 'Manual',
+    reconnectMaxAttempts: 5,
+    reconnectInitialDelaySeconds: 2,
+    reconnectMaxDelaySeconds: 60,
+  };
+}
 
 function makeOperation(overrides: Partial<OperationRecord> = {}): OperationRecord {
   return {
@@ -73,22 +96,60 @@ describe('OperationHistory', () => {
     expect(screen.getByText('web-1')).toBeInTheDocument();
   });
 
-  it('sends filters to the api when applied', async () => {
+  it('applies filters to the api as soon as they change', async () => {
     respondWith(pageOf([]));
+    replaceConnections([makeConnection('web-2')]);
     const user = userEvent.setup();
     render(<OperationHistory />);
 
-    await user.type(screen.getByLabelText('Kind'), 'docker');
+    await user.click(screen.getByRole('button', { name: 'Docker' }));
     await user.selectOptions(screen.getByLabelText('Status'), 'failed');
-    await user.type(screen.getByLabelText('Server'), 'web-2');
-    await user.click(screen.getByRole('button', { name: 'Apply' }));
+    await user.selectOptions(screen.getByLabelText('Server'), 'web-2');
 
     await waitFor(() => {
       const lastUrl = String(fetchMock.mock.calls.at(-1)?.[0]);
       expect(lastUrl).toContain('kind=docker');
       expect(lastUrl).toContain('status=failed');
       expect(lastUrl).toContain('server=web-2');
+      expect(lastUrl).toContain('from=');
     });
+    expect(screen.getByRole('button', { name: 'Docker' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('drops the period filter for all time', async () => {
+    respondWith(pageOf([]));
+    const user = userEvent.setup();
+    render(<OperationHistory />);
+
+    await user.selectOptions(screen.getByLabelText('Period'), 'all');
+
+    await waitFor(() => expect(String(fetchMock.mock.calls.at(-1)?.[0])).not.toContain('from='));
+    expect(screen.getByText('0 operations in total')).toBeInTheDocument();
+  });
+
+  it('describes operations in words', async () => {
+    respondWith(
+      pageOf([
+        makeOperation({
+          id: 'up',
+          kind: 'transfer.upload',
+          status: 'succeeded',
+          error: null,
+          startedAt: '2026-10-25T10:00:00Z',
+          finishedAt: '2026-10-25T10:00:04Z',
+          details: { source: '/home/me/dist.tar.gz', targetDirectory: '/var/www/site' },
+        }),
+        makeOperation({ id: 'stop', kind: 'docker.stop', status: 'cancelled', error: null, retryable: false, details: { container: 'redis', action: 'stop' } }),
+      ]),
+    );
+
+    render(<OperationHistory />);
+
+    expect(await screen.findByText('Upload')).toBeInTheDocument();
+    expect(screen.getByText('dist.tar.gz → /var/www/site/')).toBeInTheDocument();
+    expect(screen.getByTestId('status-up')).toHaveTextContent('Done · 4 s');
+    expect(screen.getByText('Stop redis')).toBeInTheDocument();
+    expect(screen.getByTestId('status-stop')).toHaveTextContent('Cancelled');
   });
 
   it('shows Retry only for retryable failed operations', async () => {
@@ -158,7 +219,7 @@ describe('OperationHistory', () => {
       });
     });
 
-    expect(screen.getByTestId('status-op-1')).toHaveTextContent('succeeded');
+    expect(screen.getByTestId('status-op-1')).toHaveTextContent('Done');
   });
 });
 

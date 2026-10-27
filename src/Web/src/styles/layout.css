@@ -920,18 +920,55 @@
 }
 
 .operation-filters {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr));
-  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
-  padding: 14px;
-  border-radius: var(--radius-lg);
-  background: var(--surface-card);
 }
 
-.operation-filter-actions {
-  display: flex;
+.operation-filter {
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
+  color: var(--text-secondary);
+  font-size: var(--text-small);
+}
+
+.operation-filter .input {
+  width: auto;
+}
+
+.operation-table th {
+  padding: 9px 14px;
+}
+
+.operation-table td {
+  padding: 9px 14px;
+}
+
+.operation-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.operation-details code {
+  overflow: hidden;
+  color: var(--text-soft);
+  font-size: var(--text-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.operation-error {
+  color: var(--status-danger-text);
+  font-size: var(--text-small);
+}
+
+.operation-privacy {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
 }
 
 .operation-paging {

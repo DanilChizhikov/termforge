@@ -1,13 +1,12 @@
-import { canRetry, type OperationRecord, type OperationStatus } from '../api/operations';
-import type { StatusTone } from './statusTone';
-
-const STATUS_TONES: Record<OperationStatus, StatusTone> = {
-  queued: 'idle',
-  running: 'active',
-  succeeded: 'ok',
-  failed: 'danger',
-  cancelled: 'idle',
-};
+import { canRetry, type OperationRecord } from '../api/operations';
+import {
+  describeOperationDetails,
+  describeOperationKind,
+  describeOperationStatus,
+  OPERATION_STATUS_TONES,
+} from './operationFormat';
+import { statusDotClass, statusTextClass } from './statusTone';
+import { formatClockWithSeconds } from './timeFormat';
 
 interface OperationTableProps {
   operations: readonly OperationRecord[];
@@ -16,43 +15,50 @@ interface OperationTableProps {
 
 export function OperationTable({ operations, onRetry }: OperationTableProps) {
   return (
-    <table className="data-table">
+    <table className="data-table operation-table">
       <thead>
         <tr>
-          <th>Kind</th>
+          <th>Time</th>
+          <th>Type</th>
           <th>Server</th>
+          <th>Details</th>
           <th>Status</th>
-          <th>Created</th>
-          <th>Finished</th>
-          <th>Error</th>
-          <th>Actions</th>
+          <th>
+            <span className="visually-hidden">Actions</span>
+          </th>
         </tr>
       </thead>
       <tbody>
-        {operations.map((operation) => (
-          <tr key={operation.id}>
-            <td className="cell-mono">{operation.kind}</td>
-            <td className="cell-mono">{operation.server ?? ''}</td>
-            <td data-testid={`status-${operation.id}`}>
-              <span className={`status-text status-text-${STATUS_TONES[operation.status]}`}>
-                <span className={`status-dot status-dot-sm status-dot-${STATUS_TONES[operation.status]}`} aria-hidden="true" />
-                {operation.status}
-              </span>
-            </td>
-            <td className="cell-muted">{new Date(operation.createdAt).toLocaleString()}</td>
-            <td className="cell-muted">
-              {operation.finishedAt === null ? '' : new Date(operation.finishedAt).toLocaleString()}
-            </td>
-            <td className="status-text-danger">{operation.error ?? ''}</td>
-            <td>
-              {canRetry(operation) ? (
-                <button type="button" className="btn btn-xs btn-safe" onClick={() => onRetry(operation)}>
-                  Retry
-                </button>
-              ) : null}
-            </td>
-          </tr>
-        ))}
+        {operations.map((operation) => {
+          const tone = OPERATION_STATUS_TONES[operation.status];
+          const details = describeOperationDetails(operation);
+          return (
+            <tr key={operation.id}>
+              <td className="cell-mono cell-muted" title={new Date(operation.createdAt).toLocaleString()}>
+                {formatClockWithSeconds(operation.createdAt)}
+              </td>
+              <td>{describeOperationKind(operation.kind)}</td>
+              <td className="cell-mono">{operation.server ?? 'local'}</td>
+              <td className="operation-details">
+                {details === '' ? null : <code>{details}</code>}
+                {operation.error === null ? null : <span className="operation-error">{operation.error}</span>}
+              </td>
+              <td data-testid={`status-${operation.id}`}>
+                <span className={statusTextClass(tone)}>
+                  <span className={statusDotClass(tone, 'sm')} aria-hidden="true" />
+                  {describeOperationStatus(operation)}
+                </span>
+              </td>
+              <td className="cell-end">
+                {canRetry(operation) ? (
+                  <button type="button" className="btn btn-xs" onClick={() => onRetry(operation)}>
+                    Retry
+                  </button>
+                ) : null}
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );
