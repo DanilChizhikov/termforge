@@ -70,7 +70,7 @@ function isConflict(error: unknown): error is ApiError {
   return body?.code === 'Conflict';
 }
 
-async function toOutcome(request: Promise<SavedFile>): Promise<SaveOutcome> {
+export async function toOutcome(request: Promise<SavedFile>): Promise<SaveOutcome> {
   try {
     const saved = await request;
     return { kind: 'saved', saved };
