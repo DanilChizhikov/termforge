@@ -434,3 +434,14 @@ scripts/postgres-data/18
 .codex/
 .claude/
 .agents/
+
+# SQLite
+*.db
+*.db-shm
+*.db-wal
+
+# Frontend
+src/Api/Entrypoint/wwwroot/
+src/Web/node_modules/
+src/Web/dist/
+src/Web/coverage/

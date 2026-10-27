@@ -1,0 +1,45 @@
+.terminal-meta {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  min-height: 30px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border-meta);
+  background: var(--surface-terminal);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+}
+
+.terminal-meta-identity {
+  color: var(--text-soft);
+}
+
+.terminal-meta code {
+  font-size: inherit;
+}
+
+.terminal-recording {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.recording-player {
+  width: min(960px, 100%);
+}
+
+.recording-player-screen {
+  min-height: 120px;
+  padding: 10px 4px 4px 14px;
+  overflow: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-terminal);
+}
+
+.recording-player-state {
+  font-size: var(--text-small);
+}

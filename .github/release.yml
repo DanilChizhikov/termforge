@@ -1,0 +1,11 @@
+# Categories for auto-generated GitHub release notes.
+changelog:
+  exclude:
+    labels: [ release, skip-changelog ]
+  categories:
+  - title: Features
+    labels: [ feature ]
+  - title: Fixes
+    labels: [ bug ]
+  - title: Other
+    labels: [ '*' ]

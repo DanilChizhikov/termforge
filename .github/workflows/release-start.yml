@@ -1,0 +1,86 @@
+name: release-start
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version part to bump
+        type: choice
+        options: [ patch, minor, major ]
+        default: minor
+      source:
+        description: Base branch (master = hotfix)
+        type: choice
+        options: [ develop, master ]
+        default: develop
+
+concurrency: release
+
+jobs:
+  Start-Release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.source }}
+        fetch-depth: 0
+        # PAT, so the pushed branch and the PR trigger ci.
+        token: ${{ secrets.RELEASE_TOKEN }}
+
+    - name: Bump version
+      id: version
+      run: |
+        current=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)
+        IFS=. read -r major minor patch <<< "$current"
+        case "$BUMP" in
+          major) major=$((major + 1)); minor=0; patch=0 ;;
+          minor) minor=$((minor + 1)); patch=0 ;;
+          patch) patch=$((patch + 1)) ;;
+        esac
+        version="$major.$minor.$patch"
+
+        if [ "$SOURCE" = "master" ]; then prefix=hotfix; else prefix=release; fi
+        branch="$prefix/$version"
+
+        if git rev-parse -q --verify "refs/tags/$version" >/dev/null; then
+          echo "::error::Tag $version already exists"; exit 1
+        fi
+        if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+          echo "::error::Branch $branch already exists"; exit 1
+        fi
+
+        sed -i "s:<Version>$current</Version>:<Version>$version</Version>:" Directory.Build.props
+        {
+          echo "current=$current"
+          echo "version=$version"
+          echo "branch=$branch"
+        } >> "$GITHUB_OUTPUT"
+      env:
+        BUMP: ${{ inputs.bump }}
+        SOURCE: ${{ inputs.source }}
+
+    - name: Push release branch
+      run: |
+        git config user.name "$GITHUB_ACTOR"
+        git config user.email "$GITHUB_ACTOR_ID+$GITHUB_ACTOR@users.noreply.github.com"
+        git checkout -b "$BRANCH"
+        git commit -am "updated version to $VERSION"
+        git push origin "$BRANCH"
+      env:
+        BRANCH: ${{ steps.version.outputs.branch }}
+        VERSION: ${{ steps.version.outputs.version }}
+
+    - name: Open PR to master
+      run: |
+        pr_url=$(gh pr create --base master --head "$BRANCH" \
+          --title "release $VERSION" \
+          --body "Release $VERSION (from $CURRENT). Merging publishes self-contained builds and creates the GitHub release.")
+        # The issues API creates the label if it does not exist yet.
+        gh api "repos/$GITHUB_REPOSITORY/issues/${pr_url##*/}/labels" -f "labels[]=release" >/dev/null
+        echo "$pr_url" >> "$GITHUB_STEP_SUMMARY"
+      env:
+        GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        BRANCH: ${{ steps.version.outputs.branch }}
+        VERSION: ${{ steps.version.outputs.version }}
+        CURRENT: ${{ steps.version.outputs.current }}

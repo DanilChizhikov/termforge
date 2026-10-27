@@ -1,0 +1,36 @@
+using System.Text.RegularExpressions;
+using DTech.Core.Diagnostics;
+
+namespace DTech.Core.Docker;
+
+public readonly partial record struct ContainerReference
+{
+    private ContainerReference(string value)
+    {
+        Value = value;
+    }
+
+    public string Value { get; }
+
+    public string Quoted => ShellArgument.Quote(Value);
+
+    public static bool TryParse(string? candidate, out ContainerReference reference)
+    {
+        if (candidate is null || !Pattern().IsMatch(candidate))
+        {
+            reference = default;
+            return false;
+        }
+
+        reference = new ContainerReference(candidate);
+        return true;
+    }
+
+    public override string ToString()
+    {
+        return Value;
+    }
+
+    [GeneratedRegex(@"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\z", RegexOptions.CultureInvariant)]
+    private static partial Regex Pattern();
+}
