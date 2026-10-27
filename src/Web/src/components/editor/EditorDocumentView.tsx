@@ -5,16 +5,19 @@ import {
   readBackup,
   rollbackRemoteFile,
   saveRemoteFile,
+  type EditorDocument,
   type FileBackup,
   type FileVersion,
   type SaveOutcome,
 } from '../../api/editor';
 import {
+  getFileAccess,
   isPermissionDenied,
   openRemoteFileWithSudo,
   readBackupWithSudo,
   rollbackRemoteFileWithSudo,
   saveRemoteFileWithSudo,
+  type FileAccess,
   type SudoCredentials,
 } from '../../api/sudoEditor';
 import {
@@ -30,6 +33,7 @@ import { ShieldIcon } from '../icons/Icons';
 import { EditorConflictNotice } from './EditorConflictNotice';
 import { languageForPath } from './editorLanguage';
 import { EditorVersions } from './EditorVersions';
+import { SudoAccessBadge } from './SudoAccessBadge';
 import { SudoPasswordDialog } from './SudoPasswordDialog';
 import { useSudoElevation } from './useSudoElevation';
 
@@ -89,6 +93,27 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
   const language = languageForPath(file.path);
   const { connectionId, path, key } = file;
   const sudo = useSudoElevation(connectionId);
+  const [access, setAccess] = useState<FileAccess | null>(null);
+  const accessRequest = useRef(0);
+
+  const loadAccess = useCallback(
+    (document: EditorDocument) => {
+      const request = accessRequest.current + 1;
+      accessRequest.current = request;
+      setAccess(null);
+      if (document.ownerId === undefined) {
+        return;
+      }
+      getFileAccess(connectionId, path, document.ownerId)
+        .then((loaded) => {
+          if (accessRequest.current === request) {
+            setAccess(loaded);
+          }
+        })
+        .catch(() => undefined);
+    },
+    [connectionId, path],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -96,6 +121,7 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
       .then((document) => {
         if (!cancelled) {
           dispatch({ type: 'loaded', document });
+          loadAccess(document);
           const recovered = pendingRecovery.current;
           pendingRecovery.current = null;
           if (recovered !== null && recovered.content !== document.content) {
@@ -112,7 +138,7 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
     return () => {
       cancelled = true;
     };
-  }, [connectionId, path, reloadToken]);
+  }, [connectionId, path, reloadToken, loadAccess]);
 
   useEffect(() => {
     setEditorFileDirty(key, dirty);
@@ -239,6 +265,7 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
         setOpenDenied(false);
         setElevated(true);
         dispatch({ type: 'loaded', document });
+        loadAccess(document);
         const recovered = pendingRecovery.current;
         pendingRecovery.current = null;
         if (recovered !== null && recovered.content !== document.content) {
@@ -332,15 +359,10 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
         <code className="editor-path" title={path}>
           {path}
         </code>
+        <SudoAccessBadge access={access} elevated={elevated} />
         <span className="badge" title="Permissions">
           <span className="mono">{server.permissions}</span>
         </span>
-        {elevated ? (
-          <span className="badge badge-caution editor-sudo-badge">
-            <ShieldIcon size={11} />
-            Editing with sudo
-          </span>
-        ) : null}
         {dirty ? <span className="editor-unsaved">Unsaved changes</span> : null}
         <span className="editor-toolbar-spacer" />
         <div role="group" aria-label="View" className="segmented">

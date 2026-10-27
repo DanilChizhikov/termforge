@@ -21,6 +21,12 @@ export interface SudoCredentials {
   rememberPassword: boolean;
 }
 
+export interface FileAccess {
+  ownerId: number;
+  ownerName: string | null;
+  writable: boolean;
+}
+
 export const NO_SUDO_PASSWORD: SudoCredentials = { password: null, rememberPassword: false };
 
 export type SudoPasswordProblem = 'SudoPasswordRequired' | 'SudoPasswordIncorrect';
@@ -31,6 +37,16 @@ function sudoPath(connectionId: string): string {
 
 export function getSudoStatus(connectionId: string, client: ApiClient = apiClient): Promise<SudoStatus> {
   return client.get<SudoStatus>(`${sudoPath(connectionId)}/status`);
+}
+
+export function getFileAccess(
+  connectionId: string,
+  path: string,
+  ownerId: number,
+  client: ApiClient = apiClient,
+): Promise<FileAccess> {
+  const query = `path=${encodeURIComponent(path)}&ownerId=${encodeURIComponent(String(ownerId))}`;
+  return client.get<FileAccess>(`${sudoPath(connectionId)}/access?${query}`);
 }
 
 export function openRemoteFileWithSudo(

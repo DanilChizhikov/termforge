@@ -12,6 +12,7 @@ export interface EditorDocument {
   hasByteOrderMark: boolean;
   version: FileVersion;
   permissions: string;
+  ownerId?: number;
 }
 
 export interface FileBackup {

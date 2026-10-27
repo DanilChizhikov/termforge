@@ -2,7 +2,7 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EditorDocument, SavedFile } from '../../api/editor';
-import type { SudoStatus } from '../../api/sudoEditor';
+import type { FileAccess, SudoStatus } from '../../api/sudoEditor';
 import { resetEditorDrafts } from '../../state/editorDrafts';
 import { openEditorFile, resetEditorFiles } from '../../state/editorFiles';
 import { EditorWorkspace } from './EditorWorkspace';
@@ -29,6 +29,7 @@ const DOCUMENT: EditorDocument = {
   hasByteOrderMark: false,
   version: VERSION,
   permissions: 'rw-------',
+  ownerId: 0,
 };
 
 const SAVED: SavedFile = {
@@ -47,6 +48,7 @@ interface Recorded {
 
 let requests: Recorded[];
 let status: SudoStatus;
+let access: FileAccess;
 let openResponse: () => Response;
 let sudoSaveResponses: Response[];
 
@@ -64,6 +66,7 @@ beforeEach(() => {
   requests = [];
   sudoSaveResponses = [];
   status = { availability: 'PasswordRequired', hasSavedPassword: false, message: 'sudo needs a password.' };
+  access = { ownerId: 0, ownerName: 'root', writable: false };
   openResponse = () => json(DOCUMENT);
   const fetchMock = vi.fn((input: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET';
@@ -75,6 +78,9 @@ beforeEach(() => {
     }
     if (url.includes('/backups')) {
       return Promise.resolve(json([]));
+    }
+    if (url.startsWith(`${SUDO_PATH}/access?`)) {
+      return Promise.resolve(json(access));
     }
     if (url === `${SUDO_PATH}/status`) {
       return Promise.resolve(json(status));
@@ -108,8 +114,10 @@ describe('sudo editing', () => {
   it('switches to sudo editing and asks for the password when saving', async () => {
     const user = await openAndEdit('worker 2;');
 
+    expect(await screen.findByText('owned by root · save needs sudo')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Edit with sudo' }));
-    expect(await screen.findByText('Editing with sudo')).toBeInTheDocument();
+    expect(await screen.findByText('owned by root · editing with sudo')).toBeInTheDocument();
+    expect(screen.queryByText('owned by root · save needs sudo')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /^Save/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Sudo password' });
     await user.type(within(dialog).getByLabelText('Password'), PASSWORD);
@@ -134,7 +142,7 @@ describe('sudo editing', () => {
     sudoSaveResponses.push(json({ code: 'SudoPasswordIncorrect', detail: 'The sudo password is incorrect.' }, 422));
     const user = await openAndEdit('worker 3;');
     await user.click(screen.getByRole('button', { name: 'Edit with sudo' }));
-    await screen.findByText('Editing with sudo');
+    await screen.findByText('owned by root · editing with sudo');
     await user.click(screen.getByRole('button', { name: /^Save/ }));
     let dialog = await screen.findByRole('dialog', { name: 'Sudo password' });
     await user.type(within(dialog).getByLabelText('Password'), 'wrong');
@@ -155,7 +163,7 @@ describe('sudo editing', () => {
   it('does not save when the password prompt is cancelled', async () => {
     const user = await openAndEdit('worker 4;');
     await user.click(screen.getByRole('button', { name: 'Edit with sudo' }));
-    await screen.findByText('Editing with sudo');
+    await screen.findByText('owned by root · editing with sudo');
 
     await user.click(screen.getByRole('button', { name: /^Save/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Sudo password' });
@@ -176,7 +184,7 @@ describe('sudo editing', () => {
     await user.click(await screen.findByRole('button', { name: 'Open with sudo' }));
 
     expect(await screen.findByLabelText(`Editing ${PATH}`)).toHaveValue('worker 1;\n');
-    expect(screen.getByText('Editing with sudo')).toBeInTheDocument();
+    expect(await screen.findByText('owned by root · editing with sudo')).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     const open = requests.find((request) => request.url === `${SUDO_PATH}/open`);
     expect(open?.body).toEqual({ path: PATH, sudo: { password: null, rememberPassword: false } });
@@ -192,7 +200,8 @@ describe('sudo editing', () => {
     await user.click(screen.getByRole('button', { name: 'Edit with sudo' }));
 
     expect(await screen.findByText('This user is not allowed to use sudo on this server.')).toBeInTheDocument();
-    expect(screen.queryByText('Editing with sudo')).not.toBeInTheDocument();
+    expect(screen.queryByText(/editing with sudo/)).not.toBeInTheDocument();
+    expect(screen.getByText('owned by root · save needs sudo')).toBeInTheDocument();
   });
 
   it('forgets a remembered password', async () => {
@@ -207,5 +216,26 @@ describe('sudo editing', () => {
 
     await waitFor(() => expect(requests.some((request) => request.method === 'DELETE' && request.url === `${SUDO_PATH}/password`)).toBe(true));
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Forget sudo password' })).not.toBeInTheDocument());
+  });
+
+  it('falls back to the uid when the owner name cannot be resolved', async () => {
+    access = { ownerId: 0, ownerName: null, writable: false };
+    render(<EditorWorkspace />);
+    act(() => openEditorFile(CONNECTION_ID, PATH));
+
+    expect(await screen.findByText('owned by uid 0 · save needs sudo')).toBeInTheDocument();
+    const probe = requests.find((request) => request.url.startsWith(`${SUDO_PATH}/access?`));
+    expect(probe?.url).toBe(`${SUDO_PATH}/access?path=${encodeURIComponent(PATH)}&ownerId=0`);
+  });
+
+  it('shows no sudo badge for a file the user can write', async () => {
+    access = { ownerId: 1000, ownerName: 'deploy', writable: true };
+    render(<EditorWorkspace />);
+    act(() => openEditorFile(CONNECTION_ID, PATH));
+    await screen.findByLabelText(`Editing ${PATH}`);
+
+    await waitFor(() => expect(requests.some((request) => request.url.startsWith(`${SUDO_PATH}/access?`))).toBe(true));
+    expect(screen.queryByText(/needs sudo/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit with sudo' })).toBeInTheDocument();
   });
 });
