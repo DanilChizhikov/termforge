@@ -20,12 +20,13 @@ Status legend: **supported** = implemented and covered by integration tests; **p
 | `~/.ssh/config` import | partial | app-side parser, see [saved-connections.md](saved-connections.md): `Host` (with `*`, `?`, `!` patterns), `Include`, `HostName`, `User`, `Port`, `IdentityFile` (first one), `ProxyJump` (single hop to another imported alias). `Match`, percent tokens and every other directive are reported and ignored |
 | SFTP list / upload / download | supported | errors: `RemotePathNotFound`, `PermissionDenied`, `Cancelled` |
 | SFTP stat / mkdir / rename / delete | supported | files and empty directories; symlink kind (target kind or broken), permissions; see [file-browsing.md](file-browsing.md) |
-| SFTP progress, resume | unsupported | SSH.NET has progress callbacks; not exposed yet (Transfer Queue task) |
+| SFTP progress, cancel, resume | supported | transfer queue with live progress and cancel; retry appends to the kept `.part` file. See [decisions/transfer-queue.md](decisions/transfer-queue.md) |
 | Keyboard-interactive / 2FA | unsupported | not implemented |
 | User and host certificates | unsupported | not implemented |
 | FIDO (`sk-*`) keys | partial | only through an agent, not tested |
 | Agent forwarding, X11 forwarding | unsupported | |
-| Keepalive / reconnect | unsupported | Reconnect Policy task |
+| Reconnect | supported | per-server policy (manual, automatic with backoff, off); a reconnect opens a new shell. See [reconnect-and-command-history.md](reconnect-and-command-history.md) |
+| Keepalive | unsupported | SSH keepalive packets are not sent |
 
 ## Platforms
 

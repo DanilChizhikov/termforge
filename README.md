@@ -1,171 +1,224 @@
-# termforge
+# TermForge
 
-Local cross-platform web console for managing personal VPS and home servers over SSH: terminals, file manager, remote editing, Docker and basic monitoring.
+TermForge is a local web console for your own VPS and home servers. It runs on your computer, opens in your browser and talks to the servers over SSH. In one window you get terminals, a local and a remote file manager, a remote file editor, Docker containers, server diagnostics and a journal of everything it did.
 
-Specification: `.codex/docs/PROJECT_SPEC.md`.
+Nothing runs on the servers except plain SSH, SFTP and shell commands. TermForge listens on `127.0.0.1` only, unless you set up network access yourself.
 
-## Requirements
+## Contents
 
-- .NET SDK 10.0.110 or newer feature band (see `global.json`)
-- Node.js 22 or newer, only to build or develop the frontend (`dotnet build` and `dotnet test` do not need it)
+- [Install](#install)
+- [Start and stop](#start-and-stop)
+- [Use](#use)
+- [Configuration](#configuration)
+- [Security](#security)
+- [Troubleshooting](#troubleshooting)
+- [Build from source](#build-from-source)
+- [CI and releases](#ci-and-releases)
 
-## Layout
+## Install
 
+Download the archive for your system from the GitHub releases page, unpack it and run `TermForge` (`TermForge.exe` on Windows). The archive includes the .NET runtime and the UI.
+
+| System | Archive | Status |
+|---|---|---|
+| macOS, Apple silicon | `osx-arm64` | verified |
+| macOS, Intel | `osx-x64` | verified under Rosetta 2 |
+| Linux x64, glibc | `linux-x64` | verified |
+| Linux arm64, glibc | `linux-arm64` | verified |
+| Windows x64 | `win-x64` | built, not verified |
+| Windows arm64 | `win-arm64` | built, not verified |
+
+```sh
+tar -xzf termforge-1.0.0-osx-arm64.tar.gz
+xattr -dr com.apple.quarantine termforge-1.0.0-osx-arm64
+./termforge-1.0.0-osx-arm64/TermForge
 ```
-src/
-  Api/
-    Entrypoint/                 ASP.NET Core host, application lifecycle, HTTP and WebSocket endpoints
-    Core/                       domain and application logic, one folder per feature
-  Infrastructure/
-    Ssh/                        SSH transport for terminal sessions and SFTP
-    Persistence/                SQLite storage
-    Persistence.Migrations/     database migrations
-    Credentials/                OS credential store and encrypted fallback vault
-  Web/                          React + TypeScript frontend (Vite)
-  Tests/
-    Core.Tests/
-    Credentials.Tests/
-    Entrypoint.Tests/
-    Persistence.Tests/
-    Ssh.IntegrationTests/
-scripts/                        helper scripts, described in scripts/README.md
-```
 
-## Build and test
+macOS builds are not notarized, so the `xattr` line is needed for a downloaded copy. Linux needs ICU (`libicu`); `libsecret` is optional and lets TermForge keep passwords in the system keyring. Details for each system, data locations, updates and removal are in [docs/installation.md](docs/installation.md). The checks behind the "verified" column are in [docs/release-verification.md](docs/release-verification.md).
+
+## Start and stop
+
+TermForge starts a local server on `http://127.0.0.1:5023` and opens your default browser with a one-time launch link. That link creates the browser session. Keep the terminal window open, since the server runs there and writes its log to it. Closing the browser tab does not stop TermForge.
+
+To stop it, press Exit app in the header or `Ctrl+C` in the terminal. If transfers are running, files are unsaved or terminals are open, the exit dialog lists them and lets you exit now, wait for the transfers or cancel. Shutdown then cancels the remaining transfers, closes the sessions and saves the journal and the workspace. See [docs/decisions/graceful-shutdown.md](docs/decisions/graceful-shutdown.md).
+
+The launch link works once. If the browser loses the session, start TermForge again. Only one TermForge can use the port at a time.
+
+## Use
+
+### Servers
+
+Add a server with the Add server button in the sidebar, or import hosts from `~/.ssh/config`. A server has a host, port, user and either a private key path, an SSH agent or a password. Passwords go to the credential store, never to the database. Test on a server row opens a session and reports the result. Servers can carry a group label and can be marked read-only. See [docs/saved-connections.md](docs/saved-connections.md).
+
+On the first connection TermForge shows the server's `SHA256:` host key fingerprint and asks you to accept it once, accept and save it, or reject it. Keys already in `~/.ssh/known_hosts` are trusted without a prompt; TermForge reads that file and never writes to it. A changed key blocks the connection until you confirm the new one separately. See [docs/decisions/host-key-verification.md](docs/decisions/host-key-verification.md).
+
+### Terminals
+
+The Terminals & files tab holds xterm.js terminals grouped by server. New session opens an SSH shell on the selected server, and you can open as many as you need. Each tab shows its state and the reason when it disconnects. Per server you choose how a dropped connection behaves: a Reconnect button, automatic reconnect with backoff, or nothing. A reconnect always opens a new shell and never replays commands.
+
+The History panel next to the terminal keeps commands with their time and exit code, read from shell integration sequences. Terminal output is never stored. You can pin, search and insert commands. See [docs/reconnect-and-command-history.md](docs/reconnect-and-command-history.md).
+
+Terminal recording is off by default. Once you turn it on in Settings, Record in a terminal's status line saves that session's output (never keystrokes) as an asciicast file that you can replay and delete in Settings. Recordings may contain secrets, and TermForge warns about that. See [docs/decisions/terminal-recording.md](docs/decisions/terminal-recording.md).
+
+### Files and transfers
+
+Below the terminals sit a local pane and a remote SFTP pane with breadcrumbs, sorting, selection, new folder, rename and delete with confirmation. The search button in each pane finds file names by glob (`*`, `?`) below the current folder and streams results as it goes. See [docs/file-browsing.md](docs/file-browsing.md) and [docs/decisions/filename-search.md](docs/decisions/filename-search.md).
+
+Upload and Download, or dragging between the panes, put files and folders into the transfer queue. The panel under the panes shows progress, rate and remaining time, and offers Cancel, Retry and Discard partial. Data goes to a hidden `.part` file that is renamed into place when complete, so a failed transfer never leaves a half-written target. A retry continues from the `.part` file. An existing target is replaced only after you choose Overwrite. See [docs/decisions/transfer-queue.md](docs/decisions/transfer-queue.md).
+
+### Editing remote files
+
+Double-click a remote file to open it in the editor tab (Monaco, several files at once, `⌘S` or `Ctrl+S` to save, diff view). Before saving, TermForge checks that the file has not changed on the server since you opened it. If it has, you get Compare, Reload from server, or Overwrite after a second confirmation. Each save backs up the original, writes a temporary file and renames it into place with the same permissions. Backups can be compared and rolled back. See [docs/decisions/remote-file-editor.md](docs/decisions/remote-file-editor.md).
+
+Files that your SSH user cannot read or write open only after you pick Edit with sudo or Open with sudo. TermForge asks for the sudo password for each elevated action, sends it to `sudo -S` over standard input and keeps owner, group and mode on save. It does not offer arbitrary root commands. See [docs/decisions/privileged-sudo-editing.md](docs/decisions/privileged-sudo-editing.md).
+
+### Docker
+
+The Docker tab lists the containers of the selected server with state, ports and status. You can start, stop and restart them (stop and restart ask first), follow logs and open a shell inside a running container. If Docker is missing or your user has no access to it, the tab says so. See [docs/decisions/docker-management.md](docs/decisions/docker-management.md).
+
+### Diagnostics and monitoring
+
+The Diagnostics tab checks the selected server for command execution, SFTP, Docker, sudo and common utilities, and explains what is missing. The sidebar and the Diagnostics tab also show uptime, CPU, memory and free disk space, refreshed every 10, 30 or 60 seconds while visible. See [docs/diagnostics.md](docs/diagnostics.md) and [docs/decisions/server-monitoring.md](docs/decisions/server-monitoring.md).
+
+### Journal
+
+The Journal tab lists transfers, saves, rollbacks, Docker actions and other operations with live status, filters and details. Retry is available for operations that can be repeated. See [docs/decisions/operation-journal.md](docs/decisions/operation-journal.md).
+
+### Workspace
+
+TermForge saves the workspace about a second after it changes and restores it on the next start: the selected server, the active tab, terminal tabs, local and remote paths, panel sizes, open editor tabs and unsaved editor changes. Restored terminals start disconnected with a Reconnect button, because SSH sessions do not survive a restart. See [docs/decisions/workspace-persistence.md](docs/decisions/workspace-persistence.md).
+
+### Read-only servers
+
+A read-only server rejects uploads, deletes, renames, saves, rollbacks and Docker actions in the backend. Terminals stay available with a read-only banner, since a shell cannot be fully restricted. Risky actions on any server (remote delete, Docker stop and restart, rollback, overwriting upload) need a confirmation first. See [docs/decisions/read-only-mode-and-confirmations.md](docs/decisions/read-only-mode-and-confirmations.md).
+
+### Import and export
+
+Settings → Import & export writes servers, preferences, the workspace layout and pinned commands to a versioned JSON file without secrets. Passwords are exported only when you turn on "Also export secrets", type an archive password of at least 12 characters twice and confirm the risk. They go into a separate `.tfvault` archive encrypted with PBKDF2-SHA256 and AES-256-GCM. Private keys are never exported, only their paths. Import shows every change before applying it and lets you merge or replace. See [docs/decisions/settings-import-and-export.md](docs/decisions/settings-import-and-export.md).
+
+### Updates
+
+At start TermForge checks the releases of this repository and shows a notice when a newer version exists. It never downloads or installs anything. To update, unpack the new archive and start it; your data stays where it was.
+
+## Configuration
+
+Settings live in `appsettings.json` next to the binary. Any key can also be passed on the command line as `--Section:Key=value` or as an environment variable `Section__Key`.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `Kestrel:Endpoints:Http:Url` | `http://127.0.0.1:5023` | address and port. Non-loopback addresses are refused unless network access is enabled |
+| `Lifecycle:OpenBrowser` | `true` | open the browser after start |
+| `Lifecycle:BrowserCommand` | none | executable that receives the launch link instead of the default browser |
+| `Lifecycle:ShutdownTimeoutSeconds` | `10` | limit for the graceful shutdown |
+| `Lifecycle:IdleShutdownMinutes` | `0` (off) | stop after this many minutes with no open tab and no running transfer |
+| `Persistence:DatabasePath` | see [installation](docs/installation.md#where-data-lives) | SQLite database file |
+| `Credentials:VaultPath` | `credentials.vault` in the data folder | encrypted vault file |
+| `HostKeys:DecisionTimeout` | `00:02:00` | how long an unanswered host key prompt waits before the connection fails |
+| `Transfers:MaxParallelTransfers` | `2` (max 8) | transfers that run at the same time |
+| `Editor:MaxFileBytes` | `2097152` | largest file the editor opens |
+| `Editor:MaxBackupsPerFile` | `10` | backups kept per edited file |
+| `Updates:CheckOnStartup` | `true` | check GitHub releases at start |
+| `NetworkAccess:Enabled` | `false` | allow access from other devices, see [docs/security.md](docs/security.md#network-access-mode) |
+
+Example: `./TermForge --Kestrel:Endpoints:Http:Url=http://127.0.0.1:5199 --Lifecycle:OpenBrowser=false`.
+
+Network access from other devices needs a password hash from `TermForge --hash-password`, the allowed host names and an HTTPS endpoint. Without them TermForge refuses to start.
+
+## Security
+
+The browser session uses an HttpOnly `SameSite=Strict` cookie, a CSRF token on every state-changing request, exact `Origin` checks, a host header allow-list against DNS rebinding and origin checks on WebSockets. Passwords live in Windows Credential Manager, the macOS Keychain or the Linux Secret Service. Without a usable system store they go to an encrypted vault file (PBKDF2-SHA256, AES-256-GCM) that you unlock with a master password. Logs never contain secrets, launch tokens or cookies.
+
+The threat model and the browser contract are in [docs/security.md](docs/security.md), credential storage in [docs/credentials.md](docs/credentials.md), and supported SSH features (key types, agents, ProxyJump, what is missing) in [docs/ssh-capabilities.md](docs/ssh-capabilities.md).
+
+## Troubleshooting
+
+Common problems (port in use, the browser did not open, missing ICU or libsecret, host key changed, Docker access) and their fixes are in [docs/troubleshooting.md](docs/troubleshooting.md).
+
+## Build from source
+
+### Requirements
+
+- .NET SDK 10.0.110 or a newer feature band (see `global.json`)
+- Node.js 22 or newer, for the UI. `dotnet build` and `dotnet test` do not need it.
+- Docker, only for the SSH integration tests
+
+### Build and test
 
 ```sh
 dotnet build termforge.slnx
 dotnet test termforge.slnx
 ```
 
-### SSH integration tests
+UI, from `src/Web`:
 
-`src/Tests/Ssh.IntegrationTests` starts disposable OpenSSH servers in Docker through Testcontainers, so it needs a running Docker engine that can run Linux containers. The agent tests also need `ssh-agent` and `ssh-add` on `PATH`, and the system ssh probe needs `ssh`. Without Docker, the tests are skipped (inconclusive) with a reason. Set `TERMFORGE_SKIP_DOCKER_TESTS=true` to skip them explicitly, as CI does on macOS and Windows.
+```sh
+npm ci
+npm run lint
+npm run typecheck
+npm test
+npm run build          # writes the UI into src/Api/Entrypoint/wwwroot
+```
 
-SSH transport decision and supported features: `docs/decisions/0001-ssh-transport.md`, `docs/ssh-capabilities.md`.
+`src/Tests/Ssh.IntegrationTests` starts disposable OpenSSH servers in Docker through Testcontainers, so it needs a Docker engine that runs Linux containers. The agent tests also need `ssh-agent` and `ssh-add` on `PATH`, and the system ssh probe needs `ssh`. Without Docker these tests are reported as inconclusive with the reason. `TERMFORGE_SKIP_DOCKER_TESTS=true` skips them on purpose, as CI does on macOS and Windows.
 
-## Database
+The OS credential store tests run against the real store of the machine. Where it is unusable, for example on a headless Linux runner without Secret Service, they are reported as inconclusive with the reason.
 
-SQLite through EF Core. The file is `termforge/termforge.db` inside the per-user application data directory (`Environment.SpecialFolder.LocalApplicationData`: `%LOCALAPPDATA%` on Windows, `$XDG_DATA_HOME` or `~/.local/share` on Linux and macOS). Override with the configuration key `Persistence:DatabasePath` (for example the environment variable `Persistence__DatabasePath`). Migrations are applied on startup before the host accepts requests. Details: `docs/decisions/sqlite-persistence.md`.
+### Run from source
 
-Add a migration (the tool is a local tool pinned in `.config/dotnet-tools.json`):
+```sh
+./scripts/run.sh       # builds the UI and the backend, then starts TermForge
+./scripts/run.sh -d    # backend plus the Vite dev server with hot reload on http://127.0.0.1:5173
+```
+
+Without the script: build the UI, then `dotnet run --project src/Api/Entrypoint`. Without a built UI, `/` answers with a short hint and the API still works. For UI work run `npm run dev` in `src/Web` while the backend runs, and open `http://127.0.0.1:5173` in the browser the backend opened. Use `127.0.0.1`, not `localhost`, so the session cookie is shared.
+
+### Publish
+
+```sh
+./scripts/publish.sh                    # all six runtimes into publish/, with archives
+./scripts/publish.sh -r linux-x64 -n    # one runtime, no archive
+./scripts/smoke-test.sh publish/termforge-1.0.0-linux-x64
+```
+
+`publish.sh` builds the UI once and publishes a self-contained TermForge per runtime identifier. `smoke-test.sh` starts a published build, creates a browser session through the launch link, checks the API and the UI, then exits through the API and expects exit code 0. Both scripts are described in [scripts/README.md](scripts/README.md).
+
+### Database migrations
+
+TermForge uses SQLite through EF Core and applies migrations at start. To add one (the tool is pinned in `.config/dotnet-tools.json`):
 
 ```sh
 dotnet tool restore
 dotnet tool run dotnet-ef migrations add <Name> --project src/Infrastructure/Persistence.Migrations --startup-project src/Infrastructure/Persistence.Migrations --context TermForgeDbContext --output-dir Migrations --namespace DTech.Persistence.Migrations
 ```
 
-Keep generated files comment free: remove the `// <auto-generated />` and `/// <inheritdoc />` lines after generation. The model snapshot must stay in `Migrations/` next to the migrations.
+Remove the `// <auto-generated />` and `/// <inheritdoc />` lines from the generated files. The model snapshot stays in `Migrations/` next to the migrations. See [docs/decisions/sqlite-persistence.md](docs/decisions/sqlite-persistence.md).
 
-## Run
+### Layout
 
-```sh
-dotnet run --project src/Api/Entrypoint
 ```
-
-The backend listens on `http://127.0.0.1:5023` only and refuses to start with a non-loopback binding unless network access mode is enabled. After start it opens the default browser with a one-time launch link that creates the browser session; closing the tab does not stop the backend. Exit with `Exit app` in the header or `Ctrl+C`: the exit dialog lists active transfers, unsaved files and open terminal sessions and lets you exit now, wait for transfers or cancel. Shutdown is ordered and bounded: stop accepting work, cancel transfers (journaled as cancelled), close sessions, flush the journal and workspace state. See `docs/decisions/graceful-shutdown.md`.
-
-Lifecycle settings (`appsettings.json` or `--Lifecycle:<key>=<value>`):
-
-- `Lifecycle:OpenBrowser` (default `true`) opens the browser after start.
-- `Lifecycle:BrowserCommand` (optional) executable that receives the launch URL instead of the default browser.
-- `Lifecycle:ShutdownTimeoutSeconds` (default `10`) graceful shutdown timeout.
-- `Lifecycle:IdleShutdownMinutes` (default `0`, off) stops TermForge after this many minutes with no open browser tab and no active transfer.
-
-Network access from other devices is disabled by default. It is an explicit opt-in (`NetworkAccess:Enabled=true`) that requires a password hash generated with `TermForge --hash-password`, the allowed host names and an HTTPS endpoint; without them the backend refuses to start. Setup and limits: "Network access mode" in `docs/security.md`, design in `docs/decisions/network-access.md`.
-
-Threat model, browser session and CSRF contract: `docs/security.md`.
-
-`dotnet run` serves the frontend from `src/Api/Entrypoint/wwwroot` (git-ignored build output): static files, and `index.html` for any other non-`/api` path so deep links work. Build the frontend first (see below); without a build, `/` answers with a short hint and the API still works. `/api/*` is never answered with `index.html`.
-
-## Frontend
-
-Located in `src/Web` (Vite, React, TypeScript, Vitest). Run from `src/Web`:
-
-```sh
-npm ci                 # install exact locked dependencies
-npm run dev            # dev server on http://127.0.0.1:5173, proxies /api and WebSockets to http://127.0.0.1:5023
-npm run lint
-npm run typecheck
-npm test
-npm run build          # builds into src/Api/Entrypoint/wwwroot
+src/
+  Api/
+    Entrypoint/                 ASP.NET Core host, lifecycle, HTTP and WebSocket endpoints
+    Core/                       domain and application logic, one folder per feature
+  Infrastructure/
+    Ssh/                        SSH transport for terminals, commands and SFTP
+    HostKeys/                   known_hosts parsing and host key trust
+    Persistence/                SQLite storage
+    Persistence.Migrations/     database migrations
+    Credentials/                OS credential stores and the encrypted vault
+  Web/                          React + TypeScript UI (Vite)
+  Tests/                        MSTest projects, one per backend project, plus Ssh.IntegrationTests
+docs/                           user and design documentation, decisions in docs/decisions/
+scripts/                        helper scripts, described in scripts/README.md
 ```
-
-Development: start the backend (`dotnet run --project src/Api/Entrypoint`), which bootstraps the browser session on `127.0.0.1`, then open `http://127.0.0.1:5173` in the same browser. Use `127.0.0.1`, not `localhost`, so the session cookie is shared. The browser contract (session cookie, CSRF header, same-origin WebSockets) is described in `docs/security.md`.
-
-## Operation journal
-
-Important operations are recorded in the local database and shown in the History tab with filters, live status and Retry for retryable operations. Server push uses the shared WebSocket channel `/api/ws`. See `docs/decisions/operation-journal.md`.
-
-## Saved connections
-
-The sidebar lists saved servers grouped by name, with add, edit, delete, connection test and import from `~/.ssh/config`. Passwords go only to the credential store. See `docs/saved-connections.md`.
-
-## Server diagnostics
-
-The Diagnostics tab checks the selected server for command execution, SFTP, Docker (installed and accessible), sudo and common utilities, and explains what is missing. Results are cached per connection with a manual refresh. See `docs/diagnostics.md`.
-
-## Server monitoring
-
-The sidebar and the Diagnostics tab show uptime, CPU, memory and free disk space of the selected server, polled while the view is open (10, 30 or 60 seconds). A metric that cannot be collected shows the reason instead of a value. See `docs/decisions/server-monitoring.md`.
-
-## Host keys
-
-Host keys are checked on every SSH connection against `~/.ssh/known_hosts` (read-only, never written) and keys trusted in TermForge. An unknown key pauses the connection and opens a dialog with the `SHA256:` fingerprint (accept once, accept and save, reject); a changed key is blocked and can only be replaced after a separate confirmation. Undecided prompts fail closed after `HostKeys:DecisionTimeout` (default 2 minutes). See `docs/decisions/host-key-verification.md`.
-
-## Terminals
-
-The upper region holds xterm.js terminal tabs grouped by server. "New terminal" opens an SSH PTY session on the selected server; each tab shows the server name, session number and state (connecting, connected, disconnected with reason). Sessions are bound to the browser session and closed when the tab or socket closes, the remote shell exits, or TermForge shuts down. Reconnect behavior and the command history panel are described in `docs/reconnect-and-command-history.md`. See `docs/decisions/interactive-terminal.md`.
-
-## Terminal recording
-
-Off by default. After turning on "Record terminal output" in Settings → Security, Record in a terminal's status line records that session's output (never keystrokes) as an asciicast v2 file in the app data directory. Both steps warn that recordings may contain secrets. Size per recording, number of recordings and retention days are set in the same place; recordings can be replayed and deleted there. See `docs/decisions/terminal-recording.md`.
-
-## File browsing
-
-The lower region has a local pane and a remote (SFTP) pane with navigation, breadcrumbs, sorting, selection, new folder, rename and delete with confirmation. Paths with `..` segments are rejected. See `docs/file-browsing.md`.
-
-## Filename search
-
-The search button in each file pane searches names (glob with `*` and `?`, case-insensitive) below the current folder with depth, result and time limits. Results stream in as they are found, Stop cancels the search, and a search stopped by a limit or with unreadable folders is marked partial. Remote search uses SFTP traversal by default or `find` on the server when available, with an explicit fallback notice. See `docs/decisions/filename-search.md`.
-
-## Transfers
-
-Select files or folders and use Upload or Download, or drag them between the local and remote panes. Transfers run through a queue (`Transfers:MaxParallelTransfers`, default 2, max 8) and are recorded in the operation journal. The transfer panel under the file panes shows live progress, rate and remaining time, and offers Cancel, Retry/Resume for retryable failures and Discard partial. Data is written to a hidden `.part` file next to the target and renamed on success; an existing target is replaced only after an explicit Overwrite decision. See `docs/decisions/transfer-queue.md`.
-
-## Remote file editor
-
-Double-click a remote file (or select it and press Edit) to open it in the Editor tab: Monaco with syntax highlighting, several files at once, unsaved markers, ⌘S/Ctrl+S, a diff view and the list of backups with compare and roll back. Saving checks that the file did not change since it was opened (mtime, size and SHA-256), backs up the original, writes a temporary file and atomically renames it into place, keeping permissions. A changed file is never overwritten without an explicit choice. Saves are recorded in the journal. Limits are set by `Editor:MaxFileBytes` and `Editor:MaxBackupsPerFile`. See `docs/decisions/remote-file-editor.md`.
-
-### Editing protected files with sudo
-
-Files the SSH user cannot read or write are edited only after an explicit choice: "Edit with sudo" in the editor toolbar, or "Open with sudo" when opening fails with a permission error. A file the SSH user cannot write is marked "owned by <owner> · save needs sudo"; after opting in the badge reads "owned by <owner> · editing with sudo". Every elevated action (open, save, compare with a backup, roll back) asks for the sudo password unless sudo needs none or the password was saved in the credential store from that prompt. The password is sent to `sudo -S` over standard input only, never on a command line, and is not logged, journaled or kept after the request. Saving keeps the same safeguards as regular saves (version check, backup, temporary file, atomic rename) and preserves owner, group and mode. Arbitrary privileged commands are not offered. See `docs/decisions/privileged-sudo-editing.md`.
-
-## Workspace persistence
-
-The workspace is saved in the database about one second after it changes and restored on the next start: the selected server, the active view, terminal tabs and their servers, local and remote paths, panel sizes and collapsed regions, open editor tabs and unsaved editor changes. Restored terminal tabs start disconnected with a Reconnect action that opens a new shell (live SSH processes do not survive a restart); restored editor tabs load the file only when opened, then apply the unsaved changes. A saved workspace that cannot be read is reset with a warning; unsaved editor changes are kept. See `docs/decisions/workspace-persistence.md`.
-
-## Settings import and export
-
-Settings → Import & export saves server connections, preferences (recording limits, command history filters), the workspace layout and, optionally, pinned commands into a versioned JSON file without secrets. Passwords are exported only when "Also export secrets" is turned on, an archive password of at least 12 characters is typed twice and the risk is confirmed: they go into a separate `.tfvault` archive encrypted with the vault crypto (PBKDF2-SHA256, AES-256-GCM). Private keys are never exported, only their paths. Import previews every change first, validates the file as untrusted input, merges (conflicts resolved per server: keep mine, use imported, keep both) or replaces (removing servers missing from the file after confirmation), and stores imported passwords in the credential store. An import never turns terminal recording on. See `docs/decisions/settings-import-and-export.md`.
-
-## Docker
-
-The Docker tab lists the containers of the selected server with their state, ports and status, and shows why Docker cannot be used when it is missing or the user has no access to the daemon. Containers can be started, stopped and restarted (stop and restart ask for confirmation and need a confirmation token); every action is recorded in the journal. Logs stream with a line limit and follow mode, and Shell opens an interactive terminal inside a running container (bash, falling back to sh). Container names are validated and quoted before they reach the shell. See `docs/decisions/docker-management.md`.
-
-## Read-only servers and confirmations
-
-A server can be marked read-only in its edit dialog or under Settings → Read-only servers. The backend then rejects uploads, deletes, renames, saves (also with sudo), rollbacks and Docker actions for it; terminals stay available with a read-only banner, because a shell cannot be fully restricted. Remote deletes, Docker stop and restart, rollbacks and overwriting uploads need a single-use confirmation token from `POST /api/confirmations`, issued after the user confirms the dialog. See `docs/decisions/read-only-mode-and-confirmations.md`.
-
-## Credentials
-
-Secrets are stored in the OS credential store (Windows Credential Manager, macOS Keychain, Linux Secret Service). When that store is unavailable, they are stored in an encrypted vault file instead, which is unlocked with a master password through `POST /api/credentials/vault/unlock`. Like every `/api` endpoint, it requires the browser session and CSRF token described in `docs/security.md`. `GET /api/credentials/status` shows which backend is active and why. Usage, configuration and troubleshooting are in `docs/credentials.md`. The design is in `docs/decisions/0002-credential-store.md`.
-
-The OS store round-trip tests run against the real store of the current machine. When that store is unusable (for example no Secret Service on a headless Linux runner), they are reported as skipped and the reason is printed.
 
 ## CI and releases
 
-- `ci` builds and tests the solution on Linux, macOS and Windows for every push and PR to `develop` and `master`.
-- `release-start` (manual run) bumps `<Version>` in `Directory.Build.props`, pushes `release/X.Y.Z` (from `develop`) or `hotfix/X.Y.Z` (from `master`) and opens a PR to `master`. Needs the `RELEASE_TOKEN` secret (PAT with `contents` and `pull-requests` write access).
-- `release` runs when that PR is merged: publishes self-contained builds for `linux-x64`, `linux-arm64`, `win-x64`, `win-arm64`, `osx-x64`, `osx-arm64`, creates the GitHub release `X.Y.Z` with the archives and merges `master` back into `develop`.
-- `pr-labeler` labels PRs by branch prefix (`feature/`, `bugfix/`, `hotfix/`, `release/`), labels group the release notes.
+- `ci` builds and tests the solution on Linux, macOS and Windows, checks the UI, and publishes and smoke-tests the app on each of the three systems. It runs for every push and pull request to `develop` and `master`.
+- `release-start` (run by hand) bumps `<Version>` in `Directory.Build.props`, pushes `release/X.Y.Z` from `develop` or `hotfix/X.Y.Z` from `master`, and opens a pull request to `master`. It needs the `RELEASE_TOKEN` secret, a token with `contents` and `pull-requests` write access.
+- `release` runs when that pull request is merged. It publishes the six archives with `scripts/publish.sh`, smoke-tests the native ones, creates the GitHub release `X.Y.Z` and merges `master` back into `develop`.
+- `pr-labeler` labels pull requests by branch prefix (`feature/`, `bugfix/`, `hotfix/`, `release/`). The labels group the release notes.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
