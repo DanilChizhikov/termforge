@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { TransferDirection } from '../api/transfers';
 import { useLocalPath, useRemotePath } from '../state/filePaths';
+import { useConnectionName } from '../state/connections';
 import { useSelectedServerId } from '../state/selectedServer';
 import { requestTransfers, useTransfersState } from '../state/transfers';
 import type { FilePaneTransfer } from './filePaneTransfer';
@@ -19,9 +20,10 @@ export function useLocalPaneTransfer(): FilePaneTransfer {
   const remotePath = useRemotePath(serverId ?? '');
   const canSend = serverId !== null && remotePath !== null;
   const canReceive = serverId !== null && localPath !== null;
+  const serverName = useConnectionName(serverId);
   return useMemo(
     () => ({
-      label: 'Upload',
+      label: serverName === null ? 'Upload' : `Upload to ${serverName}`,
       primary: true,
       Icon: ArrowRightIcon,
       canSend,
@@ -32,7 +34,7 @@ export function useLocalPaneTransfer(): FilePaneTransfer {
       canReceive,
       onReceive: (paths) => startTransfer(serverId, 'download', paths, localPath),
     }),
-    [serverId, localPath, remotePath, canSend, canReceive],
+    [serverId, serverName, localPath, remotePath, canSend, canReceive],
   );
 }
 

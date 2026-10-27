@@ -745,8 +745,9 @@
   flex: none;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
-  padding: 6px 10px;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-faint);
 }
 
 .file-toolbar .input {
@@ -754,17 +755,40 @@
   max-width: 180px;
 }
 
-.file-breadcrumbs {
-  display: flex;
+.file-pane-label {
   flex: none;
-  flex-wrap: wrap;
+}
+
+.file-path {
+  display: flex;
+  flex: 1;
   align-items: center;
-  margin: 0 10px 6px;
-  padding: 3px 6px;
-  border-radius: var(--radius-sm);
+  min-width: 120px;
+  min-height: 28px;
+  padding: 2px 5px;
+  overflow: hidden;
+  border-radius: 5px;
   background: var(--surface-raised);
+  color: var(--text-soft);
   font-family: var(--font-mono);
   font-size: var(--text-small);
+}
+
+.file-actions {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+}
+
+.icon-btn-danger:hover:not(:disabled) {
+  color: var(--status-danger-text);
+}
+
+.file-breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  min-width: 0;
 }
 
 .crumb {
@@ -828,8 +852,8 @@
 .file-table-scroll {
   flex: 1;
   min-height: 0;
+  padding: 0 4px;
   overflow: auto;
-  border-top: 1px solid var(--border-faint);
 }
 
 .file-row {
@@ -1124,8 +1148,47 @@
 
 .file-transfer-button {
   gap: 6px;
-  margin-left: auto;
+}
+
+.file-transfer-button.btn-primary {
   font-weight: 600;
+}
+
+.file-row-parent td {
+  padding: 0;
+}
+
+.file-parent {
+  width: 100%;
+  min-height: 28px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.file-parent:hover {
+  color: var(--text-primary);
+}
+
+.file-table-scroll .data-table th {
+  padding: 6px 8px;
+  font-weight: 400;
+}
+
+.file-table-scroll .data-table td {
+  padding: 5px 8px;
+  border-bottom: 0;
+}
+
+.file-column-size {
+  width: 80px;
+}
+
+.file-column-modified {
+  width: 96px;
 }
 
 .transfer-panel {
@@ -1525,9 +1588,6 @@
   color: var(--text-primary);
 }
 
-.file-search-toggle + .file-transfer-button {
-  margin-left: 0;
-}
 
 .file-search {
   display: flex;

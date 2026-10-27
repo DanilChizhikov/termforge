@@ -16,11 +16,12 @@ import { EmptyState } from './EmptyState';
 import { FileBreadcrumbs } from './FileBreadcrumbs';
 import { FileSearchPanel } from './FileSearchPanel';
 import { FileTable } from './FileTable';
-import { ArrowUpIcon, FileIcon, PlusIcon, RefreshIcon, SearchIcon } from './icons/Icons';
+import { FileIcon, FolderPlusIcon, PencilIcon, RefreshIcon, SearchIcon, TrashIcon } from './icons/Icons';
 import { hasDraggedPaths, readDraggedPaths, writeDraggedPaths, type FilePaneTransfer } from './filePaneTransfer';
 
 export interface FilePaneProps {
   title: string;
+  label?: string | null;
   sourceKey: string;
   source: FileSource;
   path: string | null;
@@ -50,7 +51,7 @@ type PaneAction =
 
 const NO_SELECTION: ReadonlySet<string> = new Set();
 
-export function FilePane({ title, sourceKey, source, path, onPathChange, roots, onOpenFile, transfer, refreshToken = 0, search }: FilePaneProps) {
+export function FilePane({ title, label = null, sourceKey, source, path, onPathChange, roots, onOpenFile, transfer, refreshToken = 0, search }: FilePaneProps) {
   const [loadState, setLoadState] = useState<LoadState | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [selection, setSelection] = useState<Selection | null>(null);
@@ -239,9 +240,13 @@ export function FilePane({ title, sourceKey, source, path, onPathChange, roots, 
       onDrop={handleDrop}
     >
       <div className="file-toolbar">
+        <span className="section-label file-pane-label">{label ?? title}</span>
+        <div className="file-path">
+          {currentPath === null ? <span className="text-muted">…</span> : <FileBreadcrumbs path={currentPath} onNavigate={navigate} />}
+        </div>
         {roots !== undefined && roots.length > 0 && (
           <select
-            className="input input-sm"
+            className="input input-sm file-roots"
             aria-label={`${title} roots`}
             value=""
             onChange={(event) => {
@@ -250,7 +255,7 @@ export function FilePane({ title, sourceKey, source, path, onPathChange, roots, 
               }
             }}
           >
-            <option value="">Roots...</option>
+            <option value="">Roots…</option>
             {roots.map((root) => (
               <option key={root.path} value={root.path}>
                 {root.name}
@@ -258,55 +263,53 @@ export function FilePane({ title, sourceKey, source, path, onPathChange, roots, 
             ))}
           </select>
         )}
-        <button
-          type="button"
-          className="btn btn-sm btn-ghost"
-          disabled={listing === null || listing.parentPath === null}
-          onClick={() => listing?.parentPath != null && navigate(listing.parentPath)}
-        >
-          <ArrowUpIcon size={13} />
-          Up
-        </button>
-        <button type="button" className="btn btn-sm btn-ghost" onClick={refresh}>
-          <RefreshIcon size={13} />
-          Refresh
-        </button>
-        <button
-          type="button"
-          className="btn btn-sm btn-ghost"
-          disabled={listing === null || busy}
-          onClick={() => openAction({ type: 'createDirectory' })}
-        >
-          <PlusIcon size={13} />
-          New folder
-        </button>
-        <button
-          type="button"
-          className="btn btn-sm btn-ghost"
-          disabled={selectedEntries.length !== 1 || busy}
-          onClick={() => openRename(selectedEntries)}
-        >
-          Rename
-        </button>
-        {onOpenFile === undefined ? null : (
+        <span className="file-actions">
+          <button type="button" className="icon-btn" aria-label="Refresh" title="Refresh" onClick={refresh}>
+            <RefreshIcon size={14} />
+          </button>
           <button
             type="button"
-            className="btn btn-sm btn-ghost"
-            disabled={selectedEntries.length !== 1 || selectedEntries[0]?.kind !== 'File'}
-            onClick={() => selectedEntries[0] !== undefined && onOpenFile(selectedEntries[0])}
+            className="icon-btn"
+            aria-label="New folder"
+            title="New folder"
+            disabled={listing === null || busy}
+            onClick={() => openAction({ type: 'createDirectory' })}
           >
-            <FileIcon size={13} />
-            Edit
+            <FolderPlusIcon size={14} />
           </button>
-        )}
-        <button
-          type="button"
-          className="btn btn-sm btn-ghost btn-danger-link"
-          disabled={selectedEntries.length === 0 || busy}
-          onClick={() => openAction({ type: 'delete', entries: selectedEntries })}
-        >
-          Delete
-        </button>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Rename"
+            title="Rename"
+            disabled={selectedEntries.length !== 1 || busy}
+            onClick={() => openRename(selectedEntries)}
+          >
+            <PencilIcon size={14} />
+          </button>
+          {onOpenFile === undefined ? null : (
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label="Edit"
+              title="Edit"
+              disabled={selectedEntries.length !== 1 || selectedEntries[0]?.kind !== 'File'}
+              onClick={() => selectedEntries[0] !== undefined && onOpenFile(selectedEntries[0])}
+            >
+              <FileIcon size={14} />
+            </button>
+          )}
+          <button
+            type="button"
+            className="icon-btn icon-btn-danger"
+            aria-label="Delete"
+            title="Delete"
+            disabled={selectedEntries.length === 0 || busy}
+            onClick={() => openAction({ type: 'delete', entries: selectedEntries })}
+          >
+            <TrashIcon size={14} />
+          </button>
+        </span>
         {search !== undefined && (
           <button
             type="button"
@@ -323,7 +326,7 @@ export function FilePane({ title, sourceKey, source, path, onPathChange, roots, 
         {transfer !== undefined && (
           <button
             type="button"
-            className={transfer.primary ? 'btn btn-sm btn-primary file-transfer-button' : 'btn btn-sm btn-filled file-transfer-button'}
+            className={transfer.primary && action === null ? 'btn btn-sm btn-primary file-transfer-button' : 'btn btn-sm btn-filled file-transfer-button file-transfer-secondary'}
             disabled={selectedEntries.length === 0 || !transfer.canSend}
             title={transfer.canSend ? undefined : transfer.unavailableReason}
             onClick={() => transfer.onSend(selectedEntries.map((item) => item.path))}
@@ -334,7 +337,6 @@ export function FilePane({ title, sourceKey, source, path, onPathChange, roots, 
         )}
         <RegionToggle />
       </div>
-      {currentPath !== null && <FileBreadcrumbs path={currentPath} onNavigate={navigate} />}
       {loadError !== null && (
         <p role="status" className="form-error">
           {loadError}
@@ -412,6 +414,8 @@ export function FilePane({ title, sourceKey, source, path, onPathChange, roots, 
             onSelect={handleSelect}
             onOpen={handleOpen}
             onDragStart={transfer === undefined ? undefined : handleDragStart}
+            parentPath={listing?.parentPath ?? null}
+            onNavigate={navigate}
           />
         </div>
       )}

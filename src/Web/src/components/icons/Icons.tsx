@@ -218,6 +218,24 @@ export function InsertIcon({ size = 14 }: IconProps) {
   );
 }
 
+export function PencilIcon({ size = 14 }: IconProps) {
+  return (
+    <IconFrame size={size} strokeWidth={2}>
+      <path d="M4 20h4L19 9l-4-4L4 16z" />
+      <path d="M13 7l4 4" />
+    </IconFrame>
+  );
+}
+
+export function FolderPlusIcon({ size = 14 }: IconProps) {
+  return (
+    <IconFrame size={size} strokeWidth={2}>
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <path d="M12 11v5M9.5 13.5h5" />
+    </IconFrame>
+  );
+}
+
 export function TrashIcon({ size = 14 }: IconProps) {
   return (
     <IconFrame size={size} strokeWidth={2}>
