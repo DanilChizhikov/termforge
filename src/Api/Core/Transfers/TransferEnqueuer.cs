@@ -1,5 +1,6 @@
 using DTech.Core.Files;
 using DTech.Core.Operations;
+using DTech.Core.Safety;
 using DTech.Core.Transfers.Execution;
 using DTech.Core.Transfers.Queue;
 
@@ -14,14 +15,16 @@ public sealed class TransferEnqueuer
     private readonly TransferStrategySelector _strategies;
     private readonly ITransferJournal _journal;
     private readonly ITransferNotifier _notifier;
+    private readonly ServerWriteGate _writeGate;
 
-    public TransferEnqueuer(TransferQueue queue, ITransferConnectionOpener opener, TransferStrategySelector strategies, ITransferJournal journal, ITransferNotifier notifier)
+    public TransferEnqueuer(TransferQueue queue, ITransferConnectionOpener opener, TransferStrategySelector strategies, ITransferJournal journal, ITransferNotifier notifier, ServerWriteGate writeGate)
     {
         _queue = queue;
         _opener = opener;
         _strategies = strategies;
         _journal = journal;
         _notifier = notifier;
+        _writeGate = writeGate;
     }
 
     public async Task<TransferEnqueueResult> EnqueueAsync(TransferBatchRequest batch, CancellationToken cancellationToken)
@@ -30,6 +33,12 @@ public sealed class TransferEnqueuer
         {
             var invalid = FileError.Invalid($"Select between 1 and {MaxBatchSize} items to transfer.");
             return TransferEnqueueResult.Failed(invalid);
+        }
+
+        var denied = await CheckUploadAsync(batch, cancellationToken);
+        if (denied is not null)
+        {
+            return TransferEnqueueResult.Failed(denied);
         }
 
         var requests = CreateRequests(batch);
@@ -77,6 +86,12 @@ public sealed class TransferEnqueuer
             return TransferEnqueueResult.Failed(unreadable);
         }
 
+        if (request.Direction == TransferDirection.Upload && await _writeGate.IsReadOnlyAsync(request.ConnectionId, cancellationToken))
+        {
+            var readOnly = FileError.ReadOnlyServer();
+            return TransferEnqueueResult.Failed(readOnly);
+        }
+
         TransferRequest[] requests = [request];
         var inspected = await InspectAsync(requests, cancellationToken);
         if (!inspected.IsSuccess)
@@ -98,6 +113,33 @@ public sealed class TransferEnqueuer
 
         TransferSnapshot[] queued = [admitted.Value];
         return TransferEnqueueResult.Queued(queued);
+    }
+
+    private async Task<FileError?> CheckUploadAsync(TransferBatchRequest batch, CancellationToken cancellationToken)
+    {
+        if (batch.Direction != TransferDirection.Upload)
+        {
+            return null;
+        }
+
+        var writeIntent = new WriteIntent(batch.ConnectionId);
+        if (batch.Overwrite)
+        {
+            writeIntent = writeIntent with
+            {
+                Operation = DangerousOperation.TransferOverwrite,
+                Target = batch.TargetDirectory,
+                ConfirmationToken = batch.ConfirmationToken,
+            };
+        }
+
+        var denial = await _writeGate.CheckAsync(writeIntent, cancellationToken);
+        return denial switch
+        {
+            WriteDenial.ReadOnlyServer => FileError.ReadOnlyServer(),
+            WriteDenial.ConfirmationRequired => FileError.OverwriteConfirmationRequired(batch.TargetDirectory),
+            _ => null,
+        };
     }
 
     private static List<TransferRequest> CreateRequests(TransferBatchRequest batch)

@@ -14,4 +14,6 @@ public enum EditorErrorCode
     SudoPasswordRequired,
     SudoPasswordIncorrect,
     SudoUnavailable,
+    ReadOnlyServer,
+    ConfirmationRequired,
 }

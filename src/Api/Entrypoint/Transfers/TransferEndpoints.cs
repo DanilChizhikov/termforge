@@ -49,6 +49,7 @@ public static class TransferEndpoints
             SourcePaths = body.SourcePaths ?? [],
             TargetDirectory = body.TargetDirectory,
             Overwrite = body.Overwrite,
+            ConfirmationToken = body.ConfirmationToken,
         };
         var result = await enqueuer.EnqueueAsync(batch, cancellationToken);
         if (result.Error is not null)

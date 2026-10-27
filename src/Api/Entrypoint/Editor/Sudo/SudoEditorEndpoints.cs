@@ -96,7 +96,7 @@ public static class SudoEditorEndpoints
     private static async Task<IResult> Rollback(Guid connectionId, SudoRollbackBody body, SudoFileSaveService saves, CancellationToken cancellationToken)
     {
         var expectedVersion = body.ExpectedVersion?.ToVersion();
-        var document = new RollbackDocumentRequest(body.Path, body.BackupName, expectedVersion);
+        var document = new RollbackDocumentRequest(body.Path, body.BackupName, expectedVersion) { ConfirmationToken = body.ConfirmationToken };
         var credentials = SudoCredentialsContract.ToCredentials(body.Sudo);
         var request = new SudoRollbackRequest(connectionId, document, credentials);
         var result = await saves.RollbackAsync(request, cancellationToken);

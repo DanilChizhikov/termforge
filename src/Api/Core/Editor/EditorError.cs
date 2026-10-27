@@ -1,7 +1,16 @@
+using DTech.Core.Safety;
+
 namespace DTech.Core.Editor;
 
 public sealed record EditorError(EditorErrorCode Code, string Message)
 {
+    public static EditorError FromDenial(WriteDenial denial, string? path)
+    {
+        return denial == WriteDenial.ReadOnlyServer
+            ? new EditorError(EditorErrorCode.ReadOnlyServer, ServerWriteGate.ReadOnlyMessage)
+            : new EditorError(EditorErrorCode.ConfirmationRequired, $"Rolling back {path} requires explicit confirmation.");
+    }
+
     public static EditorError Invalid(string message)
     {
         return new EditorError(EditorErrorCode.Invalid, message);

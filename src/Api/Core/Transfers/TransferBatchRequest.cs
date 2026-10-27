@@ -13,4 +13,6 @@ public sealed record TransferBatchRequest
     public required string TargetDirectory { get; init; }
 
     public bool Overwrite { get; init; }
+
+    public string? ConfirmationToken { get; init; }
 }

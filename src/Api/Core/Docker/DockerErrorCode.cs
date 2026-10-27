@@ -11,5 +11,6 @@ public enum DockerErrorCode
     DaemonUnavailable,
     ContainerNotFound,
     ConfirmationRequired,
+    ReadOnlyServer,
     CommandFailed,
 }

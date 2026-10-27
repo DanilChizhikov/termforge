@@ -19,6 +19,7 @@ internal static class SavedConnectionMapper
             JumpHostId = entity.JumpHostId,
             SshAlias = entity.SshAlias,
             ReconnectPolicy = new ReconnectPolicy(entity.ReconnectMode, entity.ReconnectMaxAttempts, entity.ReconnectInitialDelaySeconds, entity.ReconnectMaxDelaySeconds),
+            ReadOnly = entity.ReadOnly,
         };
         return new SavedConnection
         {
@@ -60,6 +61,7 @@ internal static class SavedConnectionMapper
         entity.ReconnectMaxAttempts = details.ReconnectPolicy.MaxAttempts;
         entity.ReconnectInitialDelaySeconds = details.ReconnectPolicy.InitialDelaySeconds;
         entity.ReconnectMaxDelaySeconds = details.ReconnectPolicy.MaxDelaySeconds;
+        entity.ReadOnly = details.ReadOnly;
         entity.HasPassword = model.HasPassword;
         entity.LastConnectedAt = model.LastConnectedAt;
         entity.CreatedAt = model.CreatedAt;

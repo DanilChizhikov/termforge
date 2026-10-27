@@ -28,6 +28,7 @@ public static class ExportedConnectionMapper
             PrivateKeyPath = details.PrivateKeyPath,
             JumpHostId = details.JumpHostId,
             SshAlias = details.SshAlias,
+            ReadOnly = details.ReadOnly,
             Reconnect = reconnect,
         };
     }
@@ -58,6 +59,7 @@ public static class ExportedConnectionMapper
             JumpHostId = connection.JumpHostId,
             SshAlias = connection.SshAlias,
             ReconnectPolicy = policy,
+            ReadOnly = connection.ReadOnly,
         };
         return SavedConnectionValidator.Normalize(draft);
     }

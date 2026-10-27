@@ -38,6 +38,7 @@ internal static class SavedConnectionRequestMapper
             JumpHostId = request.JumpHostId,
             SshAlias = request.SshAlias,
             ReconnectPolicy = reconnectPolicy.Value,
+            ReadOnly = request.ReadOnly ?? false,
         };
         var submission = new SavedConnectionSubmission(draft, request.Password);
         request.Password = null;

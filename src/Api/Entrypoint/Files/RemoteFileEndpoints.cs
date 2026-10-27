@@ -57,9 +57,9 @@ public static class RemoteFileEndpoints
         return ToNoContent(result);
     }
 
-    private static async Task<IResult> Delete(Guid connectionId, DeleteBody body, RemoteFileOperations operations, CancellationToken cancellationToken)
+    private static async Task<IResult> Delete(Guid connectionId, RemoteDeleteBody body, RemoteFileOperations operations, CancellationToken cancellationToken)
     {
-        var request = new DeleteRequest(body.Path ?? string.Empty, body.Confirm);
+        var request = new RemoteDeleteRequest(body.Path ?? string.Empty, body.ConfirmationToken);
         var result = await operations.DeleteAsync(connectionId, request, cancellationToken);
         return ToNoContent(result);
     }

@@ -9,6 +9,7 @@ public enum FileErrorCode
     NotEmpty,
     NotADirectory,
     ConfirmationRequired,
+    ReadOnlyServer,
     ConnectionFailed,
     Cancelled,
     Failed,

@@ -33,6 +33,8 @@ internal static class EditorErrorResults
             EditorErrorCode.SudoPasswordRequired => StatusCodes.Status422UnprocessableEntity,
             EditorErrorCode.SudoPasswordIncorrect => StatusCodes.Status422UnprocessableEntity,
             EditorErrorCode.SudoUnavailable => StatusCodes.Status422UnprocessableEntity,
+            EditorErrorCode.ReadOnlyServer => StatusCodes.Status423Locked,
+            EditorErrorCode.ConfirmationRequired => StatusCodes.Status428PreconditionRequired,
             _ => StatusCodes.Status500InternalServerError,
         };
     }

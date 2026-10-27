@@ -1,6 +1,8 @@
 using DTech.Core.Editor;
 using DTech.Core.Editor.Sudo;
 using DTech.Core.Operations;
+using DTech.Core.Safety;
+using DTech.Core.Tests.Safety.Support;
 using FluentAssertions;
 using NSubstitute;
 
@@ -23,6 +25,7 @@ public sealed class SudoFileSaveServiceTests
     private IOperationJournal _journal = null!;
     private SudoFileSaveService _service = null!;
     private SudoFileEditor _editor = null!;
+    private WriteSafetyFixture _safety = null!;
 
     public TestContext TestContext { get; set; } = null!;
 
@@ -40,7 +43,8 @@ public sealed class SudoFileSaveServiceTests
         var timeProvider = new SteppingTimeProvider(Start);
         var graph = EditorGraph.CreateDefault(timeProvider);
         var recorder = new EditorOperationRecorder(_journal);
-        _service = new SudoFileSaveService(_opener, graph.Paths, graph.Codec, graph.Saver, graph.Rollback, graph.Documents, recorder);
+        _safety = new WriteSafetyFixture();
+        _service = new SudoFileSaveService(_opener, graph.Paths, graph.Codec, graph.Saver, graph.Rollback, graph.Documents, recorder, _safety.Gate);
         _editor = new SudoFileEditor(_opener, graph.Paths, graph.Documents, graph.Catalog);
     }
 
@@ -107,13 +111,34 @@ public sealed class SudoFileSaveServiceTests
         var saveRequest = new SudoSaveRequest(ConnectionId, document, credentials);
         var saved = await _service.SaveAsync(saveRequest, TestContext.CancellationToken);
         var savedFile = saved.Value.Result.Saved!;
-        var rollbackDocument = new RollbackDocumentRequest(FilePath, savedFile.Backup!.Name, savedFile.Version);
+        var token = _safety.Confirm(DangerousOperation.FileRollback, ConnectionId, FilePath);
+        var rollbackDocument = new RollbackDocumentRequest(FilePath, savedFile.Backup!.Name, savedFile.Version) { ConfirmationToken = token };
         var request = new SudoRollbackRequest(ConnectionId, rollbackDocument, credentials);
 
         var result = await _service.RollbackAsync(request, TestContext.CancellationToken);
 
         result.Value.Document!.Content.Text.Should().Be("A=1\n");
         await _journal.Received(1).Create(Arg.Is<CreateOperationRequest>(created => created.Kind == EditorOperationRecorder.RollbackKind && created.Details!["elevation"] == "sudo"), Arg.Any<CancellationToken>());
+    }
+
+    [TestMethod]
+    public async Task PrivilegedSaveAndRollback_OnReadOnlyServer_AreBlockedWithoutConnecting()
+    {
+        _safety.MarkReadOnly(ConnectionId);
+        var credentials = new SudoCredentials(Password, false);
+        var content = new TextContent("A=2\n", false);
+        var document = new SaveDocumentRequest(FilePath, content, null);
+        var saveRequest = new SudoSaveRequest(ConnectionId, document, credentials);
+        var token = _safety.Confirm(DangerousOperation.FileRollback, ConnectionId, FilePath);
+        var rollbackDocument = new RollbackDocumentRequest(FilePath, "backup", null) { ConfirmationToken = token };
+        var rollbackRequest = new SudoRollbackRequest(ConnectionId, rollbackDocument, credentials);
+
+        var saved = await _service.SaveAsync(saveRequest, TestContext.CancellationToken);
+        var rolledBack = await _service.RollbackAsync(rollbackRequest, TestContext.CancellationToken);
+
+        saved.Error!.Code.Should().Be(EditorErrorCode.ReadOnlyServer);
+        rolledBack.Error!.Code.Should().Be(EditorErrorCode.ReadOnlyServer);
+        await _opener.DidNotReceive().OpenAsync(Arg.Any<Guid>(), Arg.Any<SudoCredentials>(), Arg.Any<CancellationToken>());
     }
 
     private EditorResult<RemoteEditorSession> OpenSession()

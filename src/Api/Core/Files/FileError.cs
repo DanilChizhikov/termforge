@@ -1,3 +1,5 @@
+using DTech.Core.Safety;
+
 namespace DTech.Core.Files;
 
 public sealed record FileError(FileErrorCode Code, string Message)
@@ -30,6 +32,16 @@ public sealed record FileError(FileErrorCode Code, string Message)
     public static FileError NotADirectory(string path)
     {
         return new FileError(FileErrorCode.NotADirectory, $"Not a directory: {path}");
+    }
+
+    public static FileError ReadOnlyServer()
+    {
+        return new FileError(FileErrorCode.ReadOnlyServer, ServerWriteGate.ReadOnlyMessage);
+    }
+
+    public static FileError OverwriteConfirmationRequired(string targetDirectory)
+    {
+        return new FileError(FileErrorCode.ConfirmationRequired, $"Overwriting files in {targetDirectory} requires explicit confirmation.");
     }
 
     public static FileError ConfirmationRequired(string path)

@@ -32,6 +32,8 @@ public sealed class SavedConnectionRequest
 
     public int? ReconnectMaxDelaySeconds { get; set; }
 
+    public bool? ReadOnly { get; set; }
+
     public override string ToString()
     {
         return $"{nameof(SavedConnectionRequest)} {{ {nameof(Name)} = {Name}, {nameof(Password)} = {Secret.Redacted} }}";

@@ -1,5 +1,7 @@
 using DTech.Core.Files;
 using DTech.Core.Operations;
+using DTech.Core.Safety;
+using DTech.Core.Tests.Safety.Support;
 using DTech.Core.Transfers;
 using DTech.Core.Transfers.Execution;
 using DTech.Core.Transfers.Queue;
@@ -18,6 +20,7 @@ public sealed class TransferEnqueuerTests
     private ITransferNotifier _notifier = null!;
     private TransferQueue _queue = null!;
     private TransferEnqueuer _enqueuer = null!;
+    private WriteSafetyFixture _safety = null!;
 
     public TestContext TestContext { get; set; } = null!;
 
@@ -41,7 +44,8 @@ public sealed class TransferEnqueuerTests
         _notifier = Substitute.For<ITransferNotifier>();
         _queue = new TransferQueue();
         var strategies = new TransferStrategySelector([_strategy]);
-        _enqueuer = new TransferEnqueuer(_queue, opener, strategies, _journal, _notifier);
+        _safety = new WriteSafetyFixture();
+        _enqueuer = new TransferEnqueuer(_queue, opener, strategies, _journal, _notifier, _safety.Gate);
     }
 
     [TestMethod]
@@ -70,6 +74,51 @@ public sealed class TransferEnqueuerTests
         _queue.List().Should().HaveCount(2);
         await _journal.Received(2).CreateAsync(Arg.Any<TransferRequest>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         await _notifier.Received(2).TransferChanged(Arg.Any<TransferSnapshot>(), Arg.Any<CancellationToken>());
+    }
+
+    [TestMethod]
+    public async Task EnqueueAsync_OverwriteWithoutConfirmationToken_IsRejectedWithoutConnecting()
+    {
+        var batch = CreateUnconfirmedBatch(true, "/home/me/existing.txt");
+
+        var result = await _enqueuer.EnqueueAsync(batch, TestContext.CancellationToken);
+
+        result.Error!.Code.Should().Be(FileErrorCode.ConfirmationRequired);
+        _queue.List().Should().BeEmpty();
+        await _strategy.DidNotReceive().InspectAsync(Arg.Any<TransferContext>(), Arg.Any<CancellationToken>());
+    }
+
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task EnqueueAsync_UploadToReadOnlyServer_IsBlocked(bool overwrite)
+    {
+        _safety.MarkReadOnly(ConnectionId);
+        var batch = CreateBatch(overwrite, "/home/me/new.txt");
+
+        var result = await _enqueuer.EnqueueAsync(batch, TestContext.CancellationToken);
+
+        result.Error!.Code.Should().Be(FileErrorCode.ReadOnlyServer);
+        _queue.List().Should().BeEmpty();
+        await _journal.DidNotReceive().CreateAsync(Arg.Any<TransferRequest>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [TestMethod]
+    public async Task EnqueueAsync_DownloadFromReadOnlyServer_IsAllowed()
+    {
+        _strategy.Direction.Returns(TransferDirection.Download);
+        var strategies = new TransferStrategySelector([_strategy]);
+        var opener = Substitute.For<ITransferConnectionOpener>();
+        var client = Substitute.For<IRemoteFileClient>();
+        opener.OpenAsync(ConnectionId, Arg.Any<CancellationToken>()).Returns(FileResult<IRemoteFileClient>.Success(client));
+        var enqueuer = new TransferEnqueuer(_queue, opener, strategies, _journal, _notifier, _safety.Gate);
+        _safety.MarkReadOnly(ConnectionId);
+        var batch = CreateBatch(false, "/srv/new.txt") with { Direction = TransferDirection.Download };
+
+        var result = await enqueuer.EnqueueAsync(batch, TestContext.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue();
+        _queue.List().Should().ContainSingle();
     }
 
     [TestMethod]
@@ -140,7 +189,44 @@ public sealed class TransferEnqueuerTests
         await _notifier.Received(1).TransferRemoved(previous.Id, Arg.Any<CancellationToken>());
     }
 
-    private static TransferBatchRequest CreateBatch(bool overwrite, params string[] sources)
+    [TestMethod]
+    public async Task RetryAsync_UploadToReadOnlyServer_IsBlocked()
+    {
+        var batch = CreateBatch(false, "/home/me/new.txt");
+        var queued = await _enqueuer.EnqueueAsync(batch, TestContext.CancellationToken);
+        var previous = _queue.Find(queued.Transfers[0].Id)!;
+        var operation = new Operation
+        {
+            Id = previous.Id,
+            Kind = TransferOperationKinds.Upload,
+            Server = previous.Request.ServerName,
+            Status = OperationStatus.Failed,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            Details = TransferOperationDetails.Describe(previous.Request, previous.TargetPath),
+            Retryable = true,
+        };
+        _safety.MarkReadOnly(ConnectionId);
+
+        var result = await _enqueuer.RetryAsync(operation, TestContext.CancellationToken);
+
+        result.Error!.Code.Should().Be(FileErrorCode.ReadOnlyServer);
+        _queue.List().Should().ContainSingle().Which.Id.Should().Be(previous.Id);
+    }
+
+    private TransferBatchRequest CreateBatch(bool overwrite, params string[] sources)
+    {
+        var batch = CreateUnconfirmedBatch(overwrite, sources);
+        if (!overwrite)
+        {
+            return batch;
+        }
+
+        var token = _safety.Confirm(DangerousOperation.TransferOverwrite, ConnectionId, batch.TargetDirectory);
+        return batch with { ConfirmationToken = token };
+    }
+
+    private static TransferBatchRequest CreateUnconfirmedBatch(bool overwrite, params string[] sources)
     {
         return new TransferBatchRequest
         {

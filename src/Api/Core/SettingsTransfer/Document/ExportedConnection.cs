@@ -22,5 +22,7 @@ public sealed record ExportedConnection
 
     public string? SshAlias { get; init; }
 
+    public bool ReadOnly { get; init; }
+
     public ExportedReconnectPolicy? Reconnect { get; init; }
 }

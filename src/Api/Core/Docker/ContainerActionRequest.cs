@@ -1,8 +1,15 @@
+using DTech.Core.Safety;
+
 namespace DTech.Core.Docker;
 
 public sealed record ContainerActionRequest(Guid ConnectionId, string? Container, DockerContainerAction Action)
 {
-    public bool Confirmed { get; init; }
+    public string? ConfirmationToken { get; init; }
 
-    public bool RequiresConfirmation => Action is DockerContainerAction.Stop or DockerContainerAction.Restart;
+    public DangerousOperation? DangerousOperation => Action switch
+    {
+        DockerContainerAction.Stop => Safety.DangerousOperation.ContainerStop,
+        DockerContainerAction.Restart => Safety.DangerousOperation.ContainerRestart,
+        _ => null,
+    };
 }

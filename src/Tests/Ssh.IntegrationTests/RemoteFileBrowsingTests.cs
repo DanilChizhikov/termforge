@@ -1,9 +1,11 @@
 using DTech.Core.Connections;
 using DTech.Core.Files;
 using DTech.Core.Files.Remote;
+using DTech.Core.Safety;
 using DTech.Ssh.IntegrationTests.Harness;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using NSubstitute;
 
 namespace DTech.Ssh.IntegrationTests;
 
@@ -295,7 +297,7 @@ public sealed class RemoteFileBrowsingTests
         var operations = session.CreateOperations();
         var directory = await session.CreateWorkDirectoryAsync(TestContext.CancellationToken);
         var file = await session.UploadAsync(directory, "keep.txt", TestContext.CancellationToken);
-        var request = new DeleteRequest(file, false);
+        var request = new RemoteDeleteRequest(file, null);
 
         var result = await operations.DeleteAsync(RemoteSession.ConnectionId, request, TestContext.CancellationToken);
         var stat = await session.Client.StatAsync(file, TestContext.CancellationToken);
@@ -311,7 +313,9 @@ public sealed class RemoteFileBrowsingTests
         var operations = session.CreateOperations();
         var directory = await session.CreateWorkDirectoryAsync(TestContext.CancellationToken);
         var file = await session.UploadAsync(directory, "gone.txt", TestContext.CancellationToken);
-        var request = new DeleteRequest(file, true);
+        var scope = new ConfirmationScope(DangerousOperation.RemoteDelete, RemoteSession.ConnectionId, file);
+        var grant = session.Confirmations.Issue(scope);
+        var request = new RemoteDeleteRequest(file, grant.Token);
 
         var result = await operations.DeleteAsync(RemoteSession.ConnectionId, request, TestContext.CancellationToken);
         var stat = await session.Client.StatAsync(file, TestContext.CancellationToken);
@@ -390,6 +394,8 @@ public sealed class RemoteFileBrowsingTests
             await _cluster.Target.ExecuteAsync(command, CancellationToken.None);
         }
 
+        public ConfirmationTokenStore Confirmations { get; } = new(TimeProvider.System);
+
         public RemoteFileBrowser CreateBrowser()
         {
             var opener = new ConnectedClientOpener(Client);
@@ -401,7 +407,9 @@ public sealed class RemoteFileBrowsingTests
         {
             var opener = new ConnectedClientOpener(Client);
             var normalizer = new RemotePathNormalizer();
-            return new RemoteFileOperations(opener, normalizer);
+            var accessModes = Substitute.For<IServerAccessModeReader>();
+            var writeGate = new ServerWriteGate(accessModes, Confirmations);
+            return new RemoteFileOperations(opener, normalizer, writeGate);
         }
 
         public async ValueTask DisposeAsync()

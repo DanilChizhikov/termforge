@@ -3,12 +3,14 @@ using DTech.Core.Connections;
 using DTech.Core.Files;
 using DTech.Core.Files.Local;
 using DTech.Core.Files.Remote;
+using DTech.Core.Safety;
 using DTech.Core.Transfers;
 using DTech.Core.Transfers.Execution;
 using DTech.Core.Transfers.Queue;
 using DTech.Ssh.IntegrationTests.Harness;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using NSubstitute;
 
 namespace DTech.Ssh.IntegrationTests.Transfers;
 
@@ -38,9 +40,13 @@ internal sealed class TransferHarness : IAsyncDisposable
         var options = new TransferOptions { ProgressIntervalMilliseconds = 50 };
         var ticker = new TransferProgressTicker(TimeProvider.System, options, Notifier);
         Runner = new TransferRunner(executor, ticker, Journal, Notifier);
-        Enqueuer = new TransferEnqueuer(Queue, opener, strategies, Journal, Notifier);
+        var accessModes = Substitute.For<IServerAccessModeReader>();
+        var writeGate = new ServerWriteGate(accessModes, Confirmations);
+        Enqueuer = new TransferEnqueuer(Queue, opener, strategies, Journal, Notifier, writeGate);
         Control = new TransferControl(Queue, Journal, Notifier, opener, strategies);
     }
+
+    public ConfirmationTokenStore Confirmations { get; } = new(TimeProvider.System);
 
     public IRemoteFileClient Inspector { get; }
 
@@ -98,6 +104,13 @@ internal sealed class TransferHarness : IAsyncDisposable
             TargetDirectory = targetDirectory,
             Overwrite = overwrite,
         };
+        if (overwrite && direction == TransferDirection.Upload)
+        {
+            var scope = new ConfirmationScope(DangerousOperation.TransferOverwrite, ConnectionId, targetDirectory);
+            var grant = Confirmations.Issue(scope);
+            batch = batch with { ConfirmationToken = grant.Token };
+        }
+
         return Enqueuer.EnqueueAsync(batch, CancellationToken.None);
     }
 

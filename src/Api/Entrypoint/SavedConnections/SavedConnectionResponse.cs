@@ -34,6 +34,8 @@ public sealed class SavedConnectionResponse
 
     public int ReconnectMaxDelaySeconds { get; init; }
 
+    public bool ReadOnly { get; init; }
+
     public DateTime? LastConnectedAt { get; init; }
 
     public static SavedConnectionResponse From(SavedConnection connection)
@@ -56,6 +58,7 @@ public sealed class SavedConnectionResponse
             ReconnectMaxAttempts = details.ReconnectPolicy.MaxAttempts,
             ReconnectInitialDelaySeconds = details.ReconnectPolicy.InitialDelaySeconds,
             ReconnectMaxDelaySeconds = details.ReconnectPolicy.MaxDelaySeconds,
+            ReadOnly = details.ReadOnly,
             LastConnectedAt = connection.LastConnectedAt,
         };
     }

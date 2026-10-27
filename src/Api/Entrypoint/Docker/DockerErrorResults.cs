@@ -27,6 +27,7 @@ internal static class DockerErrorResults
             DockerErrorCode.ContainerNotFound => StatusCodes.Status404NotFound,
             DockerErrorCode.CredentialsUnavailable => StatusCodes.Status409Conflict,
             DockerErrorCode.ConfirmationRequired => StatusCodes.Status409Conflict,
+            DockerErrorCode.ReadOnlyServer => StatusCodes.Status423Locked,
             DockerErrorCode.DockerMissing => StatusCodes.Status409Conflict,
             DockerErrorCode.PermissionDenied => StatusCodes.Status409Conflict,
             DockerErrorCode.DaemonUnavailable => StatusCodes.Status409Conflict,
