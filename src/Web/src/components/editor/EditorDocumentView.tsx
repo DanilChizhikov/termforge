@@ -28,8 +28,10 @@ import {
 } from '../../state/editorDocument';
 import { clearEditorDraft, getEditorDraft, setEditorDraft } from '../../state/editorDrafts';
 import { reopenEditorFile, setEditorFileDirty, type EditorFile } from '../../state/editorFiles';
+import { useConnectionName } from '../../state/connections';
 import { EmptyState } from '../EmptyState';
 import { ShieldIcon } from '../icons/Icons';
+import { formatClock, formatDayAndClock } from '../timeFormat';
 import { EditorConflictNotice } from './EditorConflictNotice';
 import { languageForPath } from './editorLanguage';
 import { EditorVersions } from './EditorVersions';
@@ -89,6 +91,8 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
   const [reloadToken, setReloadToken] = useState(0);
   const [elevated, setElevated] = useState(false);
   const [openDenied, setOpenDenied] = useState(false);
+  const [openedAt] = useState(() => new Date());
+  const serverName = useConnectionName(file.connectionId);
   const dirty = isDirty(state);
   const language = languageForPath(file.path);
   const { connectionId, path, key } = file;
@@ -233,7 +237,7 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
   }
 
   function showBackup(backup: FileBackup, content: string): void {
-    setComparison({ title: `Backup ${new Date(backup.createdAtUtc).toLocaleString()}`, content });
+    setComparison({ title: `Backup · ${formatDayAndClock(backup.createdAtUtc)}`, content });
     setView('diff');
   }
 
@@ -288,7 +292,8 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
     if (state.conflict?.currentContent == null) {
       return;
     }
-    setComparison({ title: 'On server now', content: state.conflict.currentContent });
+    const changedAt = state.conflict.currentVersion === null ? '' : ` · changed ${formatClock(state.conflict.currentVersion.modifiedUtc)}`;
+    setComparison({ title: `On server${changedAt}`, content: state.conflict.currentContent });
     setView('diff');
   }
 
@@ -357,6 +362,7 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
     <div className="editor-document" onKeyDown={handleKeyDown}>
       <div className="editor-toolbar">
         <code className="editor-path" title={path}>
+          {serverName === null ? null : <span className="editor-path-server">{serverName}:</span>}
           {path}
         </code>
         <SudoAccessBadge access={access} elevated={elevated} />
@@ -398,7 +404,7 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
         </button>
         <button
           type="button"
-          className="btn btn-sm btn-primary"
+          className="btn btn-sm btn-primary editor-save"
           disabled={!dirty || state.saving || state.conflict !== null}
           onClick={requestSave}
         >
@@ -408,6 +414,7 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
       {state.conflict === null ? null : (
         <EditorConflictNotice
           conflict={state.conflict}
+          openedSize={server.version?.size ?? null}
           busy={state.saving}
           comparing={view === 'diff' && comparison?.content === state.conflict.currentContent}
           onCompare={compareWithServer}
@@ -443,8 +450,11 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
         <div className="editor-surface">
           {view === 'diff' ? (
             <div className="editor-diff-header">
-              <span>{diffTitle}</span>
-              <span>Your version</span>
+              <span className="editor-diff-title">{diffTitle}</span>
+              <span className="editor-diff-title">
+                Your version
+                {dirty ? <span className="editor-diff-note">unsaved changes</span> : null}
+              </span>
             </div>
           ) : null}
           <Suspense fallback={<EmptyState message="Loading editor…" />}>
@@ -479,6 +489,8 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
         <span>{server.hasByteOrderMark ? 'UTF-8 with BOM' : 'UTF-8'}</span>
         <span>{lineEndingOf(state.draft)}</span>
         <span>{language.label}</span>
+        <span className="editor-footer-spacer" />
+        <span>Opened {formatClock(openedAt)}</span>
       </footer>
       {sudoDialog}
     </div>

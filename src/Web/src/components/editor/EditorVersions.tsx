@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { describeEditorError, listBackups, type FileBackup } from '../../api/editor';
+import { formatDayAndClock } from '../timeFormat';
 
 export interface EditorVersionsProps {
   connectionId: string;
@@ -62,7 +63,7 @@ export function EditorVersions({
   return (
     <aside aria-label="Save plan and versions" className="editor-aside">
       <div className="editor-aside-section">
-        <span className="section-label">How this file will be saved</span>
+        <span className="editor-aside-title">How this file will be saved</span>
         <ol className="editor-steps">
           {SAVE_STEPS.map((step, index) => (
             <li key={step}>
@@ -74,7 +75,7 @@ export function EditorVersions({
         {saveNote === null ? null : <p className="field-hint">{saveNote}</p>}
       </div>
       <div className="editor-aside-section">
-        <span className="section-label">Versions</span>
+        <span className="editor-aside-title">Versions</span>
         {loaded === null ? <p className="text-muted">Loading backups…</p> : null}
         {loaded?.error != null ? <p className="form-error">{loaded.error}</p> : null}
         {loaded !== null && loaded.error === null && loaded.backups.length === 0 ? (
@@ -86,9 +87,9 @@ export function EditorVersions({
         <ul className="editor-versions" aria-label="Backups">
           {(loaded?.backups ?? []).map((backup) => (
             <li key={backup.name} className="editor-version">
-              <span className="editor-version-text">
-                <span>{new Date(backup.createdAtUtc).toLocaleString()}</span>
-                <code className="editor-version-name">{backup.name}</code>
+              <span className="editor-version-text" title={backup.name}>
+                <span>{formatDayAndClock(backup.createdAtUtc)}</span>
+                <span className="editor-version-note">Saved from TermForge · backup</span>
               </span>
               {confirming === backup.name ? (
                 <span className="editor-version-actions">
