@@ -2,6 +2,7 @@ using DTech.Core.Operations;
 using DTech.Core.Transfers;
 using DTech.Core.Transfers.Execution;
 using DTech.Core.Transfers.Queue;
+using DTech.Entrypoint.Lifecycle;
 using DTech.Entrypoint.Realtime;
 using DTech.Entrypoint.Transfers;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -35,8 +36,16 @@ public static class TransferServiceCollectionExtensions
         services.AddSingleton<TransferControl>();
         services.AddSingleton<IOperationRetryHandler>(CreateUploadRetryHandler);
         services.AddSingleton<IOperationRetryHandler>(CreateDownloadRetryHandler);
-        services.AddHostedService<TransferQueueHostedService>();
+        services.AddSingleton<TransferQueueHostedService>();
+        services.AddHostedService(ResolveQueueService);
+        services.AddSingleton<IShutdownStep, TransferCancellationShutdownStep>();
+        services.AddSingleton<IShutdownStep, TransferJournalShutdownStep>();
         return services;
+    }
+
+    private static TransferQueueHostedService ResolveQueueService(IServiceProvider provider)
+    {
+        return provider.GetRequiredService<TransferQueueHostedService>();
     }
 
     private static TransferRetryHandler CreateUploadRetryHandler(IServiceProvider provider)
