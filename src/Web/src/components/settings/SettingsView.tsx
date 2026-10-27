@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ImportExportSection } from './ImportExportSection';
 import { RecordingList } from './RecordingList';
 import { RecordingSettingsSection } from './RecordingSettingsSection';
 import { UpdatesCard } from './UpdatesCard';
@@ -13,6 +14,9 @@ export function SettingsView() {
         <a href="#settings-security" aria-current="page" className="settings-nav-link">
           Security
         </a>
+        <a href="#settings-import-export" className="settings-nav-link">
+          Import &amp; export
+        </a>
         <UpdatesNavLink />
       </nav>
       <main id="settings-security" className="settings-main">
@@ -23,6 +27,7 @@ export function SettingsView() {
           </div>
           <RecordingSettingsSection onChanged={() => setVersion((current) => current + 1)} />
           <RecordingList version={version} />
+          <ImportExportSection />
           <UpdatesCard />
         </div>
       </main>

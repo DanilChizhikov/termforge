@@ -43,6 +43,7 @@ interface AutosaveController {
 let warning: WorkspaceWarning | null = null;
 let warningListeners: Array<() => void> = [];
 let autosave: AutosaveController | null = null;
+let autosavePaused = false;
 
 function setWarning(next: WorkspaceWarning | null): void {
   warning = next;
@@ -162,6 +163,9 @@ export function startWorkspaceAutosave(options: WorkspaceAutosaveOptions = {}): 
       clearTimeout(timer);
       timer = null;
     }
+    if (autosavePaused) {
+      return pending;
+    }
     const snapshot = buildWorkspaceSnapshot();
     const serialized = JSON.stringify(snapshot);
     if (serialized === lastSaved) {
@@ -209,6 +213,14 @@ export function startWorkspaceAutosave(options: WorkspaceAutosaveOptions = {}): 
       autosave = null;
     }
   };
+}
+
+export function pauseWorkspaceAutosave(): void {
+  autosavePaused = true;
+}
+
+export function resumeWorkspaceAutosave(): void {
+  autosavePaused = false;
 }
 
 export function flushWorkspaceState(): Promise<void> {
