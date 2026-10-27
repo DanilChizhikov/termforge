@@ -1,4 +1,4 @@
-import { useReducer, useRef, useState } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import { closeTerminal } from '../api/terminals';
 import { useSelectedServerId } from '../state/selectedServer';
 import {
@@ -8,8 +8,9 @@ import {
   terminalTabsReducer,
   type TerminalTab,
 } from '../state/terminalTabs';
+import { getRestoredTerminals, markRestoredTerminalsUsed, publishTerminalTabs } from '../state/workspaceTerminals';
 import { EmptyState } from './EmptyState';
-import { CloseIcon, ListIcon, PlusIcon } from './icons/Icons';
+import { CloseIcon, ListIcon, PlusIcon, RefreshIcon } from './icons/Icons';
 import { CommandHistoryPanel } from './CommandHistoryPanel';
 import { ReconnectBar } from './ReconnectBar';
 import { TerminalRecordingBar } from './TerminalRecordingBar';
@@ -27,8 +28,19 @@ const STATE_DOTS = {
   disconnected: 'status-dot-danger',
 } as const;
 
+const RESTORED_LABEL = 'restored';
+const RESTORED_DOT = 'status-dot-idle';
+
+function stateLabel(tab: TerminalTab): string {
+  return tab.restored ? RESTORED_LABEL : STATE_LABELS[tab.state];
+}
+
+function stateDot(tab: TerminalTab): string {
+  return tab.restored ? RESTORED_DOT : STATE_DOTS[tab.state];
+}
+
 function terminalTabClassName(tab: TerminalTab, active: boolean): string {
-  const classNames = ['terminal-tab', `terminal-tab-${tab.state}`];
+  const classNames = ['terminal-tab', tab.restored ? 'terminal-tab-restored' : `terminal-tab-${tab.state}`];
   if (active) {
     classNames.push('terminal-tab-active');
   }
@@ -37,14 +49,28 @@ function terminalTabClassName(tab: TerminalTab, active: boolean): string {
 
 export function TerminalWorkspace() {
   const selectedServerId = useSelectedServerId();
-  const [tabs, dispatch] = useReducer(terminalTabsReducer, []);
-  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [restored] = useState(getRestoredTerminals);
+  const [tabs, dispatch] = useReducer(terminalTabsReducer, restored.tabs);
+  const [activeKey, setActiveKey] = useState<string | null>(restored.activeKey);
   const visibleKey = tabs.some((tab) => tab.key === activeKey) ? activeKey : (tabs[0]?.key ?? null);
   const [historyOpen, setHistoryOpen] = useState(true);
   const [historyVersion, setHistoryVersion] = useState(0);
   const [recordingKeys, setRecordingKeys] = useState<ReadonlySet<string>>(() => new Set());
   const handles = useRef(new Map<string, TerminalHandle>());
   const visibleTab = tabs.find((tab) => tab.key === visibleKey) ?? null;
+
+  useEffect(() => {
+    markRestoredTerminalsUsed();
+  }, []);
+
+  useEffect(() => {
+    const persisted = tabs.map((tab) => ({
+      key: tab.key,
+      connectionId: tab.connectionId,
+      connectionName: tab.session?.connectionName ?? tab.connectionName ?? '',
+    }));
+    publishTerminalTabs({ tabs: persisted, activeKey: visibleKey });
+  }, [tabs, visibleKey]);
 
   const registerHandle = (key: string) => (handle: TerminalHandle | null) => {
     if (handle === null) {
@@ -114,10 +140,10 @@ export function TerminalWorkspace() {
                         className="terminal-tab-button"
                         onClick={() => setActiveKey(tab.key)}
                       >
-                        <span className={`status-dot status-dot-sm ${STATE_DOTS[tab.state]}`} aria-hidden="true" />
+                        <span className={`status-dot status-dot-sm ${stateDot(tab)}`} aria-hidden="true" />
                         {tabLabel(tab)}{' '}
                         <span className={tab.state === 'connected' ? 'visually-hidden' : 'terminal-tab-state'}>
-                          ({STATE_LABELS[tab.state]})
+                          ({stateLabel(tab)})
                         </span>
                         {recordingKeys.has(tab.key) ? (
                           <span className="badge badge-recording">
@@ -171,7 +197,16 @@ export function TerminalWorkspace() {
           hidden={tab.key !== visibleKey}
           className="terminal-panel"
         >
-          {tab.state === 'disconnected' ? (
+          {tab.restored ? (
+            <p role="status" className="terminal-restored">
+              <span>Restored from your last session. The previous shell was not kept.</span>
+              <button type="button" className="btn btn-sm" onClick={() => dispatch({ type: 'resume', key: tab.key })}>
+                <RefreshIcon size={13} />
+                Reconnect
+              </button>
+            </p>
+          ) : null}
+          {tab.state === 'disconnected' && !tab.restored ? (
             <ReconnectBar
               connectionId={tab.connectionId}
               reason={tab.reason}
@@ -189,6 +224,7 @@ export function TerminalWorkspace() {
               onRecordingChange={(recording) => markRecording(tab.key, recording)}
             />
           ) : null}
+          {tab.restored ? null : (
           <TerminalView
             connectionId={tab.connectionId}
             active={tab.key === visibleKey}
@@ -199,6 +235,7 @@ export function TerminalWorkspace() {
             onOpened={(session) => dispatch({ type: 'opened', key: tab.key, session })}
             onStateChange={(state, reason) => dispatch({ type: 'state', key: tab.key, state, reason })}
           />
+          )}
         </div>
       ))}
       </div>

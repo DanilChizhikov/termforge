@@ -1,5 +1,6 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Panel, usePanelRef } from 'react-resizable-panels';
+import { isPanelCollapsed, recordPanelCollapsed } from '../state/workspaceLayout';
 import { ChevronDownIcon, ChevronRightIcon } from './icons/Icons';
 
 export interface CollapsibleRegionProps {
@@ -22,7 +23,17 @@ export function CollapsibleRegion({
   children,
 }: CollapsibleRegionProps) {
   const panelRef = usePanelRef();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => isPanelCollapsed(id));
+
+  useEffect(() => {
+    if (isPanelCollapsed(id)) {
+      panelRef.current?.collapse();
+    }
+  }, [id, panelRef]);
+
+  useEffect(() => {
+    recordPanelCollapsed(id, collapsed);
+  }, [id, collapsed]);
 
   const toggle = () => {
     const panel = panelRef.current;

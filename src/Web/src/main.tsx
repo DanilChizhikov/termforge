@@ -4,6 +4,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { loadTerminalFont } from './components/terminalTheme';
+import { restoreWorkspace, startWorkspaceAutosave } from './state/workspacePersistence';
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/components.css';
@@ -27,4 +28,12 @@ function renderApp(): void {
   );
 }
 
-void loadTerminalFont().finally(renderApp);
+async function start(): Promise<void> {
+  const [, restored] = await Promise.all([loadTerminalFont().catch(() => undefined), restoreWorkspace()]);
+  renderApp();
+  if (restored) {
+    startWorkspaceAutosave();
+  }
+}
+
+void start();

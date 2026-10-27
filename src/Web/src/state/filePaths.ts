@@ -1,11 +1,17 @@
 import { useSyncExternalStore } from 'react';
 
 const LOCAL_KEY = 'local';
+const REMOTE_PREFIX = 'remote:';
+
+export interface FilePathsSnapshot {
+  localPath: string | null;
+  remotePaths: ReadonlyMap<string, string>;
+}
 
 let paths: ReadonlyMap<string, string> = new Map();
 let listeners: Array<() => void> = [];
 
-function subscribe(listener: () => void): () => void {
+export function subscribeFilePaths(listener: () => void): () => void {
   listeners = [...listeners, listener];
   return () => {
     listeners = listeners.filter((item) => item !== listener);
@@ -24,7 +30,7 @@ function setPath(key: string, path: string): void {
 
 function usePath(key: string): string | null {
   return useSyncExternalStore(
-    subscribe,
+    subscribeFilePaths,
     () => paths.get(key) ?? null,
     () => null,
   );
@@ -39,11 +45,33 @@ export function useLocalPath(): string | null {
 }
 
 export function setRemotePath(serverId: string, path: string): void {
-  setPath(`remote:${serverId}`, path);
+  setPath(`${REMOTE_PREFIX}${serverId}`, path);
 }
 
 export function useRemotePath(serverId: string): string | null {
-  return usePath(`remote:${serverId}`);
+  return usePath(`${REMOTE_PREFIX}${serverId}`);
+}
+
+export function getFilePaths(): FilePathsSnapshot {
+  const remotePaths = new Map<string, string>();
+  for (const [key, path] of paths) {
+    if (key.startsWith(REMOTE_PREFIX)) {
+      remotePaths.set(key.slice(REMOTE_PREFIX.length), path);
+    }
+  }
+  return { localPath: paths.get(LOCAL_KEY) ?? null, remotePaths };
+}
+
+export function restoreFilePaths(localPath: string | null, remotePaths: ReadonlyMap<string, string>): void {
+  const next = new Map<string, string>();
+  if (localPath !== null) {
+    next.set(LOCAL_KEY, localPath);
+  }
+  for (const [serverId, path] of remotePaths) {
+    next.set(`${REMOTE_PREFIX}${serverId}`, path);
+  }
+  paths = next;
+  listeners.forEach((listener) => listener());
 }
 
 export function resetFilePaths(): void {

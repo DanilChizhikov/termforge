@@ -300,6 +300,71 @@ namespace DTech.Persistence.Migrations
                     b.ToTable("app_settings", (string)null);
                 });
 
+            modelBuilder.Entity("DTech.Persistence.Workspace.WorkspaceEditorDraftEntity", b =>
+                {
+                    b.Property<Guid>("ConnectionId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("connection_id");
+
+                    b.Property<string>("Path")
+                        .HasMaxLength(4096)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("path");
+
+                    b.Property<DateTime?>("BaseModifiedAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("base_modified_at");
+
+                    b.Property<string>("BaseSha256")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("base_sha256");
+
+                    b.Property<long?>("BaseSize")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("base_size");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("content");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("ConnectionId", "Path")
+                        .HasName("pk_workspace_editor_drafts");
+
+                    b.ToTable("workspace_editor_drafts", (string)null);
+                });
+
+            modelBuilder.Entity("DTech.Persistence.Workspace.WorkspaceStateEntity", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Document")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("document");
+
+                    b.Property<int>("SchemaVersion")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("schema_version");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_workspace_states");
+
+                    b.ToTable("workspace_states", (string)null);
+                });
+
             modelBuilder.Entity("DTech.Persistence.CommandHistory.CommandHistoryEntity", b =>
                 {
                     b.HasOne("DTech.Persistence.SavedConnections.SavedConnectionEntity", null)
@@ -317,6 +382,16 @@ namespace DTech.Persistence.Migrations
                         .HasForeignKey("JumpHostId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_saved_connections_saved_connections_jump_host_id");
+                });
+
+            modelBuilder.Entity("DTech.Persistence.Workspace.WorkspaceEditorDraftEntity", b =>
+                {
+                    b.HasOne("DTech.Persistence.SavedConnections.SavedConnectionEntity", null)
+                        .WithMany()
+                        .HasForeignKey("ConnectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_workspace_editor_drafts_saved_connections_connection_id");
                 });
 #pragma warning restore 612, 618
         }

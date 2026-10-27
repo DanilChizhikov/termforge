@@ -5,9 +5,15 @@ import {
   useEditorFiles,
   type EditorFile,
 } from '../../state/editorFiles';
+import { clearEditorDraft } from '../../state/editorDrafts';
 import { EmptyState } from '../EmptyState';
 import { CloseIcon, FileIcon } from '../icons/Icons';
 import { EditorDocumentView } from './EditorDocumentView';
+
+function closeFile(key: string): void {
+  clearEditorDraft(key);
+  closeEditorFile(key);
+}
 
 function editorTabClassName(active: boolean): string {
   return active ? 'terminal-tab terminal-tab-active' : 'terminal-tab';
@@ -34,7 +40,7 @@ export function EditorWorkspace() {
       setClosing(file);
       return;
     }
-    closeEditorFile(file.key);
+    closeFile(file.key);
   }
 
   if (files.length === 0) {
@@ -92,7 +98,7 @@ export function EditorWorkspace() {
               type="button"
               className="btn btn-sm btn-destructive"
               onClick={() => {
-                closeEditorFile(closing.key);
+                closeFile(closing.key);
                 setClosing(null);
               }}
             >

@@ -3,14 +3,14 @@ import { useSyncExternalStore } from 'react';
 let selectedServerId: string | null = null;
 let listeners: Array<() => void> = [];
 
-function subscribe(listener: () => void): () => void {
+export function subscribeSelectedServer(listener: () => void): () => void {
   listeners = [...listeners, listener];
   return () => {
     listeners = listeners.filter((item) => item !== listener);
   };
 }
 
-function getSnapshot(): string | null {
+export function getSelectedServerId(): string | null {
   return selectedServerId;
 }
 
@@ -23,5 +23,5 @@ export function selectServer(id: string | null): void {
 }
 
 export function useSelectedServerId(): string | null {
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return useSyncExternalStore(subscribeSelectedServer, getSelectedServerId, getSelectedServerId);
 }

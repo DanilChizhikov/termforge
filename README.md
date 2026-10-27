@@ -136,6 +136,10 @@ Select files or folders and use Upload or Download, or drag them between the loc
 
 Double-click a remote file (or select it and press Edit) to open it in the Editor tab: Monaco with syntax highlighting, several files at once, unsaved markers, ⌘S/Ctrl+S, a diff view and the list of backups with compare and roll back. Saving checks that the file did not change since it was opened (mtime, size and SHA-256), backs up the original, writes a temporary file and atomically renames it into place, keeping permissions. A changed file is never overwritten without an explicit choice. Saves are recorded in the journal. Limits are set by `Editor:MaxFileBytes` and `Editor:MaxBackupsPerFile`. See `docs/decisions/remote-file-editor.md`.
 
+## Workspace persistence
+
+The workspace is saved in the database about one second after it changes and restored on the next start: the selected server, the active view, terminal tabs and their servers, local and remote paths, panel sizes and collapsed regions, open editor tabs and unsaved editor changes. Restored terminal tabs start disconnected with a Reconnect action that opens a new shell (live SSH processes do not survive a restart); restored editor tabs load the file only when opened, then apply the unsaved changes. A saved workspace that cannot be read is reset with a warning; unsaved editor changes are kept. See `docs/decisions/workspace-persistence.md`.
+
 ## Docker
 
 The Docker tab lists the containers of the selected server with their state, ports and status, and shows why Docker cannot be used when it is missing or the user has no access to the daemon. Containers can be started, stopped and restarted (stop and restart ask for confirmation); every action is recorded in the journal. Logs stream with a line limit and follow mode, and Shell opens an interactive terminal inside a running container (bash, falling back to sh). Container names are validated and quoted before they reach the shell. See `docs/decisions/docker-management.md`.
