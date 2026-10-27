@@ -5,7 +5,7 @@ import type { EditorDocument, SavedFile } from '../../api/editor';
 import type { FileAccess, SudoStatus } from '../../api/sudoEditor';
 import { resetEditorDrafts } from '../../state/editorDrafts';
 import { openEditorFile, resetEditorFiles } from '../../state/editorFiles';
-import { EditorWorkspace } from './EditorWorkspace';
+import { EditorHarness } from '../../test/EditorHarness';
 
 vi.mock('./CodeEditor', () => ({
   default: ({ value, label, onChange }: { value: string; label: string; onChange: (text: string) => void }) => (
@@ -102,7 +102,7 @@ afterEach(() => {
 
 async function openAndEdit(text: string) {
   const user = userEvent.setup();
-  render(<EditorWorkspace />);
+  render(<EditorHarness />);
   act(() => openEditorFile(CONNECTION_ID, PATH));
   const editor = await screen.findByLabelText(`Editing ${PATH}`);
   await user.clear(editor);
@@ -178,7 +178,7 @@ describe('sudo editing', () => {
     status = { availability: 'Passwordless', hasSavedPassword: false, message: 'sudo works without a password.' };
     openResponse = () => json({ code: 'PermissionDenied', detail: `Permission denied: ${PATH}` }, 422);
     const user = userEvent.setup();
-    render(<EditorWorkspace />);
+    render(<EditorHarness />);
     act(() => openEditorFile(CONNECTION_ID, PATH));
 
     await user.click(await screen.findByRole('button', { name: 'Open with sudo' }));
@@ -193,7 +193,7 @@ describe('sudo editing', () => {
   it('explains when sudo is unavailable and stays in normal mode', async () => {
     status = { availability: 'Unavailable', hasSavedPassword: false, message: 'This user is not allowed to use sudo on this server.' };
     const user = userEvent.setup();
-    render(<EditorWorkspace />);
+    render(<EditorHarness />);
     act(() => openEditorFile(CONNECTION_ID, PATH));
     await screen.findByLabelText(`Editing ${PATH}`);
 
@@ -207,7 +207,7 @@ describe('sudo editing', () => {
   it('forgets a remembered password', async () => {
     status = { availability: 'PasswordRequired', hasSavedPassword: true, message: 'sudo needs a password.' };
     const user = userEvent.setup();
-    render(<EditorWorkspace />);
+    render(<EditorHarness />);
     act(() => openEditorFile(CONNECTION_ID, PATH));
     await screen.findByLabelText(`Editing ${PATH}`);
     await user.click(screen.getByRole('button', { name: 'Edit with sudo' }));
@@ -220,7 +220,7 @@ describe('sudo editing', () => {
 
   it('falls back to the uid when the owner name cannot be resolved', async () => {
     access = { ownerId: 0, ownerName: null, writable: false };
-    render(<EditorWorkspace />);
+    render(<EditorHarness />);
     act(() => openEditorFile(CONNECTION_ID, PATH));
 
     expect(await screen.findByText('owned by uid 0 · save needs sudo')).toBeInTheDocument();
@@ -230,7 +230,7 @@ describe('sudo editing', () => {
 
   it('shows no sudo badge for a file the user can write', async () => {
     access = { ownerId: 1000, ownerName: 'deploy', writable: true };
-    render(<EditorWorkspace />);
+    render(<EditorHarness />);
     act(() => openEditorFile(CONNECTION_ID, PATH));
     await screen.findByLabelText(`Editing ${PATH}`);
 

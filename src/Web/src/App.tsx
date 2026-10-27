@@ -8,10 +8,12 @@ import { SettingsView } from './components/settings/SettingsView';
 import { WorkspaceRestoreNotice } from './components/WorkspaceRestoreNotice';
 import { WorkspaceTabs } from './components/WorkspaceTabs';
 import { useAppView } from './state/appView';
+import { useConnections } from './state/connections';
 import { usePersistentLayout } from './state/workspaceLayout';
 
 export function App() {
   const view = useAppView();
+  useConnections();
   const layout = usePersistentLayout('app-layout');
 
   return (

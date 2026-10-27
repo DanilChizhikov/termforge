@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EditorDocument, SaveConflict, SavedFile } from '../../api/editor';
 import { openEditorFile, resetEditorFiles } from '../../state/editorFiles';
-import { EditorWorkspace } from './EditorWorkspace';
+import { EditorHarness } from '../../test/EditorHarness';
 
 vi.mock('./CodeEditor', () => ({
   default: ({ value, label, onChange }: { value: string; label: string; onChange: (text: string) => void }) => (
@@ -100,7 +100,7 @@ function saves(): Recorded[] {
 
 async function openAndEdit(text: string) {
   const user = userEvent.setup();
-  render(<EditorWorkspace />);
+  render(<EditorHarness />);
   act(() => openEditorFile(CONNECTION_ID, PATH));
   const editor = await screen.findByLabelText(`Editing ${PATH}`);
   await user.clear(editor);
@@ -110,13 +110,13 @@ async function openAndEdit(text: string) {
 
 describe('EditorWorkspace', () => {
   it('shows an empty state when nothing is open', () => {
-    render(<EditorWorkspace />);
+    render(<EditorHarness />);
 
     expect(screen.getByText(/No files open/)).toBeInTheDocument();
   });
 
   it('opens the file with its path and permissions and starts clean', async () => {
-    render(<EditorWorkspace />);
+    render(<EditorHarness />);
     act(() => openEditorFile(CONNECTION_ID, PATH));
 
     expect(await screen.findByLabelText(`Editing ${PATH}`)).toHaveValue('name: app\n');
@@ -222,7 +222,7 @@ describe('EditorWorkspace', () => {
     fetchMock.mockImplementationOnce(() =>
       Promise.resolve(json({ code: 'Binary', detail: '/bin/ls looks like a binary file and cannot be edited as text.' }, 415)),
     );
-    render(<EditorWorkspace />);
+    render(<EditorHarness />);
 
     act(() => openEditorFile(CONNECTION_ID, '/bin/ls'));
 

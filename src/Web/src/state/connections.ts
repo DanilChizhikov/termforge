@@ -57,8 +57,20 @@ export function useConnections(): readonly SavedConnection[] {
   return useSyncExternalStore(subscribeConnections, getConnections, getConnections);
 }
 
+export function useConnectionsSnapshot(): readonly SavedConnection[] {
+  return useSyncExternalStore(subscribeConnections, getConnections, getConnections);
+}
+
+export function useConnectionName(id: string | null): string | null {
+  const list = useConnectionsSnapshot();
+  if (id === null) {
+    return null;
+  }
+  return list.find((connection) => connection.id === id)?.name ?? null;
+}
+
 export function useConnection(id: string | null): SavedConnection | null {
-  const list = useConnections();
+  const list = useConnectionsSnapshot();
   if (id === null) {
     return null;
   }
