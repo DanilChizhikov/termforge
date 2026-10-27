@@ -26,6 +26,24 @@
   letter-spacing: -0.01em;
 }
 
+.brand-home {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+}
+
+.brand-home:hover {
+  color: var(--text-secondary);
+}
+
 .brand-mark {
   display: flex;
   align-items: center;

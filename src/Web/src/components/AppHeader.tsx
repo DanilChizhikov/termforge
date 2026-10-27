@@ -10,14 +10,26 @@ export function AppHeader() {
   const inSettings = view === 'settings';
   const [exiting, setExiting] = useState(false);
   const closeExit = useCallback(() => setExiting(false), []);
+  const showWorkspace = () => showAppView('workspace');
+  const brandName = (
+    <>
+      <span className="brand-mark">
+        <BrandMarkIcon />
+      </span>
+      <span>TermForge</span>
+    </>
+  );
 
   return (
     <header className="app-header">
       <div className="brand">
-        <span className="brand-mark">
-          <BrandMarkIcon />
-        </span>
-        <span>TermForge</span>
+        {inSettings ? (
+          <button type="button" className="brand-home" title="Back to workspace" onClick={showWorkspace}>
+            {brandName}
+          </button>
+        ) : (
+          brandName
+        )}
         {inSettings ? (
           <>
             <span className="brand-separator">/</span>
@@ -27,7 +39,7 @@ export function AppHeader() {
       </div>
       <div className="app-header-spacer" />
       {inSettings ? (
-        <button type="button" className="btn btn-sm btn-header" onClick={() => showAppView('workspace')}>
+        <button type="button" className="btn btn-sm btn-header" onClick={showWorkspace}>
           <ChevronLeftIcon />
           Back to workspace
         </button>
