@@ -4,6 +4,7 @@ import { useEditorFiles } from '../state/editorFiles';
 import { useFailedOperationsToday } from '../state/failedOperations';
 import { useSelectedServerId } from '../state/selectedServer';
 import { activateWorkspaceTab, useActiveWorkspaceTab, type WorkspaceTabId } from '../state/workspaceTab';
+import { AppFooter } from './AppFooter';
 import { DockerWorkspace } from './docker/DockerWorkspace';
 import { EditorCloseDialog } from './editor/EditorCloseDialog';
 import { EditorFileTabs } from './editor/EditorFileTabs';
@@ -110,6 +111,7 @@ export function WorkspaceTabs() {
       <ToolPanel id="history" activeId={activeId}>
         {activeId === 'history' ? <OperationHistory /> : null}
       </ToolPanel>
+      <AppFooter />
     </div>
   );
 }

@@ -1723,3 +1723,21 @@
 .file-toolbar-spacer {
   flex: 1;
 }
+
+.app-footer {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  min-height: 28px;
+  padding: 4px 12px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-canvas);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+}
+
+.app-footer-spacer {
+  flex: 1;
+}

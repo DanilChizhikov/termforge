@@ -14,6 +14,7 @@ import { editorFileKey, getEditorFiles, restoreEditorFiles, subscribeEditorFiles
 import { getFilePaths, restoreFilePaths, subscribeFilePaths } from './filePaths';
 import { getSelectedServerId, selectServer, subscribeSelectedServer } from './selectedServer';
 import { getWorkspaceLayout, restoreWorkspaceLayout, subscribeWorkspaceLayout } from './workspaceLayout';
+import { markWorkspaceSaved } from './workspaceSaved';
 import {
   activateWorkspaceTab,
   getActiveWorkspaceTab,
@@ -170,6 +171,7 @@ export function startWorkspaceAutosave(options: WorkspaceAutosaveOptions = {}): 
       .then(() => saveWorkspace(snapshot, client))
       .then(() => {
         lastSaved = serialized;
+        markWorkspaceSaved(new Date());
       })
       .catch(() => undefined);
     return pending;
