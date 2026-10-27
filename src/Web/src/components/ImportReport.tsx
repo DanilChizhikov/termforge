@@ -9,7 +9,7 @@ export function ImportReport({ result, onDismiss }: ImportReportProps) {
   return (
     <div className="import-report" role="status">
       <p>
-        Imported from {result.configPath}: {result.created} added, {result.updated} updated.
+        Imported from <code>{result.configPath}</code>: {result.created} added, {result.updated} updated.
       </p>
       {result.issues.length === 0 ? null : (
         <>
@@ -17,8 +17,8 @@ export function ImportReport({ result, onDismiss }: ImportReportProps) {
           <ul>
             {result.issues.map((issue) => (
               <li key={`${issue.filePath}:${issue.line}:${issue.reason}`}>
-                {issue.directive} ({issue.filePath}
-                {issue.line > 0 ? `:${issue.line}` : ''}): {issue.reason}
+                {issue.directive} (<code>{issue.filePath}
+                {issue.line > 0 ? `:${issue.line}` : ''}</code>): {issue.reason}
                 {issue.affectedAliases.length > 0 ? ` Hosts: ${issue.affectedAliases.join(', ')}.` : ''}
               </li>
             ))}

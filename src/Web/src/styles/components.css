@@ -647,32 +647,6 @@ dl.fingerprint {
   background: var(--text-primary);
 }
 
-.sidebar-metrics {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--surface-card);
-  color: var(--text-secondary);
-  font-size: var(--text-small);
-}
-
-.sidebar-metrics-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.sidebar-metrics-value {
-  color: var(--text-primary);
-}
-
-.sidebar-metrics-missing {
-  color: var(--text-muted);
-}
-
 .progress {
   display: block;
   width: 100%;

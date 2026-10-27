@@ -12,6 +12,7 @@ import { getRestoredTerminals, markRestoredTerminalsUsed, publishTerminalTabs } 
 import { EmptyState } from './EmptyState';
 import { CloseIcon, ListIcon, PlusIcon, RefreshIcon } from './icons/Icons';
 import { CommandHistoryPanel } from './CommandHistoryPanel';
+import { RegionToggle } from './CollapsibleRegion';
 import { ReconnectBar } from './ReconnectBar';
 import { TerminalRecordingBar } from './TerminalRecordingBar';
 import { TerminalView, type TerminalHandle } from './TerminalView';
@@ -184,6 +185,7 @@ export function TerminalWorkspace() {
           <PlusIcon size={13} />
           New terminal
         </button>
+        <RegionToggle />
       </div>
       {tabs.length === 0 ? <EmptyState message="No terminal sessions. Connect to a server to open one." /> : null}
       <div className="terminal-body">

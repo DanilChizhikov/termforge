@@ -11,6 +11,7 @@ import {
   type SortKey,
 } from '../api/files';
 import type { FileSearchMatch, FileSearchSource } from '../api/fileSearch';
+import { RegionToggle } from './CollapsibleRegion';
 import { EmptyState } from './EmptyState';
 import { FileBreadcrumbs } from './FileBreadcrumbs';
 import { FileSearchPanel } from './FileSearchPanel';
@@ -331,6 +332,7 @@ export function FilePane({ title, sourceKey, source, path, onPathChange, roots, 
             {transfer.label}
           </button>
         )}
+        <RegionToggle />
       </div>
       {currentPath !== null && <FileBreadcrumbs path={currentPath} onNavigate={navigate} />}
       {loadError !== null && (

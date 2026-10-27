@@ -40,7 +40,7 @@ describe('layout', () => {
 });
 
 describe('collapsible regions', () => {
-  it.each(['Servers', 'Terminals', 'Files', 'Local', 'Remote'])('collapses and expands %s', async (title) => {
+  it.each(['Servers', 'Terminals', 'Local', 'Remote'])('collapses and expands %s', async (title) => {
     const user = userEvent.setup();
     render(<App />);
     const region = screen.getByRole('region', { name: title });

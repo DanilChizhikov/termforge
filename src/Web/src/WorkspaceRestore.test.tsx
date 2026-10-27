@@ -73,9 +73,9 @@ describe('restored layout', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole('button', { name: 'Collapse Files' }));
+    await user.click(screen.getByRole('button', { name: 'Collapse Local' }));
 
-    expect(isPanelCollapsed('files')).toBe(true);
+    expect(isPanelCollapsed('local-files')).toBe(true);
   });
 
   it('opens the saved workspace view', () => {

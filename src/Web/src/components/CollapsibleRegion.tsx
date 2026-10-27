@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Panel, usePanelRef } from 'react-resizable-panels';
 import { isPanelCollapsed, recordPanelCollapsed } from '../state/workspaceLayout';
 import { ChevronDownIcon, ChevronRightIcon } from './icons/Icons';
@@ -12,7 +12,33 @@ export interface CollapsibleRegionProps {
   children: ReactNode;
 }
 
+interface RegionToggleState {
+  title: string;
+  collapsed: boolean;
+  toggle: () => void;
+}
+
 const COLLAPSED_SIZE_PX = 28;
+
+const RegionToggleContext = createContext<RegionToggleState | null>(null);
+
+export function RegionToggle() {
+  const region = useContext(RegionToggleContext);
+  if (region === null) {
+    return null;
+  }
+  return (
+    <button
+      type="button"
+      className="icon-btn icon-btn-sm region-toggle"
+      aria-expanded={!region.collapsed}
+      aria-label={`${region.collapsed ? 'Expand' : 'Collapse'} ${region.title}`}
+      onClick={region.toggle}
+    >
+      {region.collapsed ? <ChevronRightIcon size={13} /> : <ChevronDownIcon size={13} />}
+    </button>
+  );
+}
 
 export function CollapsibleRegion({
   id,
@@ -52,6 +78,8 @@ export function CollapsibleRegion({
     }
   };
 
+  const toggleState: RegionToggleState = { title, collapsed, toggle };
+
   return (
     <Panel
       id={id}
@@ -63,25 +91,21 @@ export function CollapsibleRegion({
       onResize={syncCollapsedState}
       className="region"
     >
-      <section aria-label={title} className="region-content">
-        <header className="region-header">
-          <span className="section-label">{title}</span>
-          <button
-            type="button"
-            className="icon-btn icon-btn-sm"
-            aria-expanded={!collapsed}
-            aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${title}`}
-            onClick={toggle}
-          >
-            {collapsed ? <ChevronRightIcon size={13} /> : <ChevronDownIcon size={13} />}
-          </button>
-        </header>
-        {collapsed && !keepMounted ? null : (
-          <div className="region-body" hidden={collapsed}>
-            {children}
-          </div>
-        )}
-      </section>
+      <RegionToggleContext.Provider value={toggleState}>
+        <section aria-label={title} className="region-content">
+          {collapsed ? (
+            <header className="region-header">
+              <span className="section-label">{title}</span>
+              <RegionToggle />
+            </header>
+          ) : null}
+          {collapsed && !keepMounted ? null : (
+            <div className="region-body" hidden={collapsed}>
+              {children}
+            </div>
+          )}
+        </section>
+      </RegionToggleContext.Provider>
     </Panel>
   );
 }
