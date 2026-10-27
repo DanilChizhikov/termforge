@@ -49,7 +49,7 @@ await fetch('/api/credentials/vault/unlock', {
 - Secrets are wrapped in `Secret`: `ToString()` returns `[redacted]` and `Dispose()` zeroes the buffer. Logs contain backend names, error codes and diagnostics, never secret values or the master password.
 - Vault: PBKDF2-HMAC-SHA256 (600,000 iterations), AES-256-GCM with a fresh random nonce on every write, the whole header authenticated as associated data, versioned format, atomic replace, `0600` file permissions on Unix. Nothing is written to disk in plaintext.
 - A wrong master password (`InvalidMasterPassword`) is reported separately from a modified or damaged file (`VaultCorrupted`) and from a file written by a newer version (`UnsupportedVaultVersion`).
-- Secrets are never exported. Settings export is a separate, later feature.
+- Secrets leave the credential store only through the settings export, and only into a separate archive encrypted with the vault crypto after explicit confirmation and an archive password (`docs/decisions/settings-import-and-export.md`). They are never written in plaintext.
 
 ## Troubleshooting
 
