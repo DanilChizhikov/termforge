@@ -43,6 +43,7 @@
 
 .brand-separator {
   color: var(--text-muted);
+  font-size: var(--text-body);
   font-weight: 400;
 }
 
@@ -58,13 +59,43 @@
   min-height: 0;
 }
 
-.update-notice {
-  display: flex;
-  flex-wrap: wrap;
+.update-pill {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  color: var(--text-muted);
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 9px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--status-info-soft);
+  color: var(--status-info-text);
   font-size: var(--text-small);
+}
+
+.update-pill:hover {
+  color: var(--text-primary);
+}
+
+.header-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-control);
+  color: var(--text-primary);
+  font-size: var(--text-small);
+}
+
+.header-link:hover {
+  background: var(--surface-raised);
+}
+
+.btn-header {
+  min-height: 32px;
+  border-color: var(--border-default);
 }
 
 .session-banner {

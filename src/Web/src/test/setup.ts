@@ -16,4 +16,6 @@ afterEach(async () => {
   resetWorkspaceLayout();
   const { resetConnections } = await import('../state/connections');
   resetConnections();
+  const { resetUpdates } = await import('../state/updates');
+  resetUpdates();
 });

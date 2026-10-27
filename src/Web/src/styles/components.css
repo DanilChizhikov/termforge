@@ -283,6 +283,10 @@ select.input {
   background: var(--status-caution);
 }
 
+.status-dot-info {
+  background: var(--status-info);
+}
+
 .status-dot-danger {
   border-radius: 2px;
   background: var(--status-danger);

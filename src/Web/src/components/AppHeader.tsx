@@ -1,5 +1,6 @@
 import { showAppView, useAppView } from '../state/appView';
 import { BrandMarkIcon, ChevronLeftIcon, SettingsIcon } from './icons/Icons';
+import { TransfersIndicator } from './TransfersIndicator';
 import { UpdateNotice } from './UpdateNotice';
 
 export function AppHeader() {
@@ -22,13 +23,14 @@ export function AppHeader() {
       </div>
       <div className="app-header-spacer" />
       {inSettings ? (
-        <button type="button" className="btn btn-sm" onClick={() => showAppView('workspace')}>
+        <button type="button" className="btn btn-sm btn-header" onClick={() => showAppView('workspace')}>
           <ChevronLeftIcon />
           Back to workspace
         </button>
       ) : (
         <>
           <UpdateNotice />
+          <TransfersIndicator />
           <button
             type="button"
             className="icon-btn icon-btn-lg"
