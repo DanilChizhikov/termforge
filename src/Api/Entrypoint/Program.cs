@@ -35,6 +35,7 @@ builder.Services.AddSettingsTransfer();
 var app = builder.Build();
 await app.MigrateDatabaseAsync();
 app.UseLocalHostSecurity();
+app.UseApplicationLifecycle();
 app.MapApplicationLifecycle();
 app.MapCredentialEndpoints();
 app.MapRealtimeEndpoints();

@@ -58,6 +58,15 @@ public sealed class TerminalSessionManager(ITerminalSessionFactory sessionFactor
             .ToList();
     }
 
+    public IReadOnlyList<TerminalSessionDescriptor> ListAll()
+    {
+        return _sessions.Values
+            .Select(session => session.Descriptor)
+            .OrderBy(descriptor => descriptor.OpenedAt)
+            .ThenBy(descriptor => descriptor.SessionNumber)
+            .ToList();
+    }
+
     public async Task<bool> CloseAsync(TerminalSessionId id, string ownerKey, string reason)
     {
         var session = Find(id, ownerKey);

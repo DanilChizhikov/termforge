@@ -10,31 +10,24 @@ internal sealed class TransferQueueHostedService : BackgroundService
     private readonly TransferRunner _runner;
     private readonly TransferControl _control;
     private readonly TransferOptions _options;
-    private readonly IHostApplicationLifetime _lifetime;
     private readonly ILogger<TransferQueueHostedService> _logger;
-    private CancellationTokenRegistration _stoppingRegistration;
-    private Task _cancellation = Task.CompletedTask;
 
     public TransferQueueHostedService(
         TransferQueue queue,
         TransferRunner runner,
         TransferControl control,
         TransferOptions options,
-        IHostApplicationLifetime lifetime,
         ILogger<TransferQueueHostedService> logger)
     {
         _queue = queue;
         _runner = runner;
         _control = control;
         _options = options;
-        _lifetime = lifetime;
         _logger = logger;
     }
 
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
-        await _stoppingRegistration.DisposeAsync();
-        await _cancellation;
         await _control.CancelAllAsync();
         using var timeout = new CancellationTokenSource(_options.ShutdownTimeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
@@ -47,7 +40,6 @@ internal sealed class TransferQueueHostedService : BackgroundService
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _stoppingRegistration = _lifetime.ApplicationStopping.Register(BeginCancellation);
         var parallelism = _options.EffectiveParallelism;
         var workers = new Task[parallelism];
         for (var i = 0; i < parallelism; i++)
@@ -59,21 +51,15 @@ internal sealed class TransferQueueHostedService : BackgroundService
         return Task.WhenAll(workers);
     }
 
-    private void BeginCancellation()
+    public async Task WaitForWorkersAsync(CancellationToken cancellationToken)
     {
-        _cancellation = CancelAllSafelyAsync();
-    }
+        var workers = ExecuteTask;
+        if (workers is null)
+        {
+            return;
+        }
 
-    private async Task CancelAllSafelyAsync()
-    {
-        try
-        {
-            await _control.CancelAllAsync();
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, $"Cancelling transfers on shutdown failed: {exception.Message}");
-        }
+        await workers.WaitAsync(cancellationToken);
     }
 
     private async Task RunWorkerAsync(CancellationToken stoppingToken)
