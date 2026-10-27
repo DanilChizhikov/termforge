@@ -8,7 +8,13 @@ on:
 
 jobs:
   Run-Tests:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+    runs-on: ${{ matrix.os }}
+    env:
+      TERMFORGE_SKIP_DOCKER_TESTS: ${{ matrix.os != 'ubuntu-latest' }}
     defaults:
       run:
         shell: bash
@@ -47,8 +53,51 @@ jobs:
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: test-results
+        name: test-results-${{ matrix.os }}
         path: TestResults/
+
+  Smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - os: ubuntu-latest
+          rid: linux-x64
+        - os: macos-latest
+          rid: osx-arm64
+        - os: windows-latest
+          rid: win-x64
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: npm
+        cache-dependency-path: src/Web/package-lock.json
+
+    - name: Publish
+      run: ./scripts/publish.sh -r "$RID" -n
+      env:
+        RID: ${{ matrix.rid }}
+
+    - name: Smoke test
+      run: |
+        version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)
+        ./scripts/smoke-test.sh "publish/termforge-$version-$RID"
+      env:
+        RID: ${{ matrix.rid }}
 
   Frontend:
     runs-on: ubuntu-latest
