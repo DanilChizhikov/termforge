@@ -151,7 +151,11 @@ Settings → Import & export saves server connections, preferences (recording li
 
 ## Docker
 
-The Docker tab lists the containers of the selected server with their state, ports and status, and shows why Docker cannot be used when it is missing or the user has no access to the daemon. Containers can be started, stopped and restarted (stop and restart ask for confirmation); every action is recorded in the journal. Logs stream with a line limit and follow mode, and Shell opens an interactive terminal inside a running container (bash, falling back to sh). Container names are validated and quoted before they reach the shell. See `docs/decisions/docker-management.md`.
+The Docker tab lists the containers of the selected server with their state, ports and status, and shows why Docker cannot be used when it is missing or the user has no access to the daemon. Containers can be started, stopped and restarted (stop and restart ask for confirmation and need a confirmation token); every action is recorded in the journal. Logs stream with a line limit and follow mode, and Shell opens an interactive terminal inside a running container (bash, falling back to sh). Container names are validated and quoted before they reach the shell. See `docs/decisions/docker-management.md`.
+
+## Read-only servers and confirmations
+
+A server can be marked read-only in its edit dialog or under Settings → Read-only servers. The backend then rejects uploads, deletes, renames, saves (also with sudo), rollbacks and Docker actions for it; terminals stay available with a read-only banner, because a shell cannot be fully restricted. Remote deletes, Docker stop and restart, rollbacks and overwriting uploads need a single-use confirmation token from `POST /api/confirmations`, issued after the user confirms the dialog. See `docs/decisions/read-only-mode-and-confirmations.md`.
 
 ## Credentials
 
