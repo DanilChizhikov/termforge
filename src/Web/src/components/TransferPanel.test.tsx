@@ -99,7 +99,7 @@ describe('TransferPanel', () => {
 
     render(<TransferPanel />);
 
-    const card = await screen.findByRole('listitem', { name: 'dist.tar.gz → /var/www/site/dist.tar.gz' });
+    const card = await screen.findByRole('listitem', { name: 'dist.tar.gz → /var/www/site/' });
     expect(within(card).getByText('Running')).toBeInTheDocument();
     expect(within(card).getByText('512 B of 1.0 KB · 50%')).toBeInTheDocument();
     expect(within(card).getByText('256 B/s · 2 s left')).toBeInTheDocument();

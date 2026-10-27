@@ -104,6 +104,21 @@
   content: '';
 }
 
+.link-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--link);
+  font-size: var(--text-small);
+}
+
+.link-button:hover {
+  color: var(--link-hover);
+}
+
 .btn-block {
   width: 100%;
   justify-content: flex-start;

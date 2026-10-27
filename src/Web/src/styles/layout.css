@@ -1246,7 +1246,7 @@
 
 .transfer-card-failed {
   border-color: var(--status-danger-border);
-  background: var(--status-danger-soft);
+  background: var(--status-danger-faint);
 }
 
 .transfer-card-header {
@@ -1263,6 +1263,10 @@
 
 .transfer-direction-down {
   color: var(--status-info);
+}
+
+.transfer-direction-failed {
+  color: var(--status-danger-text);
 }
 
 .transfer-route {
