@@ -79,7 +79,7 @@ public static class EditorEndpoints
         return ToSaveResult(result);
     }
 
-    private static IResult ToSaveResult(EditorResult<JournaledSave> result)
+    internal static IResult ToSaveResult(EditorResult<JournaledSave> result)
     {
         if (!result.IsSuccess)
         {

@@ -9,6 +9,8 @@ internal sealed class SshServerContainer : IAsyncDisposable
     public const string Password = "tester-password";
     public const string HomeDirectory = "/home/tester";
     public const string PrivateKeyPassphrase = "tester-key-passphrase";
+    public const string SudoUserName = "sudoer";
+    public const string SudoPassword = "sudoer-password";
     public const int SshPort = 22;
 
     private const string UserPrivateKeyPath = "/keys/tester_ed25519";
@@ -55,6 +57,12 @@ internal sealed class SshServerContainer : IAsyncDisposable
     public SshConnectionTarget CreateTarget(SshAuthentication authentication)
     {
         return new SshConnectionTarget(Endpoint, UserName, authentication);
+    }
+
+    public SshConnectionTarget CreatePasswordTarget(string userName, string password)
+    {
+        var authentication = new PasswordAuthentication(password);
+        return new SshConnectionTarget(Endpoint, userName, authentication);
     }
 
     public SshConnectionTarget CreateKeyTarget()

@@ -15,7 +15,10 @@ public sealed class FileReplacer(AuxiliaryFileNames names)
         var temporaryName = names.Temporary(request.Location.Name);
         var temporaryPath = request.Location.Sibling(temporaryName);
         var mode = request.Current?.Mode ?? NewFileMode;
-        var creation = new RemoteFileCreation(temporaryPath, request.Content, mode);
+        var creation = new RemoteFileCreation(temporaryPath, request.Content, mode)
+        {
+            Owner = OwnerOf(request.Current),
+        };
         var created = await client.CreateFileAsync(creation, cancellationToken);
         if (!created.IsSuccess)
         {
@@ -48,6 +51,11 @@ public sealed class FileReplacer(AuxiliaryFileNames names)
         }
 
         return await ReplaceWithRenamesAsync(context, cancellationToken);
+    }
+
+    private static RemoteFileOwner? OwnerOf(RemoteFileAttributes? current)
+    {
+        return current is null ? null : new RemoteFileOwner(current.UserId, current.GroupId);
     }
 
     private static bool NeedsOwnerChange(RemoteFileAttributes? current, RemoteFileAttributes created)

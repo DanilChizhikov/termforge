@@ -7,6 +7,7 @@ public sealed class EditorOperationRecorder(IOperationJournal journal)
 {
     public const string SaveKind = "file.save";
     public const string RollbackKind = "file.rollback";
+    public const string ElevationSudo = "sudo";
 
     public async Task<Guid> StartAsync(EditorOperationStart start, CancellationToken cancellationToken)
     {
@@ -17,6 +18,11 @@ public sealed class EditorOperationRecorder(IOperationJournal journal)
         if (start.BackupName is not null)
         {
             details["restoredFrom"] = start.BackupName;
+        }
+
+        if (start.Elevated)
+        {
+            details["elevation"] = ElevationSudo;
         }
 
         var request = new CreateOperationRequest(start.Kind, start.Server, details, false);

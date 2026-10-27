@@ -9,7 +9,11 @@ public sealed class BackupWriter(AuxiliaryFileNames names, TimeProvider timeProv
         var createdAtUtc = timeProvider.GetUtcNow().UtcDateTime;
         var name = names.Backup(source.Location.Name, createdAtUtc);
         var path = source.Location.Sibling(name);
-        var creation = new RemoteFileCreation(path, source.Snapshot.Content, source.Snapshot.Attributes.Mode);
+        var attributes = source.Snapshot.Attributes;
+        var creation = new RemoteFileCreation(path, source.Snapshot.Content, attributes.Mode)
+        {
+            Owner = new RemoteFileOwner(attributes.UserId, attributes.GroupId),
+        };
         var created = await client.CreateFileAsync(creation, cancellationToken);
         if (!created.IsSuccess)
         {

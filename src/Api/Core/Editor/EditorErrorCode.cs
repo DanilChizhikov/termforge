@@ -11,4 +11,7 @@ public enum EditorErrorCode
     ConnectionFailed,
     Cancelled,
     Failed,
+    SudoPasswordRequired,
+    SudoPasswordIncorrect,
+    SudoUnavailable,
 }

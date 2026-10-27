@@ -27,6 +27,8 @@ internal sealed class InMemoryEditorFileClient : IRemoteEditorFileClient
 
     public int CreateCount { get; private set; }
 
+    public List<RemoteFileCreation> Creations { get; } = [];
+
     public void Seed(string path, string text, int mode)
     {
         var content = Encoding.UTF8.GetBytes(text);
@@ -108,6 +110,7 @@ internal sealed class InMemoryEditorFileClient : IRemoteEditorFileClient
     public Task<SshResult<RemoteFileAttributes>> CreateFileAsync(RemoteFileCreation creation, CancellationToken cancellationToken)
     {
         CreateCount++;
+        Creations.Add(creation);
         if (_files.ContainsKey(creation.Path))
         {
             var exists = new SshError(SshErrorKind.RemotePathExists, $"{creation.Path} exists");
