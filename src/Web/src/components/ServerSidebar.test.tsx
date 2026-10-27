@@ -94,7 +94,7 @@ describe('ServerSidebar', () => {
     await user.click(screen.getByRole('button', { name: 'Add server' }));
     const dialog = screen.getByRole('dialog', { name: 'Add server' });
     await user.type(within(dialog).getByLabelText('Name'), 'web');
-    await user.type(within(dialog).getByLabelText('Host'), 'example.org');
+    await user.type(within(dialog).getByLabelText('Host or SSH alias'), 'example.org');
     await user.type(within(dialog).getByLabelText('User'), 'deploy');
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
 
@@ -109,16 +109,30 @@ describe('ServerSidebar', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
+  it('closes the add dialog with the close button and with Escape', async () => {
+    const user = userEvent.setup();
+    render(<ServerSidebar />);
+
+    await user.click(screen.getByRole('button', { name: 'Add server' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Add server' }));
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('shows the password field only for password authentication', async () => {
     const user = userEvent.setup();
     render(<ServerSidebar />);
     await user.click(screen.getByRole('button', { name: 'Add server' }));
     const dialog = screen.getByRole('dialog');
 
-    expect(within(dialog).queryByLabelText('Password')).not.toBeInTheDocument();
-    await user.selectOptions(within(dialog).getByLabelText('Authentication'), 'Password');
+    expect(within(dialog).getByRole('radio', { name: 'SSH agent' })).toBeChecked();
+    expect(within(dialog).queryByLabelText('Server password')).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole('radio', { name: 'Password' }));
 
-    expect(within(dialog).getByLabelText('Password')).toHaveAttribute('type', 'password');
+    expect(within(dialog).getByLabelText('Server password')).toHaveAttribute('type', 'password');
   });
 
   it('shows the server error inside the dialog and keeps it open', async () => {
@@ -131,7 +145,7 @@ describe('ServerSidebar', () => {
     await user.click(screen.getByRole('button', { name: 'Add server' }));
     const dialog = screen.getByRole('dialog');
     await user.type(within(dialog).getByLabelText('Name'), 'web');
-    await user.type(within(dialog).getByLabelText('Host'), 'h');
+    await user.type(within(dialog).getByLabelText('Host or SSH alias'), 'h');
     await user.type(within(dialog).getByLabelText('User'), 'u');
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
 
@@ -146,9 +160,9 @@ describe('ServerSidebar', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Edit web' }));
     const dialog = screen.getByRole('dialog', { name: 'Edit server' });
-    expect(within(dialog).getByLabelText('Host')).toHaveValue('example.org');
-    await user.clear(within(dialog).getByLabelText('Host'));
-    await user.type(within(dialog).getByLabelText('Host'), 'new.example.org');
+    expect(within(dialog).getByLabelText('Host or SSH alias')).toHaveValue('example.org');
+    await user.clear(within(dialog).getByLabelText('Host or SSH alias'));
+    await user.type(within(dialog).getByLabelText('Host or SSH alias'), 'new.example.org');
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(api.updateConnection).toHaveBeenCalledTimes(1));

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type KeyboardEvent } from 'react';
 import {
   AUTH_METHODS,
   describeError,
@@ -8,6 +8,7 @@ import {
   type ReconnectMode,
   type SavedConnection,
 } from '../api/connections';
+import { CloseIcon } from './icons/Icons';
 
 export interface ServerFormProps {
   title: string;
@@ -19,11 +20,18 @@ export interface ServerFormProps {
   onCancel: () => void;
 }
 
-const RECONNECT_MODE_LABELS: Record<ReconnectMode, string> = {
-  Manual: 'Ask me (show a Reconnect button)',
-  Automatic: 'Reconnect automatically',
-  Off: 'Don’t reconnect',
+const AUTH_OPTIONS: Record<AuthMethod, { title: string; hint: string }> = {
+  Agent: { title: 'SSH agent', hint: 'Uses keys loaded in your agent' },
+  KeyFile: { title: 'Key file', hint: 'Path only, never copied' },
+  Password: { title: 'Password', hint: 'Kept in the credential store' },
 };
+
+function reconnectModeLabel(mode: ReconnectMode, attempts: number): string {
+  if (mode === 'Automatic') {
+    return `Reconnect ${attempts} times, then stop`;
+  }
+  return mode === 'Manual' ? 'Ask me' : 'Don’t reconnect';
+}
 
 export function ServerForm({
   title,
@@ -53,13 +61,29 @@ export function ServerForm({
   };
 
   const jumpCandidates = connections.filter((connection) => connection.id !== editingId);
+  const groupNames = [...new Set(connections.map((connection) => connection.groupName).filter((name): name is string => name !== null))];
+
+  const cancelOnEscape = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      onCancel();
+    }
+  };
 
   return (
     <div className="dialog-backdrop">
-      <div role="dialog" aria-label={title} className="dialog-card dialog-card-wide">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="dialog-card dialog-card-wide server-dialog"
+        onKeyDown={cancelOnEscape}
+      >
         <form onSubmit={submit}>
           <div className="dialog-header">
             <h2 className="dialog-title">{title}</h2>
+            <button type="button" className="icon-btn" aria-label="Close" onClick={onCancel}>
+              <CloseIcon size={16} />
+            </button>
           </div>
           <div className="dialog-body">
             <div className="server-form-grid">
@@ -69,6 +93,7 @@ export function ServerForm({
                   className="input"
                   value={input.name}
                   onChange={(event) => update('name', event.target.value)}
+                  autoFocus
                   required
                 />
               </label>
@@ -76,12 +101,18 @@ export function ServerForm({
                 <span className="field-label">Group</span>
                 <input
                   className="input"
+                  list="server-group-names"
                   value={input.groupName}
                   onChange={(event) => update('groupName', event.target.value)}
                 />
+                <datalist id="server-group-names">
+                  {groupNames.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
               </label>
               <label className="field span-2">
-                <span className="field-label">Host</span>
+                <span className="field-label">Host or SSH alias</span>
                 <input
                   className="input input-mono"
                   value={input.host}
@@ -109,24 +140,56 @@ export function ServerForm({
                   required
                 />
               </label>
+              <fieldset className="auth-options span-4">
+                <legend className="field-label">Authentication</legend>
+                {AUTH_METHODS.map((method) => (
+                  <label key={method} className="auth-option">
+                    <input
+                      type="radio"
+                      name="authMethod"
+                      value={method}
+                      checked={input.authMethod === method}
+                      aria-labelledby={`auth-title-${method}`}
+                      aria-describedby={`auth-hint-${method}`}
+                      onChange={() => update('authMethod', method)}
+                    />
+                    <span id={`auth-title-${method}`} className="auth-option-title">
+                      {AUTH_OPTIONS[method].title}
+                    </span>
+                    <span id={`auth-hint-${method}`} className="auth-option-hint">
+                      {AUTH_OPTIONS[method].hint}
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
+              {input.authMethod === 'KeyFile' ? (
+                <label className="field span-4">
+                  <span className="field-label">Private key file</span>
+                  <input
+                    className="input input-mono"
+                    value={input.privateKeyPath}
+                    onChange={(event) => update('privateKeyPath', event.target.value)}
+                    required
+                  />
+                </label>
+              ) : null}
+              {input.authMethod === 'Password' ? (
+                <label className="field span-4">
+                  <span className="field-label">Server password</span>
+                  <input
+                    className="input"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder={hasStoredPassword ? 'Leave empty to keep the stored password' : ''}
+                    value={input.password}
+                    onChange={(event) => update('password', event.target.value)}
+                  />
+                </label>
+              ) : null}
               <label className="field span-2">
-                <span className="field-label">Authentication</span>
+                <span className="field-label">ProxyJump · optional</span>
                 <select
-                  className="input"
-                  value={input.authMethod}
-                  onChange={(event) => update('authMethod', event.target.value as AuthMethod)}
-                >
-                  {AUTH_METHODS.map((method) => (
-                    <option key={method} value={method}>
-                      {method}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field span-2">
-                <span className="field-label">Jump host</span>
-                <select
-                  className="input"
+                  className="input input-mono"
                   value={input.jumpHostId}
                   onChange={(event) => update('jumpHostId', event.target.value)}
                 >
@@ -138,23 +201,26 @@ export function ServerForm({
                   ))}
                 </select>
               </label>
-              <label className="field span-4">
-                <span className="field-label">If the connection drops</span>
-                <select
-                  className="input"
-                  value={input.reconnectMode}
-                  onChange={(event) => update('reconnectMode', event.target.value as ReconnectMode)}
-                >
-                  {RECONNECT_MODES.map((mode) => (
-                    <option key={mode} value={mode}>
-                      {RECONNECT_MODE_LABELS[mode]}
-                    </option>
-                  ))}
-                </select>
-                <span className="field-hint">
+              <div className="field span-2">
+                <label className="field">
+                  <span className="field-label">If the connection drops</span>
+                  <select
+                    className="input"
+                    aria-describedby="reconnect-hint"
+                    value={input.reconnectMode}
+                    onChange={(event) => update('reconnectMode', event.target.value as ReconnectMode)}
+                  >
+                    {RECONNECT_MODES.map((mode) => (
+                      <option key={mode} value={mode}>
+                        {reconnectModeLabel(mode, input.reconnectMaxAttempts)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <span id="reconnect-hint" className="field-hint">
                   After reconnecting, TermForge opens a fresh shell and never re-runs the command that was running.
                 </span>
-              </label>
+              </div>
               {input.reconnectMode === 'Automatic' ? (
                 <>
                   <label className="field span-2">
@@ -192,32 +258,12 @@ export function ServerForm({
                   </label>
                 </>
               ) : null}
-              {input.authMethod === 'KeyFile' ? (
-                <label className="field span-4">
-                  <span className="field-label">Private key file</span>
-                  <input
-                    className="input input-mono"
-                    value={input.privateKeyPath}
-                    onChange={(event) => update('privateKeyPath', event.target.value)}
-                    required
-                  />
-                </label>
-              ) : null}
-              {input.authMethod === 'Password' ? (
-                <label className="field span-4">
-                  <span className="field-label">Password</span>
-                  <input
-                    className="input"
-                    type="password"
-                    autoComplete="new-password"
-                    placeholder={hasStoredPassword ? 'Leave empty to keep the stored password' : ''}
-                    value={input.password}
-                    onChange={(event) => update('password', event.target.value)}
-                  />
-                </label>
-              ) : null}
             </div>
-            {error === null ? null : <p className="form-error">{error}</p>}
+            {error === null ? null : (
+              <p role="alert" className="form-error">
+                {error}
+              </p>
+            )}
           </div>
           <div className="dialog-footer">
             <button type="button" className="btn" onClick={onCancel}>
