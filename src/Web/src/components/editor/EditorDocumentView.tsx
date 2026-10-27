@@ -5,10 +5,21 @@ import {
   readBackup,
   rollbackRemoteFile,
   saveRemoteFile,
+  type EditorDocument,
   type FileBackup,
   type FileVersion,
   type SaveOutcome,
 } from '../../api/editor';
+import {
+  getFileAccess,
+  isPermissionDenied,
+  openRemoteFileWithSudo,
+  readBackupWithSudo,
+  rollbackRemoteFileWithSudo,
+  saveRemoteFileWithSudo,
+  type FileAccess,
+  type SudoCredentials,
+} from '../../api/sudoEditor';
 import {
   editorDocumentReducer,
   INITIAL_DOCUMENT_STATE,
@@ -18,12 +29,18 @@ import {
 import { clearEditorDraft, getEditorDraft, setEditorDraft } from '../../state/editorDrafts';
 import { reopenEditorFile, setEditorFileDirty, type EditorFile } from '../../state/editorFiles';
 import { EmptyState } from '../EmptyState';
+import { ShieldIcon } from '../icons/Icons';
 import { EditorConflictNotice } from './EditorConflictNotice';
 import { languageForPath } from './editorLanguage';
 import { EditorVersions } from './EditorVersions';
+import { SudoAccessBadge } from './SudoAccessBadge';
+import { SudoPasswordDialog } from './SudoPasswordDialog';
+import { useSudoElevation } from './useSudoElevation';
 
 const CodeEditor = lazy(() => import('./CodeEditor'));
 const CodeDiff = lazy(() => import('./CodeDiff'));
+
+const ELEVATED_SAVE_NOTE = 'Every step runs with sudo and keeps the owner, group and mode of the file.';
 
 export interface EditorDocumentViewProps {
   file: EditorFile;
@@ -70,9 +87,33 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
   const [cursor, setCursor] = useState<Cursor>({ line: 1, column: 1 });
   const [versionsToken, setVersionsToken] = useState(0);
   const [reloadToken, setReloadToken] = useState(0);
+  const [elevated, setElevated] = useState(false);
+  const [openDenied, setOpenDenied] = useState(false);
   const dirty = isDirty(state);
   const language = languageForPath(file.path);
   const { connectionId, path, key } = file;
+  const sudo = useSudoElevation(connectionId);
+  const [access, setAccess] = useState<FileAccess | null>(null);
+  const accessRequest = useRef(0);
+
+  const loadAccess = useCallback(
+    (document: EditorDocument) => {
+      const request = accessRequest.current + 1;
+      accessRequest.current = request;
+      setAccess(null);
+      if (document.ownerId === undefined) {
+        return;
+      }
+      getFileAccess(connectionId, path, document.ownerId)
+        .then((loaded) => {
+          if (accessRequest.current === request) {
+            setAccess(loaded);
+          }
+        })
+        .catch(() => undefined);
+    },
+    [connectionId, path],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -80,6 +121,7 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
       .then((document) => {
         if (!cancelled) {
           dispatch({ type: 'loaded', document });
+          loadAccess(document);
           const recovered = pendingRecovery.current;
           pendingRecovery.current = null;
           if (recovered !== null && recovered.content !== document.content) {
@@ -89,13 +131,14 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
       })
       .catch((error: unknown) => {
         if (!cancelled) {
+          setOpenDenied(isPermissionDenied(error));
           dispatch({ type: 'loadFailed', error: describeEditorError(error) });
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [connectionId, path, reloadToken]);
+  }, [connectionId, path, reloadToken, loadAccess]);
 
   useEffect(() => {
     setEditorFileDirty(key, dirty);
@@ -130,18 +173,41 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
     setVersionsToken((token) => token + 1);
   }
 
+  function failSave(error: unknown): void {
+    dispatch({ type: 'saveFailed', error: describeEditorError(error) });
+  }
+
+  function saveElevated(label: string, content: string, send: (sudo: SudoCredentials) => Promise<SaveOutcome>): Promise<void> {
+    return sudo.perform({
+      label,
+      run: async (credentials) => {
+        dispatch({ type: 'saveStarted' });
+        const outcome = await send(credentials);
+        applyOutcome(outcome, content);
+      },
+      onError: failSave,
+      onAbort: () => dispatch({ type: 'saveAborted' }),
+    });
+  }
+
   async function save(expectedVersion: FileVersion | null): Promise<void> {
     if (state.server === null) {
       return;
     }
     const content = state.draft;
+    const request = { path, content, hasByteOrderMark: state.server.hasByteOrderMark, expectedVersion };
+    if (elevated) {
+      await saveElevated('Saving this file', content, (credentials) =>
+        saveRemoteFileWithSudo(connectionId, request, credentials),
+      );
+      return;
+    }
     dispatch({ type: 'saveStarted' });
     try {
-      const request = { path, content, hasByteOrderMark: state.server.hasByteOrderMark, expectedVersion };
       const outcome = await saveRemoteFile(connectionId, request);
       applyOutcome(outcome, content);
     } catch (error) {
-      dispatch({ type: 'saveFailed', error: describeEditorError(error) });
+      failSave(error);
     }
   }
 
@@ -149,24 +215,73 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
     if (state.server === null) {
       return;
     }
+    const content = state.draft;
+    const request = { path, backupName: backup.name, expectedVersion: state.server.version };
+    if (elevated) {
+      await saveElevated('Rolling back this file', content, (credentials) =>
+        rollbackRemoteFileWithSudo(connectionId, request, credentials),
+      );
+      return;
+    }
     dispatch({ type: 'saveStarted' });
     try {
-      const request = { path, backupName: backup.name, expectedVersion: state.server.version };
       const outcome = await rollbackRemoteFile(connectionId, request);
-      applyOutcome(outcome, state.draft);
+      applyOutcome(outcome, content);
     } catch (error) {
-      dispatch({ type: 'saveFailed', error: describeEditorError(error) });
+      failSave(error);
     }
   }
 
+  function showBackup(backup: FileBackup, content: string): void {
+    setComparison({ title: `Backup ${new Date(backup.createdAtUtc).toLocaleString()}`, content });
+    setView('diff');
+  }
+
   async function compareWithBackup(backup: FileBackup): Promise<void> {
+    if (elevated) {
+      await sudo.perform({
+        label: 'Reading this backup',
+        run: async (credentials) => {
+          const document = await readBackupWithSudo(connectionId, path, backup.name, credentials);
+          showBackup(backup, document.content);
+        },
+        onError: failSave,
+      });
+      return;
+    }
     try {
       const document = await readBackup(connectionId, path, backup.name);
-      setComparison({ title: `Backup ${new Date(backup.createdAtUtc).toLocaleString()}`, content: document.content });
-      setView('diff');
+      showBackup(backup, document.content);
     } catch (error) {
-      dispatch({ type: 'saveFailed', error: describeEditorError(error) });
+      failSave(error);
     }
+  }
+
+  function openWithSudo(): void {
+    void sudo.perform({
+      label: 'Opening this file',
+      run: async (credentials) => {
+        const document = await openRemoteFileWithSudo(connectionId, path, credentials);
+        setOpenDenied(false);
+        setElevated(true);
+        dispatch({ type: 'loaded', document });
+        loadAccess(document);
+        const recovered = pendingRecovery.current;
+        pendingRecovery.current = null;
+        if (recovered !== null && recovered.content !== document.content) {
+          dispatch({ type: 'recovered', content: recovered.content, baseVersion: recovered.baseVersion });
+        }
+      },
+      onError: (error) => dispatch({ type: 'loadFailed', error: describeEditorError(error) }),
+    });
+  }
+
+  function editWithSudo(): void {
+    void sudo.check().then((usable) => {
+      if (usable) {
+        setElevated(true);
+      }
+    });
   }
 
   function compareWithServer(): void {
@@ -190,6 +305,23 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
     }
   }
 
+  const sudoNotice =
+    sudo.notice === null ? null : (
+      <p role="status" className="notice notice-caution editor-message">
+        {sudo.notice}
+      </p>
+    );
+  const sudoDialog =
+    sudo.prompt === null ? null : (
+      <SudoPasswordDialog
+        actionLabel={sudo.prompt.action.label}
+        problem={sudo.prompt.problem}
+        busy={sudo.busy}
+        onSubmit={(credentials) => void sudo.submit(credentials)}
+        onCancel={sudo.cancel}
+      />
+    );
+
   if (state.status === 'loading') {
     return <EmptyState message={`Opening ${path}…`} />;
   }
@@ -200,9 +332,19 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
         <p role="alert" className="notice notice-danger">
           {state.error ?? 'The file could not be opened.'}
         </p>
-        <button type="button" className="btn btn-sm" onClick={() => setReloadToken((token) => token + 1)}>
-          Try again
-        </button>
+        {sudoNotice}
+        <div className="editor-failed-actions">
+          <button type="button" className="btn btn-sm" onClick={() => setReloadToken((token) => token + 1)}>
+            Try again
+          </button>
+          {openDenied ? (
+            <button type="button" className="btn btn-sm" disabled={sudo.busy} onClick={openWithSudo}>
+              <ShieldIcon size={13} />
+              Open with sudo
+            </button>
+          ) : null}
+        </div>
+        {sudoDialog}
       </div>
     );
   }
@@ -217,6 +359,7 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
         <code className="editor-path" title={path}>
           {path}
         </code>
+        <SudoAccessBadge access={access} elevated={elevated} />
         <span className="badge" title="Permissions">
           <span className="mono">{server.permissions}</span>
         </span>
@@ -230,6 +373,21 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
             Diff
           </button>
         </div>
+        {elevated && sudo.status?.hasSavedPassword === true ? (
+          <button type="button" className="btn btn-sm btn-ghost" onClick={() => void sudo.forget()}>
+            Forget sudo password
+          </button>
+        ) : null}
+        {elevated ? (
+          <button type="button" className="btn btn-sm" disabled={state.saving} onClick={() => setElevated(false)}>
+            Stop using sudo
+          </button>
+        ) : (
+          <button type="button" className="btn btn-sm" disabled={state.saving || sudo.busy} onClick={editWithSudo}>
+            <ShieldIcon size={13} />
+            Edit with sudo
+          </button>
+        )}
         <button
           type="button"
           className="btn btn-sm"
@@ -268,6 +426,7 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
           ) : null}
         </div>
       )}
+      {sudoNotice}
       {state.error === null ? null : (
         <p role="alert" className="notice notice-danger editor-message">
           {state.error}
@@ -308,6 +467,7 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
           refreshToken={versionsToken}
           canRollBack={!dirty && state.conflict === null}
           busy={state.saving}
+          saveNote={elevated ? ELEVATED_SAVE_NOTE : null}
           onCompare={(backup) => void compareWithBackup(backup)}
           onRollBack={(backup) => void rollBack(backup)}
         />
@@ -320,6 +480,7 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
         <span>{lineEndingOf(state.draft)}</span>
         <span>{language.label}</span>
       </footer>
+      {sudoDialog}
     </div>
   );
 }

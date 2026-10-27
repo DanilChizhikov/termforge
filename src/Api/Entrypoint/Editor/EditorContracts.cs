@@ -19,11 +19,16 @@ public sealed record FileVersionContract(DateTime ModifiedUtc, long Size, string
 
 public sealed record EditorDocumentResponse(string Path, string Content, bool HasByteOrderMark, FileVersionContract Version, string Permissions)
 {
+    public int OwnerId { get; init; }
+
     public static EditorDocumentResponse From(RemoteDocument document)
     {
         var version = FileVersionContract.From(document.Version);
         var permissions = PermissionFormatter.Format((UnixFileMode)document.Mode);
-        return new EditorDocumentResponse(document.Path, document.Content.Text, document.Content.HasByteOrderMark, version, permissions);
+        return new EditorDocumentResponse(document.Path, document.Content.Text, document.Content.HasByteOrderMark, version, permissions)
+        {
+            OwnerId = document.OwnerId,
+        };
     }
 }
 

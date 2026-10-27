@@ -23,7 +23,10 @@ public sealed class RemoteDocumentReader(RemoteFileSnapshotReader snapshots, Tex
             return EditorResult<RemoteDocument>.Failure(decoded.Error);
         }
 
-        var document = new RemoteDocument(path, decoded.Value, current.Version, current.Attributes.Mode);
+        var document = new RemoteDocument(path, decoded.Value, current.Version, current.Attributes.Mode)
+        {
+            OwnerId = current.Attributes.UserId,
+        };
         return EditorResult<RemoteDocument>.Success(document);
     }
 }

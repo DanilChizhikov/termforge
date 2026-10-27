@@ -7,6 +7,7 @@ export interface EditorVersionsProps {
   refreshToken: number;
   canRollBack: boolean;
   busy: boolean;
+  saveNote?: string | null;
   onCompare: (backup: FileBackup) => void;
   onRollBack: (backup: FileBackup) => void;
 }
@@ -24,7 +25,16 @@ const SAVE_STEPS = [
   'Atomically replace the original, keeping its permissions',
 ] as const;
 
-export function EditorVersions({ connectionId, path, refreshToken, canRollBack, busy, onCompare, onRollBack }: EditorVersionsProps) {
+export function EditorVersions({
+  connectionId,
+  path,
+  refreshToken,
+  canRollBack,
+  busy,
+  saveNote = null,
+  onCompare,
+  onRollBack,
+}: EditorVersionsProps) {
   const [state, setState] = useState<BackupsState | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
   const requestKey = `${connectionId}|${path}|${refreshToken}`;
@@ -61,6 +71,7 @@ export function EditorVersions({ connectionId, path, refreshToken, canRollBack, 
             </li>
           ))}
         </ol>
+        {saveNote === null ? null : <p className="field-hint">{saveNote}</p>}
       </div>
       <div className="editor-aside-section">
         <span className="section-label">Versions</span>

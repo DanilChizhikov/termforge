@@ -1059,6 +1059,37 @@
   padding: 16px;
 }
 
+.editor-failed-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.editor-sudo-badge {
+  gap: 5px;
+  padding: 2px 7px;
+}
+
+.sudo-dialog-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sudo-remember {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.sudo-remember-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .editor-toolbar {
   display: flex;
   flex: none;

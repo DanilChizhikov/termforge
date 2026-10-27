@@ -28,6 +28,7 @@ export type EditorDocumentAction =
   | { type: 'saved'; saved: SavedFile; content: string }
   | { type: 'conflicted'; conflict: SaveConflict }
   | { type: 'saveFailed'; error: string }
+  | { type: 'saveAborted' }
   | { type: 'reloadedFromConflict' }
   | { type: 'recovered'; content: string; baseVersion: FileVersion | null };
 
@@ -86,6 +87,8 @@ export function editorDocumentReducer(state: EditorDocumentState, action: Editor
       return { ...state, saving: false, conflict: action.conflict };
     case 'saveFailed':
       return { ...state, saving: false, error: action.error };
+    case 'saveAborted':
+      return { ...state, saving: false };
     case 'reloadedFromConflict':
       return reloadFromConflict(state);
     case 'recovered':

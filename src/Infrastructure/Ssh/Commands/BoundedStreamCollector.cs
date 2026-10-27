@@ -31,6 +31,11 @@ internal sealed class BoundedStreamCollector
         return Encoding.UTF8.GetString(bytes);
     }
 
+    public byte[] GetBytes()
+    {
+        return _collected.ToArray();
+    }
+
     private void Collect()
     {
         var buffer = new byte[ReadBufferSize];

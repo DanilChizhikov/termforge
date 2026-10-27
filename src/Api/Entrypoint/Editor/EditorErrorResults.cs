@@ -30,6 +30,9 @@ internal static class EditorErrorResults
             EditorErrorCode.Binary => StatusCodes.Status415UnsupportedMediaType,
             EditorErrorCode.ConnectionFailed => StatusCodes.Status502BadGateway,
             EditorErrorCode.Cancelled => ClientClosedRequest,
+            EditorErrorCode.SudoPasswordRequired => StatusCodes.Status422UnprocessableEntity,
+            EditorErrorCode.SudoPasswordIncorrect => StatusCodes.Status422UnprocessableEntity,
+            EditorErrorCode.SudoUnavailable => StatusCodes.Status422UnprocessableEntity,
             _ => StatusCodes.Status500InternalServerError,
         };
     }
