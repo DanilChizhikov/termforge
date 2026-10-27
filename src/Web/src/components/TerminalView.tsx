@@ -3,7 +3,14 @@ import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import { describeError } from '../api/connections';
-import { TERMINAL_FONT_FAMILY, TERMINAL_FONT_SIZE, TERMINAL_LINE_HEIGHT, createTerminalTheme } from './terminalTheme';
+import {
+  TERMINAL_CURSOR_STYLE,
+  TERMINAL_CURSOR_WIDTH,
+  TERMINAL_FONT_FAMILY,
+  TERMINAL_FONT_SIZE,
+  TERMINAL_LINE_HEIGHT,
+  createTerminalTheme,
+} from './terminalTheme';
 import {
   closeTerminal,
   openTerminal,
@@ -88,6 +95,8 @@ export function TerminalView({
       fontFamily: TERMINAL_FONT_FAMILY,
       fontSize: TERMINAL_FONT_SIZE,
       lineHeight: TERMINAL_LINE_HEIGHT,
+      cursorStyle: TERMINAL_CURSOR_STYLE,
+      cursorWidth: TERMINAL_CURSOR_WIDTH,
       theme: createTerminalTheme(),
     });
     const fitAddon = new FitAddon();
