@@ -450,3 +450,109 @@ describe('DockerWorkspace removal and compose', () => {
     expect(action.body).toEqual({ confirmationToken: 'confirm-1' });
   });
 });
+
+describe('DockerWorkspace multi-select', () => {
+  afterEach(() => {
+    window.localStorage.clear();
+    act(() => reloadConfirmationPreferences());
+  });
+
+  it('stops every selected running container after one confirmation', async () => {
+    const user = userEvent.setup();
+    act(() => selectServer('srv-1'));
+    const requests = stubApi(() => overview(), () => json({ operationId: 'op-5', container: 'web', action: 'stop' }));
+    render(<DockerWorkspace active />);
+    await screen.findByText('Docker reachable');
+
+    await user.click(screen.getByRole('checkbox', { name: 'Select web' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Select cache' }));
+    expect(screen.getByText('2 selected')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Start .*selected/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Stop 2 selected containers' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveTextContent('Stop 2 containers on web-01?');
+    expect(dialog).toHaveTextContent('web, cache.');
+    await user.click(within(dialog).getByRole('button', { name: 'Stop 2 containers' }));
+
+    expect(await screen.findByText('Stopped 2 containers. Recorded in the journal.')).toBeInTheDocument();
+    expect(actionRequests(requests).map((request) => request.url)).toEqual([
+      '/api/connections/srv-1/docker/containers/web/stop',
+      '/api/connections/srv-1/docker/containers/cache/stop',
+    ]);
+    expect(screen.queryByText('2 selected')).not.toBeInTheDocument();
+  });
+
+  it('starts only the stopped containers of a selection without a dialog', async () => {
+    const user = userEvent.setup();
+    act(() => selectServer('srv-1'));
+    const requests = stubApi(() => overview(), () => json({ operationId: 'op-6', container: 'db', action: 'start' }));
+    render(<DockerWorkspace active />);
+    await screen.findByText('Docker reachable');
+
+    await user.click(screen.getByRole('checkbox', { name: 'Select all containers' }));
+    expect(screen.getByText('3 selected')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Start 1 selected container' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(await screen.findByText('Started 1 container. Recorded in the journal.')).toBeInTheDocument();
+    expect(actionRequests(requests).map((request) => request.url)).toEqual(['/api/connections/srv-1/docker/containers/db/start']);
+  });
+
+  it('reports which selected containers failed and keeps going', async () => {
+    const user = userEvent.setup();
+    act(() => selectServer('srv-1'));
+    let call = 0;
+    const requests = stubApi(
+      () => overview(),
+      () => {
+        call += 1;
+        return call === 1 ? json({ detail: 'Container web is busy.' }, 409) : json({ operationId: 'op-7', container: 'cache', action: 'restart' });
+      },
+    );
+    render(<DockerWorkspace active />);
+    await screen.findByText('Docker reachable');
+
+    await user.click(screen.getByRole('checkbox', { name: 'Select web' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Select cache' }));
+    await user.click(screen.getByRole('button', { name: 'Restart 2 selected containers' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Restart 2 containers' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Restarted 1 of 2 containers. Failed: web: Container web is busy.');
+    expect(actionRequests(requests)).toHaveLength(2);
+  });
+
+  it('cannot select containers on a read-only server', async () => {
+    act(() =>
+      replaceConnections([
+        {
+          id: 'srv-1',
+          name: 'web-01',
+          groupName: null,
+          host: 'web.example.test',
+          port: 22,
+          userName: 'deploy',
+          authMethod: 'Agent',
+          privateKeyPath: null,
+          jumpHostId: null,
+          sshAlias: null,
+          hasPassword: false,
+          lastConnectedAt: null,
+          reconnectMode: 'Manual',
+          reconnectMaxAttempts: 5,
+          reconnectInitialDelaySeconds: 2,
+          reconnectMaxDelaySeconds: 60,
+          readOnly: true,
+        },
+      ]),
+    );
+    act(() => selectServer('srv-1'));
+    stubApi(() => overview());
+    render(<DockerWorkspace active />);
+    await screen.findByText('Docker reachable');
+
+    expect(screen.getByRole('checkbox', { name: 'Select all containers' })).toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: 'Select web' })).toBeDisabled();
+    act(() => replaceConnections([]));
+  });
+});

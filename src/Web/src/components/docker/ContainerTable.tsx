@@ -11,6 +11,8 @@ import {
   groupByComposeProject,
   offersShell,
 } from './dockerStatus';
+import { SelectionCheckbox } from './SelectionCheckbox';
+import type { RowSelection } from './useRowSelection';
 
 export type PendingDockerAction =
   | { target: 'container'; name: string; action: ContainerAction }
@@ -18,7 +20,7 @@ export type PendingDockerAction =
 
 export interface ContainerTableProps {
   containers: DockerContainer[];
-  busyContainer: string | null;
+  busyContainers: ReadonlySet<string>;
   busyProject: string | null;
   selectedContainer: string | null;
   logsContainer: string | null;
@@ -28,10 +30,11 @@ export interface ContainerTableProps {
   onShell: (container: DockerContainer) => void;
   onAction: (container: DockerContainer, action: ContainerAction) => void;
   onComposeAction: (project: string, action: ComposeAction) => void;
+  selection: RowSelection;
   readOnly: boolean;
 }
 
-const COLUMN_COUNT = 6;
+const COLUMN_COUNT = 7;
 const COMPOSE_ACTIONS: readonly ComposeAction[] = ['restart', 'recreate'];
 
 function stateTextClass(container: DockerContainer): string {
@@ -47,6 +50,15 @@ export function ContainerTable(props: ContainerTableProps) {
       <table className="data-table docker-table">
         <thead>
           <tr>
+            <th className="docker-select-cell">
+              <SelectionCheckbox
+                label="Select all containers"
+                checked={props.selection.allSelected}
+                indeterminate={props.selection.someSelected}
+                disabled={props.readOnly}
+                onChange={props.selection.toggleAll}
+              />
+            </th>
             <th>Name</th>
             <th>Image</th>
             <th>State</th>
@@ -131,7 +143,7 @@ interface ContainerRowProps extends ContainerTableProps {
 
 function ContainerRow({
   container,
-  busyContainer,
+  busyContainers,
   selectedContainer,
   logsContainer,
   pending,
@@ -139,14 +151,23 @@ function ContainerRow({
   onLogs,
   onShell,
   onAction,
+  selection,
   readOnly,
 }: ContainerRowProps) {
   const tone = containerTone(container);
-  const isBusy = busyContainer === container.name;
+  const isBusy = busyContainers.has(container.name);
   const confirming = pending !== null && pending.target === 'container' && pending.name === container.name;
   return (
     <>
       <tr className={container.name === selectedContainer ? 'docker-row-selected' : undefined}>
+        <td className="docker-select-cell">
+          <SelectionCheckbox
+            label={`Select ${container.name}`}
+            checked={selection.selected.has(container.name)}
+            disabled={readOnly}
+            onChange={() => selection.toggle(container.name)}
+          />
+        </td>
         <td className="docker-name">{container.name}</td>
         <td className="docker-image">
           <code>{container.image}</code>
