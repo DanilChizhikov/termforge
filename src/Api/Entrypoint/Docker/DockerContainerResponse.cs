@@ -20,6 +20,8 @@ internal sealed class DockerContainerResponse
 
     public required string CreatedAt { get; init; }
 
+    public ComposeProjectResponse? Compose { get; init; }
+
     public static DockerContainerResponse From(DockerContainer container)
     {
         return new DockerContainerResponse
@@ -32,6 +34,12 @@ internal sealed class DockerContainerResponse
             Health = container.Health,
             Ports = container.Ports,
             CreatedAt = container.CreatedAt,
+            Compose = ToComposeResponse(container.Compose),
         };
+    }
+
+    private static ComposeProjectResponse? ToComposeResponse(ComposeLabels? labels)
+    {
+        return labels is null ? null : new ComposeProjectResponse(labels.Project, labels.WorkingDirectory);
     }
 }

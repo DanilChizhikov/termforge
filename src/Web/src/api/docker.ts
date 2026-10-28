@@ -15,7 +15,9 @@ export type ContainerState =
   | 'Exited'
   | 'Dead';
 
-export type ContainerAction = 'start' | 'stop' | 'restart';
+export type ContainerAction = 'start' | 'stop' | 'restart' | 'remove';
+
+export type ComposeAction = 'restart' | 'recreate';
 
 export type ContainerShellChoice = 'auto' | 'bash' | 'sh';
 
@@ -28,6 +30,37 @@ export interface DockerContainer {
   health: string | null;
   ports: string;
   createdAt: string;
+  compose?: ComposeInfo | null;
+}
+
+export interface ComposeInfo {
+  project: string;
+  workingDirectory: string;
+}
+
+export interface DockerImage {
+  id: string;
+  repository: string;
+  tag: string;
+  size: string;
+  createdSince: string;
+}
+
+export interface DockerImages {
+  connectionId: string;
+  serverName: string;
+  images: DockerImage[];
+}
+
+export interface ImageRemoveResult {
+  operationId: string;
+  image: string;
+}
+
+export interface ComposeActionResult {
+  operationId: string;
+  project: string;
+  action: ComposeAction;
 }
 
 export interface DockerOverview {
@@ -55,11 +88,17 @@ export type ContainerLogMessage =
 
 export const LOG_TAIL_OPTIONS: readonly number[] = [100, 200, 1000, 5000];
 
-export const ACTIONS_REQUIRING_CONFIRMATION: ReadonlySet<ContainerAction> = new Set(['stop', 'restart']);
+export const ACTIONS_REQUIRING_CONFIRMATION: ReadonlySet<ContainerAction> = new Set(['stop', 'restart', 'remove']);
 
 const DANGEROUS_ACTIONS: Partial<Record<ContainerAction, DangerousOperation>> = {
   stop: 'ContainerStop',
   restart: 'ContainerRestart',
+  remove: 'ContainerRemove',
+};
+
+const COMPOSE_OPERATIONS: Record<ComposeAction, DangerousOperation> = {
+  restart: 'ComposeRestart',
+  recreate: 'ComposeRecreate',
 };
 
 function dockerPath(connectionId: string): string {
@@ -87,6 +126,38 @@ export async function runContainerAction(
       ? await requestConfirmationToken({ operation, connectionId, target: container }, client)
       : null;
   return client.post<ContainerActionResult>(`${containerPath(connectionId, container)}/${action}`, { confirmationToken });
+}
+
+export function getDockerImages(connectionId: string, client: ApiClient = apiClient): Promise<DockerImages> {
+  return client.get<DockerImages>(`${dockerPath(connectionId)}/images`);
+}
+
+export async function removeDockerImage(
+  connectionId: string,
+  image: string,
+  client: ApiClient = apiClient,
+): Promise<ImageRemoveResult> {
+  const scope = { operation: 'ImageRemove' as const, connectionId, target: image };
+  const confirmationToken = await requestConfirmationToken(scope, client);
+  return client.post<ImageRemoveResult>(`${dockerPath(connectionId)}/images/remove`, { image, confirmationToken });
+}
+
+export async function runComposeAction(
+  connectionId: string,
+  project: string,
+  action: ComposeAction,
+  client: ApiClient = apiClient,
+): Promise<ComposeActionResult> {
+  const scope = { operation: COMPOSE_OPERATIONS[action], connectionId, target: project };
+  const confirmationToken = await requestConfirmationToken(scope, client);
+  const path = `${dockerPath(connectionId)}/compose/${encodeURIComponent(project)}/${action}`;
+  return client.post<ComposeActionResult>(path, { confirmationToken });
+}
+
+export function imagePullUrl(connectionId: string, image: string, location?: LocationLike): string {
+  const path = `${dockerPath(connectionId)}/images/pull/ws`;
+  const parameters = { image };
+  return location === undefined ? buildWebSocketUrl(path, parameters) : buildWebSocketUrl(path, parameters, location);
 }
 
 export function openContainerShell(

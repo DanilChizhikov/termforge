@@ -17,4 +17,6 @@ public sealed record DockerContainer
     public string Ports { get; init; } = string.Empty;
 
     public string CreatedAt { get; init; } = string.Empty;
+
+    public ComposeLabels? Compose { get; init; }
 }

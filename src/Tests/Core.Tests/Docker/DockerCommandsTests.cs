@@ -16,6 +16,7 @@ public sealed class DockerCommandsTests
     [DataRow(DockerContainerAction.Start, "docker start 'web'")]
     [DataRow(DockerContainerAction.Stop, "docker stop 'web'")]
     [DataRow(DockerContainerAction.Restart, "docker restart 'web'")]
+    [DataRow(DockerContainerAction.Remove, "docker rm -f 'web'")]
     public void Action_QuotesContainer(DockerContainerAction action, string expected)
     {
         var container = Parse("web");
@@ -90,6 +91,55 @@ public sealed class DockerCommandsTests
         line.Should().StartWith(" ");
         line.Should().Contain("; exec docker exec -it 'web' sh");
         line.Should().EndWith("\r");
+    }
+
+    [TestMethod]
+    public void ComposeRestart_UsesProjectNameOnly()
+    {
+        var project = ParseProject("shop");
+        var labels = new ComposeLabels("shop", "/srv/shop", ["/srv/shop/compose.yml"]);
+
+        var command = DockerCommands.Compose(ComposeAction.Restart, project, labels);
+
+        command.Should().Be("docker compose -p 'shop' restart");
+    }
+
+    [TestMethod]
+    public void ComposeRecreate_DownsAndUpsWithQuotedDirectoryAndFiles()
+    {
+        var project = ParseProject("shop");
+        var labels = new ComposeLabels("shop", "/srv/my shop", ["/srv/my shop/compose.yml", "/srv/my shop/o'verride.yml"]);
+
+        var command = DockerCommands.Compose(ComposeAction.Recreate, project, labels);
+
+        const string compose = "docker compose -p 'shop' --project-directory '/srv/my shop' -f '/srv/my shop/compose.yml' -f '/srv/my shop/o'\\''verride.yml'";
+        command.Should().Be($"{compose} down && {compose} up -d");
+    }
+
+    [TestMethod]
+    public void ComposeProjectContainers_FiltersByQuotedProjectLabel()
+    {
+        var project = ParseProject("shop");
+
+        var command = DockerCommands.ComposeProjectContainers(project);
+
+        command.Should().Be("docker ps --all --no-trunc --filter 'label=com.docker.compose.project=shop' --format '{{json .}}'");
+    }
+
+    [TestMethod]
+    public void ImageCommands_QuoteReference()
+    {
+        ImageReference.TryParse("ghcr.io/acme/api:1.2@sha256:abc", out var image).Should().BeTrue();
+
+        DockerCommands.RemoveImage(image).Should().Be("docker rmi 'ghcr.io/acme/api:1.2@sha256:abc'");
+        DockerCommands.Pull(image).Should().Be("docker pull 'ghcr.io/acme/api:1.2@sha256:abc' 2>&1");
+        DockerCommands.ListImages.Should().Be("docker image ls --all --no-trunc --format '{{json .}}'");
+    }
+
+    private static ComposeProjectName ParseProject(string value)
+    {
+        ComposeProjectName.TryParse(value, out var project).Should().BeTrue();
+        return project;
     }
 
     private static ContainerReference Parse(string value)

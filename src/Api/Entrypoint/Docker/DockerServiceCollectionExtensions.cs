@@ -12,13 +12,18 @@ public static class DockerServiceCollectionExtensions
         services.TryAddSingleton<DockerProbe>();
         services.AddSingleton<DockerAvailabilityChecker>();
         services.AddSingleton<DockerContainerLister>();
-        services.AddSingleton<ContainerLogRelay>();
+        services.AddSingleton<DockerOutputRelay>();
         services.AddScoped<DockerTargetResolver>();
         services.AddScoped<DockerOperationRecorder>();
         services.AddScoped<DockerOverviewService>();
         services.AddScoped<ContainerActionService>();
         services.AddScoped<ContainerLogService>();
         services.AddScoped<ContainerShellLauncher>();
+        services.AddSingleton<ComposeProjectResolver>();
+        services.AddScoped<ComposeActionService>();
+        services.AddScoped<DockerImageService>();
+        services.AddScoped<ImageRemoveService>();
+        services.AddScoped<ImagePullService>();
         return services;
     }
 }

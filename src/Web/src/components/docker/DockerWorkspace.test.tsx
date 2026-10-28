@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DockerContainer, DockerOverview } from '../../api/docker';
 import { replaceConnections } from '../../state/connections';
+import { isConfirmationSkipped, reloadConfirmationPreferences } from '../../state/dockerConfirmPreferences';
 import { selectServer } from '../../state/selectedServer';
 import type { TerminalViewProps } from '../TerminalView';
 import { DockerWorkspace } from './DockerWorkspace';
@@ -378,5 +379,74 @@ describe('DockerWorkspace', () => {
 
     await user.click(screen.getByRole('button', { name: 'Close shell' }));
     expect(mocks.closeTerminal).toHaveBeenCalledWith('shell-1');
+  });
+});
+
+describe('DockerWorkspace removal and compose', () => {
+  afterEach(() => {
+    window.localStorage.clear();
+    act(() => reloadConfirmationPreferences());
+  });
+
+  it('removes a running container after a force-stop warning and remembers "Don\'t ask again"', async () => {
+    const user = userEvent.setup();
+    act(() => selectServer('srv-1'));
+    const requests = stubApi(() => overview(), () => json({ operationId: 'op-3', container: 'web', action: 'remove' }));
+    render(<DockerWorkspace active />);
+    await screen.findByText('Docker reachable');
+
+    await user.click(screen.getByRole('button', { name: 'Remove web' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveTextContent('Remove web on web-01?');
+    expect(dialog).toHaveTextContent('force-stopped');
+    await user.click(within(dialog).getByRole('checkbox', { name: "Don't ask again" }));
+    await user.click(within(dialog).getByRole('button', { name: 'Remove container' }));
+
+    expect(await screen.findByText('Removed web. Recorded in the journal.')).toBeInTheDocument();
+    expect(isConfirmationSkipped('containerRemove')).toBe(true);
+    const action = actionRequests(requests)[0]!;
+    expect(action.url).toBe('/api/connections/srv-1/docker/containers/web/remove');
+    expect(action.body).toEqual({ confirmationToken: 'confirm-1' });
+    const confirmation = requests.find((request) => request.url === '/api/confirmations');
+    expect(confirmation?.body).toEqual({ operation: 'ContainerRemove', connectionId: 'srv-1', target: 'web' });
+
+    await user.click(screen.getByRole('button', { name: 'Remove db' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await screen.findByText('Removed db. Recorded in the journal.');
+    expect(actionRequests(requests).map((request) => request.url).at(-1)).toBe('/api/connections/srv-1/docker/containers/db/remove');
+    expect(requests.filter((request) => request.url === '/api/confirmations')).toHaveLength(2);
+  });
+
+  it('groups compose containers and restarts the whole project after confirmation', async () => {
+    const user = userEvent.setup();
+    act(() => selectServer('srv-1'));
+    const shop = { project: 'shop', workingDirectory: '/srv/shop' };
+    const requests = stubApi(
+      () =>
+        overview({
+          containers: [
+            container({ id: 'id-shop-web', name: 'shop-web', compose: shop }),
+            container({ id: 'id-shop-db', name: 'shop-db', compose: shop }),
+            container({ id: 'id-solo', name: 'solo' }),
+          ],
+        }),
+      () => json({ operationId: 'op-4', project: 'shop', action: 'restart' }),
+    );
+    render(<DockerWorkspace active />);
+    await screen.findByText('Docker reachable');
+
+    expect(screen.getByText('/srv/shop')).toBeInTheDocument();
+    expect(screen.getByText('Standalone containers')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Restart project shop' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveTextContent('Restart project shop on web-01?');
+    expect(within(dialog).queryByRole('checkbox')).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Restart project' }));
+
+    expect(await screen.findByText('Restarted project shop. Recorded in the journal.')).toBeInTheDocument();
+    const action = requests.find((request) => request.method === 'POST' && request.url.includes('/compose/'))!;
+    expect(action.url).toBe('/api/connections/srv-1/docker/compose/shop/restart');
+    expect(action.body).toEqual({ confirmationToken: 'confirm-1' });
   });
 });

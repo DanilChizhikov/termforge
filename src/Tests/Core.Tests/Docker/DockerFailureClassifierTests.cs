@@ -60,4 +60,19 @@ public sealed class DockerFailureClassifierTests
         error.Code.Should().Be(DockerErrorCode.CommandFailed);
         error.Message.Should().Contain("code 1").And.Contain("cannot stop container");
     }
+
+    [TestMethod]
+    [DataRow("Error response from daemon: No such image: nginx:9", DockerErrorCode.ImageNotFound)]
+    [DataRow("Error response from daemon: conflict: unable to remove repository reference \"nginx\" (must force) - container 3f4e is using its referenced image", DockerErrorCode.ImageInUse)]
+    [DataRow("Error response from daemon: conflict: unable to delete 3f4e (cannot be forced) - image is being used by running container 9a1b", DockerErrorCode.ImageInUse)]
+    [DataRow("docker: 'compose' is not a docker command.", DockerErrorCode.ComposeMissing)]
+    [DataRow("unknown command: docker compose", DockerErrorCode.ComposeMissing)]
+    public void Classify_ImageAndComposeFailures(string standardError, DockerErrorCode expected)
+    {
+        var result = new RemoteCommandResult(1, string.Empty, standardError);
+
+        var error = DockerFailureClassifier.Classify(result);
+
+        error.Code.Should().Be(expected);
+    }
 }
