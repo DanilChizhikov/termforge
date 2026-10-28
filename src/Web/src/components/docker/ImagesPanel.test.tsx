@@ -207,3 +207,38 @@ describe('Docker images', () => {
     expect(screen.getByRole('button', { name: 'Pull' })).toBeEnabled();
   });
 });
+
+describe('Docker images multi-select', () => {
+  it('removes every selected image after one confirmation', async () => {
+    const user = userEvent.setup();
+    const requests = stubApi();
+    await openImages();
+
+    await user.click(screen.getByRole('checkbox', { name: 'Select all images' }));
+    await user.click(screen.getByRole('button', { name: 'Remove 2 selected images' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveTextContent('Remove 2 images on web-01?');
+    expect(dialog).toHaveTextContent('Containers still use some of them');
+    await user.click(within(dialog).getByRole('button', { name: 'Remove 2 images' }));
+
+    expect(await screen.findByText('Removed 2 images. Recorded in the journal.')).toBeInTheDocument();
+    expect(removals(requests).map((request) => (request.body as { image: string }).image)).toEqual([
+      'nginx:1.27',
+      'sha256:bbbbbbbbbbbbbbbb',
+    ]);
+  });
+
+  it('removes selected images without a dialog once it is turned off', async () => {
+    const user = userEvent.setup();
+    const requests = stubApi();
+    await openImages();
+    act(() => setConfirmationSkipped('imageRemove', true));
+
+    await user.click(screen.getByRole('checkbox', { name: 'Select image sha256:bbbbbbbbbbbbbbbb' }));
+    await user.click(screen.getByRole('button', { name: 'Remove 1 selected image' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await screen.findByText('Removed 1 image. Recorded in the journal.');
+    expect(removals(requests)).toHaveLength(1);
+  });
+});

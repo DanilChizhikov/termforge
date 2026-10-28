@@ -3,10 +3,14 @@ import { describeError } from '../../api/connections';
 import { getDockerImages, removeDockerImage, type DockerContainer, type DockerImage } from '../../api/docker';
 import { isConfirmationSkipped, setConfirmationSkipped } from '../../state/dockerConfirmPreferences';
 import { EmptyState } from '../EmptyState';
+import { BulkActionBar, type BulkActionButton } from './BulkActionBar';
 import { ConfirmDockerAction } from './ConfirmDockerAction';
 import { DockerNotice, type ActionNotice } from './DockerNotice';
 import { imageReference, imageUsage, shortImageId } from './dockerStatus';
 import { ImagePullProgress } from './ImagePullProgress';
+import { countOf, describeBulkOutcome, runSequentially } from './runBulk';
+import { SelectionCheckbox } from './SelectionCheckbox';
+import { useRowSelection } from './useRowSelection';
 
 export interface ImagesPanelProps {
   serverId: string;
@@ -28,13 +32,16 @@ interface PullRequest {
   attempt: number;
 }
 
-const COLUMN_COUNT = 7;
+const COLUMN_COUNT = 8;
+const NO_IMAGES: ReadonlySet<string> = new Set();
+const REMOVE_ACTION = 'remove';
 
 export function ImagesPanel({ serverId, serverName, containers, readOnly, reloadKey, onPulled }: ImagesPanelProps) {
   const [state, setState] = useState<ImagesState>({ images: null, error: null, isLoading: true });
   const [localReloadKey, setLocalReloadKey] = useState(0);
   const [pendingRemoval, setPendingRemoval] = useState<string | null>(null);
-  const [busyImage, setBusyImage] = useState<string | null>(null);
+  const [pendingBulkRemoval, setPendingBulkRemoval] = useState<string[] | null>(null);
+  const [busyImages, setBusyImages] = useState<ReadonlySet<string>>(NO_IMAGES);
   const [notice, setNotice] = useState<ActionNotice | null>(null);
   const [reference, setReference] = useState('');
   const [pull, setPull] = useState<PullRequest | null>(null);
@@ -65,7 +72,8 @@ export function ImagesPanel({ serverId, serverName, containers, readOnly, reload
 
   const remove = useCallback(
     (image: string) => {
-      setBusyImage(image);
+      const busy = new Set([image]);
+      setBusyImages(busy);
       setNotice(null);
       removeDockerImage(serverId, image)
         .then(() => {
@@ -73,16 +81,71 @@ export function ImagesPanel({ serverId, serverName, containers, readOnly, reload
           reload();
         })
         .catch((failure: unknown) => setNotice({ tone: 'danger', message: describeError(failure) }))
-        .finally(() => setBusyImage(null));
+        .finally(() => setBusyImages(NO_IMAGES));
     },
     [serverId, reload],
   );
+
+  const images = state.images ?? [];
+  const imageReferences = images.map(imageReference);
+  const selection = useRowSelection(imageReferences);
+  const clearSelection = selection.clear;
+  const selectedReferences = imageReferences.filter((target) => selection.selected.has(target));
+
+  const removeAll = useCallback(
+    (targets: string[]) => {
+      const busy = new Set(targets);
+      setBusyImages(busy);
+      setNotice(null);
+      runSequentially(targets, (target) => removeDockerImage(serverId, target))
+        .then((outcome) => {
+          const wording = { pastTense: 'Removed', one: 'image', many: 'images' };
+          setNotice(describeBulkOutcome(outcome, wording));
+          clearSelection();
+          reload();
+        })
+        .finally(() => setBusyImages(NO_IMAGES));
+    },
+    [serverId, reload, clearSelection],
+  );
+
+  const requestBulkRemoval = () => {
+    if (isConfirmationSkipped('imageRemove')) {
+      removeAll(selectedReferences);
+      return;
+    }
+    setPendingRemoval(null);
+    setPendingBulkRemoval(selectedReferences);
+  };
+
+  const confirmBulkRemoval = (skipNextTime: boolean) => {
+    if (pendingBulkRemoval !== null) {
+      if (skipNextTime) {
+        setConfirmationSkipped('imageRemove', true);
+      }
+      removeAll(pendingBulkRemoval);
+    }
+    setPendingBulkRemoval(null);
+  };
+
+  const bulkButtons: BulkActionButton<typeof REMOVE_ACTION>[] = [
+    {
+      action: REMOVE_ACTION,
+      label: `Remove ${selectedReferences.length}`,
+      ariaLabel: `Remove ${countOf(selectedReferences.length, 'selected image', 'selected images')}`,
+      confirms: true,
+    },
+  ];
+  const bulkRemovalUsed =
+    pendingBulkRemoval !== null &&
+    images.some((image) => pendingBulkRemoval.includes(imageReference(image)) && imageUsage(image, containers) > 0);
 
   const requestRemoval = (image: string) => {
     if (isConfirmationSkipped('imageRemove')) {
       remove(image);
       return;
     }
+    setPendingBulkRemoval(null);
     setPendingRemoval(image);
   };
 
@@ -117,8 +180,6 @@ export function ImagesPanel({ serverId, serverName, containers, readOnly, reload
     },
     [onPulled],
   );
-
-  const images = state.images ?? [];
 
   return (
     <>
@@ -156,12 +217,50 @@ export function ImagesPanel({ serverId, serverName, containers, readOnly, reload
         </p>
       ) : null}
       <DockerNotice notice={notice} />
+      {selection.someSelected ? (
+        <BulkActionBar
+          summary={`${selection.selected.size} selected`}
+          buttons={bulkButtons}
+          armedAction={pendingBulkRemoval !== null ? REMOVE_ACTION : null}
+          disabled={readOnly || busyImages.size > 0}
+          confirmation={
+            pendingBulkRemoval !== null ? (
+              <ConfirmDockerAction
+                title={`Remove ${countOf(pendingBulkRemoval.length, 'image', 'images')} on ${serverName}?`}
+                consequence={`${pendingBulkRemoval.join(', ')}. ${
+                  bulkRemovalUsed
+                    ? 'Containers still use some of them, so Docker refuses those until the containers are removed. The images are deleted from the server; pull them again to restore them.'
+                    : 'The images are deleted from the server; pull them again to restore them.'
+                }`}
+                confirmLabel={`Remove ${countOf(pendingBulkRemoval.length, 'image', 'images')}`}
+                offerSkip
+                onConfirm={confirmBulkRemoval}
+                onCancel={() => setPendingBulkRemoval(null)}
+              />
+            ) : null
+          }
+          onAction={requestBulkRemoval}
+          onClear={() => {
+            setPendingBulkRemoval(null);
+            clearSelection();
+          }}
+        />
+      ) : null}
       {state.images !== null && images.length === 0 ? <EmptyState message="No images on this server." /> : null}
       {images.length > 0 ? (
         <div className="table-card">
           <table className="data-table docker-table">
             <thead>
               <tr>
+                <th className="docker-select-cell">
+                  <SelectionCheckbox
+                    label="Select all images"
+                    checked={selection.allSelected}
+                    indeterminate={selection.someSelected}
+                    disabled={readOnly}
+                    onChange={selection.toggleAll}
+                  />
+                </th>
                 <th>Repository</th>
                 <th>Tag</th>
                 <th>Image ID</th>
@@ -178,6 +277,14 @@ export function ImagesPanel({ serverId, serverName, containers, readOnly, reload
                 return (
                   <Fragment key={`${image.id}:${target}`}>
                     <tr>
+                      <td className="docker-select-cell">
+                        <SelectionCheckbox
+                          label={`Select image ${target}`}
+                          checked={selection.selected.has(target)}
+                          disabled={readOnly}
+                          onChange={() => selection.toggle(target)}
+                        />
+                      </td>
                       <td className="docker-image">
                         <code>{image.repository}</code>
                       </td>
@@ -199,7 +306,7 @@ export function ImagesPanel({ serverId, serverName, containers, readOnly, reload
                                 ? 'btn btn-sm docker-row-button docker-row-button-armed'
                                 : 'btn btn-sm docker-row-button'
                             }
-                            disabled={readOnly || busyImage === target}
+                            disabled={readOnly || busyImages.has(target)}
                             aria-label={`Remove image ${target}`}
                             aria-expanded={pendingRemoval === target}
                             onClick={() => requestRemoval(target)}
