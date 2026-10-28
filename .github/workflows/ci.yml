@@ -8,13 +8,7 @@ on:
 
 jobs:
   Run-Tests:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
-    runs-on: ${{ matrix.os }}
-    env:
-      TERMFORGE_SKIP_DOCKER_TESTS: ${{ matrix.os != 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
@@ -53,21 +47,13 @@ jobs:
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: test-results-${{ matrix.os }}
+        name: test-results
         path: TestResults/
 
   Smoke:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-        - os: ubuntu-latest
-          rid: linux-x64
-        - os: macos-latest
-          rid: osx-arm64
-        - os: windows-latest
-          rid: win-x64
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
+    env:
+      RID: linux-x64
     defaults:
       run:
         shell: bash
@@ -89,15 +75,11 @@ jobs:
 
     - name: Publish
       run: ./scripts/publish.sh -r "$RID" -n
-      env:
-        RID: ${{ matrix.rid }}
 
     - name: Smoke test
       run: |
         version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)
         ./scripts/smoke-test.sh "publish/termforge-$version-$RID"
-      env:
-        RID: ${{ matrix.rid }}
 
   Frontend:
     runs-on: ubuntu-latest

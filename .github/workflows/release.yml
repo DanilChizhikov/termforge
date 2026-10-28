@@ -62,11 +62,6 @@ jobs:
           smoke: true
         - rid: linux-arm64
           os: ubuntu-latest
-        - rid: win-x64
-          os: windows-latest
-          smoke: true
-        - rid: win-arm64
-          os: windows-latest
         # osx builds run on macOS so the SDK signs the apphost.
         - rid: osx-x64
           os: macos-latest
