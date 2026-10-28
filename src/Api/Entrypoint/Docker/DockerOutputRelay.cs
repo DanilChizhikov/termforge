@@ -5,7 +5,7 @@ using DTech.Core.Docker;
 
 namespace DTech.Entrypoint.Docker;
 
-internal sealed class ContainerLogRelay(ILogger<ContainerLogRelay> logger)
+internal sealed class DockerOutputRelay(ILogger<DockerOutputRelay> logger)
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
     {
@@ -14,7 +14,7 @@ internal sealed class ContainerLogRelay(ILogger<ContainerLogRelay> logger)
 
     private static readonly TimeSpan CloseHandshakeTimeout = TimeSpan.FromSeconds(2);
 
-    public async Task RunAsync(WebSocket webSocket, ContainerLogStream stream, CancellationToken requestAborted)
+    public async Task RunAsync(WebSocket webSocket, IDockerOutputStream stream, CancellationToken requestAborted)
     {
         using var stopping = CancellationTokenSource.CreateLinkedTokenSource(requestAborted);
         var clientClosed = WaitForClientCloseAsync(webSocket, stopping);
@@ -26,7 +26,7 @@ internal sealed class ContainerLogRelay(ILogger<ContainerLogRelay> logger)
         }
         catch (Exception exception) when (exception is OperationCanceledException or WebSocketException or ObjectDisposedException)
         {
-            logger.LogDebug($"Container log stream stopped: {exception.GetType().Name}");
+            logger.LogDebug($"Docker output stream stopped: {exception.GetType().Name}");
         }
         finally
         {
@@ -49,11 +49,11 @@ internal sealed class ContainerLogRelay(ILogger<ContainerLogRelay> logger)
         }
         catch (Exception exception) when (exception is OperationCanceledException or WebSocketException or ObjectDisposedException)
         {
-            logger.LogDebug($"Container log rejection was not delivered: {exception.GetType().Name}");
+            logger.LogDebug($"Docker output rejection was not delivered: {exception.GetType().Name}");
         }
     }
 
-    private static async Task RelayOutputAsync(WebSocket webSocket, ContainerLogStream stream, CancellationToken cancellationToken)
+    private static async Task RelayOutputAsync(WebSocket webSocket, IDockerOutputStream stream, CancellationToken cancellationToken)
     {
         var text = await stream.ReadAsync(cancellationToken);
         while (text is not null)
@@ -68,7 +68,7 @@ internal sealed class ContainerLogRelay(ILogger<ContainerLogRelay> logger)
     {
         if (webSocket.State is not (WebSocketState.Open or WebSocketState.CloseReceived))
         {
-            throw new OperationCanceledException("The log viewer disconnected.");
+            throw new OperationCanceledException("The output viewer disconnected.");
         }
 
         var bytes = JsonSerializer.SerializeToUtf8Bytes(message, SerializerOptions);
@@ -103,7 +103,7 @@ internal sealed class ContainerLogRelay(ILogger<ContainerLogRelay> logger)
         {
             if (webSocket.State is WebSocketState.Open or WebSocketState.CloseReceived)
             {
-                await webSocket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "log stream closed", cancellationToken);
+                await webSocket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "output stream closed", cancellationToken);
             }
         }
         catch (Exception exception) when (exception is OperationCanceledException or WebSocketException or ObjectDisposedException)

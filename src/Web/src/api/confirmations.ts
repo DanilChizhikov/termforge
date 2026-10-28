@@ -4,6 +4,10 @@ export type DangerousOperation =
   | 'RemoteDelete'
   | 'ContainerStop'
   | 'ContainerRestart'
+  | 'ContainerRemove'
+  | 'ImageRemove'
+  | 'ComposeRestart'
+  | 'ComposeRecreate'
   | 'FileRollback'
   | 'TransferOverwrite';
 
