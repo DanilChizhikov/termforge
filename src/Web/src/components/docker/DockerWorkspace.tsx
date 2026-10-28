@@ -1,31 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { describeError } from '../../api/connections';
-import {
-  ACTIONS_REQUIRING_CONFIRMATION,
-  getDockerOverview,
-  runContainerAction,
-  type ContainerAction,
-  type DockerContainer,
-  type DockerOverview,
-} from '../../api/docker';
+import { getDockerOverview, type DockerOverview } from '../../api/docker';
 import { useConnection } from '../../state/connections';
 import { useSelectedServerId } from '../../state/selectedServer';
 import { EmptyState } from '../EmptyState';
 import { CheckIcon, RefreshArcIcon } from '../icons/Icons';
-import { ConfirmContainerAction, type PendingContainerAction } from './ConfirmContainerAction';
-import { ContainerLogs } from './ContainerLogs';
-import { ContainerShellPanel } from './ContainerShellPanel';
-import { ContainerTable } from './ContainerTable';
-import {
-  ACTION_PAST_TENSE,
-  AVAILABILITY_TITLES,
-  availabilityTone,
-  canOpenShell,
-  isProblem,
-  isRunning,
-  matchesFilter,
-  type ContainerFilter,
-} from './dockerStatus';
+import { ContainersPanel } from './ContainersPanel';
+import { AVAILABILITY_TITLES, availabilityTone, isProblem, isRunning, type ContainerFilter } from './dockerStatus';
+import { ImagesPanel } from './ImagesPanel';
 
 interface OverviewState {
   overview: DockerOverview | null;
@@ -33,12 +15,12 @@ interface OverviewState {
   isLoading: boolean;
 }
 
-type DetailPanel = { kind: 'logs'; container: string } | { kind: 'shell'; container: string } | null;
+type DockerSection = 'containers' | 'images';
 
-interface ActionNotice {
-  tone: 'ok' | 'danger';
-  message: string;
-}
+const SECTION_TITLES: Record<DockerSection, string> = {
+  containers: 'Containers',
+  images: 'Images',
+};
 
 export function DockerWorkspace({ active }: { active: boolean }) {
   const serverId = useSelectedServerId();
@@ -59,12 +41,8 @@ function DockerView({ serverId }: { serverId: string }) {
   const connection = useConnection(serverId);
   const readOnly = connection?.readOnly ?? false;
   const [state, setState] = useState<OverviewState>({ overview: null, error: null, isLoading: true });
+  const [section, setSection] = useState<DockerSection>('containers');
   const [filter, setFilter] = useState<ContainerFilter>('all');
-  const [panel, setPanel] = useState<DetailPanel>(null);
-  const [pending, setPending] = useState<PendingContainerAction | null>(null);
-  const [busyContainer, setBusyContainer] = useState<string | null>(null);
-  const [notice, setNotice] = useState<ActionNotice | null>(null);
-
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -90,50 +68,15 @@ function DockerView({ serverId }: { serverId: string }) {
     setReloadKey((key) => key + 1);
   }, []);
 
-  const execute = useCallback(
-    (container: string, action: ContainerAction) => {
-      setBusyContainer(container);
-      setNotice(null);
-      const confirmed = ACTIONS_REQUIRING_CONFIRMATION.has(action);
-      runContainerAction(serverId, container, action, confirmed)
-        .then(() => {
-          setNotice({ tone: 'ok', message: `${ACTION_PAST_TENSE[action]} ${container}. Recorded in the journal.` });
-          refresh();
-        })
-        .catch((failure: unknown) => setNotice({ tone: 'danger', message: describeError(failure) }))
-        .finally(() => setBusyContainer(null));
-    },
-    [serverId, refresh],
-  );
-
-  const requestAction = useCallback(
-    (container: DockerContainer, action: ContainerAction) => {
-      if (ACTIONS_REQUIRING_CONFIRMATION.has(action)) {
-        setPending({ container: container.name, action });
-        return;
-      }
-      execute(container.name, action);
-    },
-    [execute],
-  );
-
-  const confirmPending = useCallback(() => {
-    if (pending !== null) {
-      execute(pending.container, pending.action);
-    }
-    setPending(null);
-  }, [pending, execute]);
-
   const overview = state.overview;
   const containers = overview?.containers ?? [];
-  const visible = containers.filter((container) => matchesFilter(container, filter));
-  const panelContainer = containers.find((container) => container.name === panel?.container) ?? null;
+  const isAvailable = overview?.availability.state === 'Available';
 
   return (
     <section aria-label="Docker containers" className="view docker-view">
       <div className="view-header docker-header">
         <h2 className="page-title">
-          Containers
+          {SECTION_TITLES[section]}
           {overview !== null ? (
             <>
               {' '}
@@ -143,7 +86,13 @@ function DockerView({ serverId }: { serverId: string }) {
         </h2>
         {overview !== null ? <AvailabilityBadge overview={overview} /> : null}
         <span className="docker-header-spacer" />
-        {overview?.availability.state === 'Available' ? (
+        {isAvailable ? (
+          <div role="group" aria-label="Docker section" className="segmented">
+            <SectionButton section="containers" current={section} onSelect={setSection} />
+            <SectionButton section="images" current={section} onSelect={setSection} />
+          </div>
+        ) : null}
+        {isAvailable && section === 'containers' ? (
           <div role="group" aria-label="Filter containers" className="segmented">
             <FilterButton filter="all" current={filter} label={`All ${containers.length}`} onSelect={setFilter} />
             <FilterButton
@@ -164,7 +113,7 @@ function DockerView({ serverId }: { serverId: string }) {
           type="button"
           className="icon-btn icon-btn-lg icon-btn-outlined"
           aria-label="Refresh"
-          title="Refresh containers"
+          title={`Refresh ${SECTION_TITLES[section].toLowerCase()}`}
           disabled={state.isLoading}
           onClick={refresh}
         >
@@ -177,63 +126,24 @@ function DockerView({ serverId }: { serverId: string }) {
           {state.error}
         </p>
       ) : null}
-      {notice !== null ? (
-        <p role={notice.tone === 'danger' ? 'alert' : 'status'} className={notice.tone === 'danger' ? 'notice notice-danger' : 'notice'}>
-          {notice.message}
-        </p>
-      ) : null}
       {readOnly ? (
         <p role="status" className="notice notice-caution">
-          {connection?.name ?? 'This server'} is read-only. Starting, stopping, restarting and opening shells are blocked;
-          logs stay available.
+          {connection?.name ?? 'This server'} is read-only. Starting, stopping, restarting, removing, pulling, compose actions
+          and opening shells are blocked; logs stay available.
         </p>
       ) : null}
-      {overview !== null && overview.availability.state !== 'Available' ? (
-        <UnavailableCallout overview={overview} />
+      {overview !== null && !isAvailable ? <UnavailableCallout overview={overview} /> : null}
+      {overview !== null && isAvailable && section === 'containers' ? (
+        <ContainersPanel serverId={serverId} overview={overview} filter={filter} readOnly={readOnly} onChanged={refresh} />
       ) : null}
-      {overview?.availability.state === 'Available' ? (
-        visible.length > 0 ? (
-          <ContainerTable
-            containers={visible}
-            busyContainer={busyContainer}
-            selectedContainer={panel?.container ?? null}
-            logsContainer={panel?.kind === 'logs' ? panel.container : null}
-            pending={pending}
-            readOnly={readOnly}
-            confirmation={
-              pending !== null && overview !== null ? (
-                <ConfirmContainerAction
-                  pending={pending}
-                  serverName={overview.serverName}
-                  onConfirm={confirmPending}
-                  onCancel={() => setPending(null)}
-                />
-              ) : null
-            }
-            onLogs={(container) => setPanel({ kind: 'logs', container: container.name })}
-            onShell={(container) => setPanel({ kind: 'shell', container: container.name })}
-            onAction={requestAction}
-          />
-        ) : (
-          <EmptyState message={containers.length === 0 ? 'No containers on this server.' : 'No containers match the filter.'} />
-        )
-      ) : null}
-      {panel?.kind === 'logs' ? (
-        <ContainerLogs
-          key={panel.container}
-          connectionId={serverId}
-          container={panel.container}
-          canOpenShell={panelContainer !== null && canOpenShell(panelContainer)}
-          onOpenShell={() => setPanel({ kind: 'shell', container: panel.container })}
-          onClose={() => setPanel(null)}
-        />
-      ) : null}
-      {panel?.kind === 'shell' ? (
-        <ContainerShellPanel
-          key={panel.container}
-          connectionId={serverId}
-          container={panel.container}
-          onClose={() => setPanel(null)}
+      {overview !== null && isAvailable && section === 'images' ? (
+        <ImagesPanel
+          serverId={serverId}
+          serverName={overview.serverName}
+          containers={containers}
+          readOnly={readOnly}
+          reloadKey={reloadKey}
+          onPulled={refresh}
         />
       ) : null}
     </section>
@@ -279,6 +189,20 @@ function FilterButton({ filter, current, label, onSelect }: FilterButtonProps) {
   return (
     <button type="button" aria-pressed={filter === current} onClick={() => onSelect(filter)}>
       {label}
+    </button>
+  );
+}
+
+interface SectionButtonProps {
+  section: DockerSection;
+  current: DockerSection;
+  onSelect: (section: DockerSection) => void;
+}
+
+function SectionButton({ section, current, onSelect }: SectionButtonProps) {
+  return (
+    <button type="button" aria-pressed={section === current} onClick={() => onSelect(section)}>
+      {SECTION_TITLES[section]}
     </button>
   );
 }

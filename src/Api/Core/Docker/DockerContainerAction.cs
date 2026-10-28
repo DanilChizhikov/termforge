@@ -5,4 +5,5 @@ public enum DockerContainerAction
     Start,
     Stop,
     Restart,
+    Remove,
 }

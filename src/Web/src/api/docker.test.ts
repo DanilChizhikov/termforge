@@ -1,5 +1,23 @@
-import { describe, expect, it } from 'vitest';
-import { containerLogsUrl, parseLogMessage } from './docker';
+import { describe, expect, it, vi } from 'vitest';
+import { ApiClient } from './client';
+import { containerLogsUrl, imagePullUrl, parseLogMessage, removeDockerImage, runComposeAction } from './docker';
+
+interface RecordedCall {
+  url: string;
+  method: string;
+  body: unknown;
+}
+
+function recordingClient(calls: RecordedCall[]): ApiClient {
+  const fetchImpl = vi.fn<typeof fetch>((input, init) => {
+    const url = String(input);
+    const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined;
+    calls.push({ url, method: init?.method ?? 'GET', body });
+    const payload = url === '/api/session' ? { csrfToken: 'csrf' } : { token: 'confirm-1' };
+    return Promise.resolve(new Response(JSON.stringify(payload), { status: 200 }));
+  });
+  return new ApiClient({ fetchImpl });
+}
 
 const LOCATION = { protocol: 'http:', host: '127.0.0.1:7420' };
 
@@ -27,5 +45,37 @@ describe('docker api', () => {
     expect(parseLogMessage('not json')).toBeNull();
     expect(parseLogMessage('{"type":"output"}')).toBeNull();
     expect(parseLogMessage('null')).toBeNull();
+  });
+
+  it('builds an encoded image pull url', () => {
+    const url = imagePullUrl('srv', 'ghcr.io/acme/app:1.2', LOCATION);
+
+    expect(url).toBe('ws://127.0.0.1:7420/api/connections/srv/docker/images/pull/ws?image=ghcr.io%2Facme%2Fapp%3A1.2');
+  });
+
+  it('confirms an image removal and sends the image in the body', async () => {
+    const calls: RecordedCall[] = [];
+    const client = recordingClient(calls);
+
+    await removeDockerImage('srv-1', 'nginx:1.27', client);
+
+    const confirmation = calls.find((call) => call.url === '/api/confirmations');
+    expect(confirmation?.body).toEqual({ operation: 'ImageRemove', connectionId: 'srv-1', target: 'nginx:1.27' });
+    const removal = calls.at(-1)!;
+    expect(removal.url).toBe('/api/connections/srv-1/docker/images/remove');
+    expect(removal.body).toEqual({ image: 'nginx:1.27', confirmationToken: 'confirm-1' });
+  });
+
+  it('confirms a compose action and encodes the project in the path', async () => {
+    const calls: RecordedCall[] = [];
+    const client = recordingClient(calls);
+
+    await runComposeAction('srv-1', 'shop', 'recreate', client);
+
+    const confirmation = calls.find((call) => call.url === '/api/confirmations');
+    expect(confirmation?.body).toEqual({ operation: 'ComposeRecreate', connectionId: 'srv-1', target: 'shop' });
+    const action = calls.at(-1)!;
+    expect(action.url).toBe('/api/connections/srv-1/docker/compose/shop/recreate');
+    expect(action.body).toEqual({ confirmationToken: 'confirm-1' });
   });
 });

@@ -219,7 +219,7 @@ public sealed class DockerEndpointsTests
 
     [TestMethod]
     [DataRow("start", "web;reboot")]
-    [DataRow("remove", "web")]
+    [DataRow("kill", "web")]
     [DataRow("1", "web")]
     public async Task Action_WithInvalidInput_IsBadRequest(string action, string container)
     {
@@ -308,6 +308,167 @@ public sealed class DockerEndpointsTests
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         _terminalFactory.Sessions.Should().BeEmpty();
+    }
+
+    [TestMethod]
+    public async Task Overview_ExposesComposeProjectOfContainer()
+    {
+        const string composeContainer = "{\"ID\":\"3f4e1b2c9d8a\",\"Image\":\"nginx\",\"Names\":\"shop-web-1\",\"State\":\"running\",\"Status\":\"Up 1 hour\","
+            + "\"Labels\":\"com.docker.compose.project=shop,com.docker.compose.project.working_dir=/srv/shop\"}\n";
+        _runner.Respond("command -v docker", 0, "/usr/bin/docker\n")
+            .Respond("docker info", 0, "27.3.1\n")
+            .Respond("docker ps", 0, composeContainer);
+        var id = await CreateConnectionAsync();
+
+        using var response = await SendAsync(HttpMethod.Get, $"/api/connections/{id}/docker", null);
+
+        var body = await ReadJsonAsync(response);
+        var compose = body.GetProperty("containers")[0].GetProperty("compose");
+        compose.GetProperty("project").GetString().Should().Be("shop");
+        compose.GetProperty("workingDirectory").GetString().Should().Be("/srv/shop");
+    }
+
+    [TestMethod]
+    public async Task Remove_WithConfirmation_ForceRemovesContainer()
+    {
+        _runner.Respond("docker rm -f", 0, "web\n");
+        var id = await CreateConnectionAsync();
+        var token = await RequestConfirmationAsync("ContainerRemove", id, "web");
+
+        using var response = await SendAsync(HttpMethod.Post, $"/api/connections/{id}/docker/containers/web/remove", new { confirmationToken = token });
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await ReadJsonAsync(response);
+        body.GetProperty("action").GetString().Should().Be("remove");
+        _runner.ExecutedCommands.Should().Contain("docker rm -f 'web'");
+    }
+
+    [TestMethod]
+    public async Task ComposeRestart_WithoutConfirmation_IsConflict()
+    {
+        var id = await CreateConnectionAsync();
+
+        using var response = await SendAsync(HttpMethod.Post, $"/api/connections/{id}/docker/compose/shop/restart", new { confirmationToken = (string?)null });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        _runner.ExecutedCommands.Should().BeEmpty();
+    }
+
+    [TestMethod]
+    public async Task ComposeRestart_WithConfirmation_RestartsProject()
+    {
+        const string composeContainer = "{\"ID\":\"3f4e1b2c9d8a\",\"Image\":\"nginx\",\"Names\":\"shop-web-1\",\"State\":\"running\",\"Status\":\"Up 1 hour\","
+            + "\"Labels\":\"com.docker.compose.project=shop\"}\n";
+        _runner.Respond("docker ps", 0, composeContainer).Respond("docker compose", 0, string.Empty);
+        var id = await CreateConnectionAsync();
+        var token = await RequestConfirmationAsync("ComposeRestart", id, "shop");
+
+        using var response = await SendAsync(HttpMethod.Post, $"/api/connections/{id}/docker/compose/shop/restart", new { confirmationToken = token });
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await ReadJsonAsync(response);
+        body.GetProperty("project").GetString().Should().Be("shop");
+        body.GetProperty("action").GetString().Should().Be("restart");
+        _runner.ExecutedCommands.Should().Contain("docker compose -p 'shop' restart");
+    }
+
+    [TestMethod]
+    [DataRow("shop", "down")]
+    [DataRow("Shop;id", "restart")]
+    public async Task ComposeAction_WithInvalidInput_IsBadRequest(string project, string action)
+    {
+        var id = await CreateConnectionAsync();
+        var encodedProject = Uri.EscapeDataString(project);
+
+        using var response = await SendAsync(HttpMethod.Post, $"/api/connections/{id}/docker/compose/{encodedProject}/{action}", new { confirmationToken = "any" });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        _runner.ExecutedCommands.Should().BeEmpty();
+    }
+
+    [TestMethod]
+    public async Task Images_ListsImages()
+    {
+        _runner.Respond("docker image ls", 0, "{\"ID\":\"sha256:3f4e\",\"Repository\":\"nginx\",\"Tag\":\"latest\",\"Size\":\"40MB\",\"CreatedSince\":\"2 weeks ago\"}\n");
+        var id = await CreateConnectionAsync();
+
+        using var response = await SendAsync(HttpMethod.Get, $"/api/connections/{id}/docker/images", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await ReadJsonAsync(response);
+        body.GetProperty("serverName").GetString().Should().Be("web");
+        var image = body.GetProperty("images")[0];
+        image.GetProperty("id").GetString().Should().Be("sha256:3f4e");
+        image.GetProperty("repository").GetString().Should().Be("nginx");
+        image.GetProperty("tag").GetString().Should().Be("latest");
+        image.GetProperty("size").GetString().Should().Be("40MB");
+        image.GetProperty("createdSince").GetString().Should().Be("2 weeks ago");
+    }
+
+    [TestMethod]
+    public async Task ImageRemove_WithConfirmation_RemovesAndAppearsInJournal()
+    {
+        _runner.Respond("docker rmi", 0, "Untagged: nginx:latest\n");
+        var id = await CreateConnectionAsync();
+        var token = await RequestConfirmationAsync("ImageRemove", id, "nginx:latest");
+
+        using var response = await SendAsync(HttpMethod.Post, $"/api/connections/{id}/docker/images/remove", new { image = "nginx:latest", confirmationToken = token });
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await ReadJsonAsync(response);
+        body.GetProperty("image").GetString().Should().Be("nginx:latest");
+        var operationId = body.GetProperty("operationId").GetGuid();
+        using var operation = await SendAsync(HttpMethod.Get, $"/api/operations/{operationId}", null);
+        var journal = await ReadJsonAsync(operation);
+        journal.GetProperty("kind").GetString().Should().Be("docker.image.remove");
+    }
+
+    [TestMethod]
+    public async Task ImageRemove_WhenInUse_IsConflict()
+    {
+        _runner.Respond("docker rmi", 1, string.Empty, "Error response from daemon: conflict: unable to remove repository reference \"nginx\" (must force)");
+        var id = await CreateConnectionAsync();
+        var token = await RequestConfirmationAsync("ImageRemove", id, "nginx");
+
+        using var response = await SendAsync(HttpMethod.Post, $"/api/connections/{id}/docker/images/remove", new { image = "nginx", confirmationToken = token });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        var body = await ReadJsonAsync(response);
+        body.GetProperty("code").GetString().Should().Be("ImageInUse");
+    }
+
+    [TestMethod]
+    public async Task Pull_StreamsProgressAndRecordsOperation()
+    {
+        var stream = new ChannelCommandStream();
+        var started = SshResult<IRemoteCommandStream>.Success(stream);
+        _streamFactory.StartAsync(default!, default!, default).ReturnsForAnyArgs(started);
+        var id = await CreateConnectionAsync();
+        var encodedImage = Uri.EscapeDataString("alpine:3.20");
+        using var socket = await ConnectLogsAsync($"/api/connections/{id}/docker/images/pull/ws?image={encodedImage}");
+
+        stream.Emit("3.20: Pulling from library/alpine\n");
+        var output = await socket.ExpectMessageAsync("output");
+        stream.Complete(0);
+        var end = await socket.ExpectMessageAsync("end");
+
+        output.GetProperty("text").GetString().Should().Contain("Pulling from");
+        end.GetProperty("exitCode").GetInt32().Should().Be(0);
+        await _streamFactory.Received(1).StartAsync(Arg.Any<SshConnectionTarget>(), "docker pull 'alpine:3.20' 2>&1", Arg.Any<CancellationToken>());
+        await stream.Disposed.WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
+    }
+
+    [TestMethod]
+    public async Task Pull_WithUnsafeImage_SendsErrorWithoutStarting()
+    {
+        var id = await CreateConnectionAsync();
+        var encodedImage = Uri.EscapeDataString("alpine;reboot");
+        using var socket = await ConnectLogsAsync($"/api/connections/{id}/docker/images/pull/ws?image={encodedImage}");
+
+        var error = await socket.ExpectMessageAsync("error");
+
+        error.GetProperty("message").GetString().Should().Contain("invalid");
+        await _streamFactory.DidNotReceiveWithAnyArgs().StartAsync(default!, default!, default);
     }
 
     private void ReplaceServices(IServiceCollection services)

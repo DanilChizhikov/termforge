@@ -10,6 +10,7 @@ public sealed record ContainerActionRequest(Guid ConnectionId, string? Container
     {
         DockerContainerAction.Stop => Safety.DangerousOperation.ContainerStop,
         DockerContainerAction.Restart => Safety.DangerousOperation.ContainerRestart,
+        DockerContainerAction.Remove => Safety.DangerousOperation.ContainerRemove,
         _ => null,
     };
 }

@@ -63,6 +63,30 @@ internal sealed class DockerTestGraph
         return new ContainerActionService(TargetResolver, RunnerFactory, recorder, Safety.Gate);
     }
 
+    public ComposeActionService CreateComposeService()
+    {
+        var recorder = new DockerOperationRecorder(Journal);
+        var projectResolver = new ComposeProjectResolver();
+        return new ComposeActionService(TargetResolver, RunnerFactory, recorder, Safety.Gate, projectResolver);
+    }
+
+    public DockerImageService CreateImageService()
+    {
+        return new DockerImageService(TargetResolver, RunnerFactory);
+    }
+
+    public ImageRemoveService CreateImageRemoveService()
+    {
+        var recorder = new DockerOperationRecorder(Journal);
+        return new ImageRemoveService(TargetResolver, RunnerFactory, recorder, Safety.Gate);
+    }
+
+    public ImagePullService CreatePullService()
+    {
+        var recorder = new DockerOperationRecorder(Journal);
+        return new ImagePullService(TargetResolver, StreamFactory, recorder, Safety.Gate);
+    }
+
     public ContainerLogService CreateLogService()
     {
         return new ContainerLogService(TargetResolver, StreamFactory);

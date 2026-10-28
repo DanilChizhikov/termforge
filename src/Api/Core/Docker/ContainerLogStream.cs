@@ -3,7 +3,7 @@ using DTech.Core.Diagnostics;
 
 namespace DTech.Core.Docker;
 
-public sealed class ContainerLogStream : IAsyncDisposable
+public sealed class ContainerLogStream : IDockerOutputStream
 {
     private const int ReadBufferSize = 16 * 1024;
 
