@@ -28,6 +28,8 @@ const AUTH_OPTIONS: Record<AuthMethod, { title: string; hint: string }> = {
   Password: { title: 'Password', hint: 'Kept in the credential store' },
 };
 
+const STORED_PASSWORD_MASK = '********';
+
 function reconnectModeLabel(mode: ReconnectMode, attempts: number): string {
   if (mode === 'Automatic') {
     return `Reconnect ${attempts} times, then stop`;
@@ -48,6 +50,8 @@ export function ServerForm({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [storedPasswordLoaded, setStoredPasswordLoaded] = useState(false);
+  const storedPasswordMasked = editingId !== null && hasStoredPassword && !storedPasswordLoaded;
 
   const update = <K extends keyof ConnectionInput>(key: K, value: ConnectionInput[K]) => {
     setInput((current) => ({ ...current, [key]: value }));
@@ -68,7 +72,7 @@ export function ServerForm({
       setPasswordVisible(false);
       return;
     }
-    if (editingId === null || !hasStoredPassword || input.password !== '') {
+    if (editingId === null || !storedPasswordMasked) {
       setPasswordVisible(true);
       return;
     }
@@ -76,6 +80,7 @@ export function ServerForm({
     revealPassword(editingId)
       .then((password) => {
         update('password', password);
+        setStoredPasswordLoaded(true);
         setPasswordVisible(true);
       })
       .catch((failure: unknown) => setError(describeError(failure)));
@@ -206,7 +211,8 @@ export function ServerForm({
                       type={passwordVisible ? 'text' : 'password'}
                       autoComplete="new-password"
                       placeholder={hasStoredPassword ? 'Leave empty to keep the stored password' : ''}
-                      value={input.password}
+                      readOnly={storedPasswordMasked}
+                      value={storedPasswordMasked ? STORED_PASSWORD_MASK : input.password}
                       onChange={(event) => update('password', event.target.value)}
                     />
                     <button

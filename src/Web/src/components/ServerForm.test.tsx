@@ -73,7 +73,7 @@ describe('ServerForm read-only mode', () => {
   });
 });
 
-function renderPasswordForm(hasStoredPassword: boolean) {
+function renderPasswordForm(hasStoredPassword: boolean, onSubmit = vi.fn(() => Promise.resolve())) {
   render(
     <ServerForm
       title="Edit server"
@@ -81,7 +81,7 @@ function renderPasswordForm(hasStoredPassword: boolean) {
       editingId="c1"
       connections={[]}
       hasStoredPassword={hasStoredPassword}
-      onSubmit={vi.fn(() => Promise.resolve())}
+      onSubmit={onSubmit}
       onCancel={vi.fn()}
     />,
   );
@@ -103,6 +103,32 @@ describe('ServerForm password visibility', () => {
 
     expect(field).toHaveAttribute('type', 'password');
     expect(api.revealPassword).not.toHaveBeenCalled();
+  });
+
+  it('masks a stored password and keeps it read-only until it is shown', async () => {
+    const onSubmit = vi.fn(() => Promise.resolve());
+    renderPasswordForm(true, onSubmit);
+    const field = screen.getByLabelText('Server password');
+
+    await userEvent.type(field, 'typed');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(field).toHaveAttribute('type', 'password');
+    expect(field).toHaveAttribute('readonly');
+    expect(field).toHaveValue('********');
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ password: '' }));
+  });
+
+  it('makes the stored password editable after it is shown', async () => {
+    vi.mocked(api.revealPassword).mockResolvedValueOnce('stored-secret');
+    renderPasswordForm(true);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Show password' }));
+    const field = await screen.findByDisplayValue('stored-secret');
+    await userEvent.type(field, '-2');
+
+    expect(field).not.toHaveAttribute('readonly');
+    expect(field).toHaveValue('stored-secret-2');
   });
 
   it('loads and shows the stored password', async () => {
