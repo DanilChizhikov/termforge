@@ -149,6 +149,11 @@ export function getConnection(id: string, client: ApiClient = apiClient): Promis
   return client.get<SavedConnection>(`${CONNECTIONS_PATH}/${id}`);
 }
 
+export async function revealPassword(id: string, client: ApiClient = apiClient): Promise<string> {
+  const response = await client.get<{ password: string }>(`${CONNECTIONS_PATH}/${id}/password`);
+  return response.password;
+}
+
 export function createConnection(input: ConnectionInput, client: ApiClient = apiClient): Promise<SavedConnection> {
   return client.post<SavedConnection>(CONNECTIONS_PATH, toBody(input));
 }

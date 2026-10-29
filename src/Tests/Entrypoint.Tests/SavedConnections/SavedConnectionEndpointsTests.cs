@@ -180,6 +180,34 @@ public sealed class SavedConnectionEndpointsTests
     }
 
     [TestMethod]
+    public async Task RevealPassword_WithStoredPassword_ReturnsItWithoutCaching()
+    {
+        var request = Request("db");
+        request.AuthMethod = "Password";
+        request.Password = Password;
+        using var created = await SendJson(HttpMethod.Post, ListPath, request);
+        var createdBody = await created.Content.ReadFromJsonAsync<JsonElement>(TestContext.CancellationToken);
+        var id = createdBody.GetProperty("id").GetGuid();
+
+        using var response = await SendJson(HttpMethod.Get, $"{ListPath}/{id}/password", null);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        body.GetProperty("password").GetString().Should().Be(Password);
+        response.Headers.CacheControl!.NoStore.Should().BeTrue();
+    }
+
+    [TestMethod]
+    public async Task RevealPassword_WithoutStoredPassword_ReturnsNotFound()
+    {
+        var id = await CreateAsync("web");
+
+        using var response = await SendJson(HttpMethod.Get, $"{ListPath}/{id}/password", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [TestMethod]
     public async Task ImportSshConfig_CreatesConnectionsAndReportsUnsupportedDirectives()
     {
         await File.WriteAllTextAsync(_configPath, "Host web\n    HostName 10.0.0.5\n    Port 2200\n    ForwardAgent yes\n", TestContext.CancellationToken);

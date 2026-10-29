@@ -186,6 +186,20 @@
   font-size: var(--text-small);
 }
 
+.input-with-action {
+  position: relative;
+}
+
+.input-with-action .input {
+  padding-right: 40px;
+}
+
+.input-with-action .icon-btn {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+}
+
 .input {
   width: 100%;
   min-width: 0;
