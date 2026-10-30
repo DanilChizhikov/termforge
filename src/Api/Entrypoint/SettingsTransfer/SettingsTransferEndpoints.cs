@@ -34,7 +34,7 @@ public static class SettingsTransferEndpoints
             return SettingsTransferErrorResults.ToProblem(export.Error);
         }
 
-        logger.LogInformation($"Settings exported, secrets archive: {export.Value.SecretsArchive is not null}");
+        logger.LogInformation($"Settings exported with {export.Value.SecretCount} secrets");
         var response = SettingsExportResponse.From(export.Value);
         return Results.Ok(response);
     }

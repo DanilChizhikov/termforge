@@ -1,4 +1,11 @@
-import type { ContainerAction, DockerAvailabilityState, DockerContainer } from '../../api/docker';
+import type {
+  ComposeAction,
+  ComposeInfo,
+  ContainerAction,
+  DockerAvailabilityState,
+  DockerContainer,
+  DockerImage,
+} from '../../api/docker';
 import type { StatusTone } from '../statusTone';
 
 export type { StatusTone } from '../statusTone';
@@ -79,13 +86,74 @@ export function matchesFilter(container: DockerContainer, filter: ContainerFilte
 
 export function availableActions(container: DockerContainer): ContainerAction[] {
   if (container.state === 'Running' || container.state === 'Paused' || container.state === 'Restarting') {
-    return ['restart', 'stop'];
+    return ['restart', 'stop', 'remove'];
   }
   if (container.state === 'Created' || container.state === 'Exited' || container.state === 'Dead') {
-    return ['start'];
+    return ['start', 'remove'];
   }
-  return [];
+  return container.state === 'Removing' ? [] : ['remove'];
 }
+
+export interface ContainerGroup {
+  compose: ComposeInfo | null;
+  containers: DockerContainer[];
+}
+
+export function groupByComposeProject(containers: DockerContainer[]): ContainerGroup[] {
+  const projects = new Map<string, ContainerGroup>();
+  const standalone: DockerContainer[] = [];
+  containers.forEach((container) => {
+    const compose = container.compose ?? null;
+    if (compose === null) {
+      standalone.push(container);
+      return;
+    }
+    const group = projects.get(compose.project);
+    if (group === undefined) {
+      projects.set(compose.project, { compose, containers: [container] });
+      return;
+    }
+    group.containers.push(container);
+  });
+  const groups = [...projects.values()];
+  return standalone.length > 0 ? [...groups, { compose: null, containers: standalone }] : groups;
+}
+
+const NONE = '<none>';
+const SHORT_ID_LENGTH = 12;
+
+export function imageReference(image: DockerImage): string {
+  if (image.repository === NONE || image.repository === '') {
+    return image.id;
+  }
+  return image.tag === NONE || image.tag === '' ? image.repository : `${image.repository}:${image.tag}`;
+}
+
+export function shortImageId(id: string): string {
+  const hash = id.startsWith('sha256:') ? id.slice('sha256:'.length) : id;
+  return hash.slice(0, SHORT_ID_LENGTH);
+}
+
+export function imageUsage(image: DockerImage, containers: DockerContainer[]): number {
+  const names = new Set<string>([image.id, shortImageId(image.id)]);
+  if (image.repository !== NONE) {
+    names.add(imageReference(image));
+    if (image.tag === 'latest') {
+      names.add(image.repository);
+    }
+  }
+  return containers.filter((container) => names.has(container.image)).length;
+}
+
+export const COMPOSE_ACTION_LABELS: Record<ComposeAction, string> = {
+  restart: 'Restart',
+  recreate: 'Recreate',
+};
+
+export const COMPOSE_ACTION_PAST_TENSE: Record<ComposeAction, string> = {
+  restart: 'Restarted',
+  recreate: 'Recreated',
+};
 
 export function canOpenShell(container: DockerContainer): boolean {
   return isRunning(container);
@@ -113,12 +181,14 @@ export const ACTION_LABELS: Record<ContainerAction, string> = {
   start: 'Start',
   stop: 'Stop',
   restart: 'Restart',
+  remove: 'Remove',
 };
 
 export const ACTION_PAST_TENSE: Record<ContainerAction, string> = {
   start: 'Started',
   stop: 'Stopped',
   restart: 'Restarted',
+  remove: 'Removed',
 };
 
 function exitCode(container: DockerContainer): number {

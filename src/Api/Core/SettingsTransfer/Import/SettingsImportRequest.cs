@@ -1,9 +1,11 @@
+using DTech.Core.Credentials;
+
 namespace DTech.Core.SettingsTransfer.Import;
 
-public sealed record SettingsImportRequest(string SettingsFile, SecretsImportInput? Secrets, SettingsImportOptions Options)
+public sealed record SettingsImportRequest(byte[] Package, string Key, SettingsImportOptions Options)
 {
     public override string ToString()
     {
-        return $"{nameof(SettingsImportRequest)} {{ {nameof(SettingsFile)} = {SettingsFile.Length} characters, {nameof(Secrets)} = {Secrets}, {nameof(Options)} = {Options} }}";
+        return $"{nameof(SettingsImportRequest)} {{ {nameof(Package)} = {Package.Length} bytes, {nameof(Key)} = {Secret.Redacted}, {nameof(Options)} = {Options} }}";
     }
 }

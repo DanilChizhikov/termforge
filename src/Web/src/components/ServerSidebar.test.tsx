@@ -1,9 +1,12 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as api from '../api/connections';
 import type { SavedConnection } from '../api/connections';
 import { ApiError } from '../api/client';
+import { Group, Panel } from 'react-resizable-panels';
+import { resetWorkspaceLayout, restoreWorkspaceLayout } from '../state/workspaceLayout';
+import { CollapsibleRegion } from './CollapsibleRegion';
 import { selectServer } from '../state/selectedServer';
 import { ServerSidebar } from './ServerSidebar';
 
@@ -40,6 +43,7 @@ function makeConnection(overrides: Partial<SavedConnection> = {}): SavedConnecti
     reconnectMaxAttempts: 5,
     reconnectInitialDelaySeconds: 2,
     readOnly: false,
+    aiAccess: false,
     reconnectMaxDelaySeconds: 60,
     ...overrides,
   };
@@ -47,7 +51,19 @@ function makeConnection(overrides: Partial<SavedConnection> = {}): SavedConnecti
 
 const listMock = vi.mocked(api.listConnections);
 
+function renderInRegion() {
+  return render(
+    <Group orientation="horizontal" id="sidebar-test">
+      <CollapsibleRegion id="servers" title="Servers" defaultSize="30%" minSize="10%" collapsedLayout="content">
+        <ServerSidebar />
+      </CollapsibleRegion>
+      <Panel id="rest" minSize="30%" />
+    </Group>,
+  );
+}
+
 beforeEach(() => {
+  resetWorkspaceLayout();
   selectServer(null);
   listMock.mockResolvedValue([]);
 });
@@ -297,5 +313,78 @@ describe('ServerSidebar', () => {
     await waitFor(() => expect(api.renameGroup).toHaveBeenCalledWith('prod', 'live'));
     await user.click(screen.getByRole('button', { name: 'Ungroup prod' }));
     await waitFor(() => expect(api.removeGroup).toHaveBeenCalledWith('prod'));
+  });
+
+  it('filters servers by name, host, user or group', async () => {
+    const user = userEvent.setup();
+    listMock.mockResolvedValue([
+      makeConnection({ id: 'a', name: 'web-01', groupName: 'prod' }),
+      makeConnection({ id: 'b', name: 'nas', host: '192.168.1.20', userName: 'admin', groupName: 'home' }),
+    ]);
+    render(<ServerSidebar />);
+    const filter = await screen.findByRole('searchbox', { name: 'Filter servers' });
+
+    await user.type(filter, 'ADMIN');
+    expect(screen.queryByRole('button', { name: 'web-01' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'nas' })).toBeInTheDocument();
+
+    await user.clear(filter);
+    await user.type(filter, 'prod');
+    expect(screen.getByRole('button', { name: 'web-01' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'nas' })).not.toBeInTheDocument();
+
+    await user.clear(filter);
+    await user.type(filter, 'missing');
+    expect(screen.getByText('No servers match the filter.')).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+    expect(filter).toHaveValue('');
+  });
+
+  it('focuses the filter with the keyboard shortcut', async () => {
+    listMock.mockResolvedValue([makeConnection()]);
+    render(<ServerSidebar />);
+    const filter = await screen.findByRole('searchbox', { name: 'Filter servers' });
+
+    fireEvent.keyDown(document.body, { key: 'k', metaKey: true });
+    expect(filter).toHaveFocus();
+
+    filter.blur();
+    fireEvent.keyDown(document.body, { key: 'k', ctrlKey: true });
+    expect(filter).toHaveFocus();
+  });
+
+  it('shows a compact rail with initials and status while collapsed', async () => {
+    restoreWorkspaceLayout([], ['servers']);
+    listMock.mockResolvedValue([
+      makeConnection({ id: 'a', name: 'web-01', groupName: 'prod' }),
+      makeConnection({ id: 'b', name: 'db-01', groupName: 'prod', readOnly: true }),
+      makeConnection({ id: 'c', name: 'nas', groupName: 'home' }),
+    ]);
+    const user = userEvent.setup();
+    renderInRegion();
+
+    const rail = await screen.findByRole('navigation', { name: 'Servers, collapsed' });
+    const web = within(rail).getByRole('button', { name: 'web-01, not tested' });
+    expect(web).toHaveTextContent('w1');
+    expect(within(rail).getByRole('button', { name: 'db-01, not tested, read-only' })).toHaveTextContent('d1');
+    expect(screen.queryByRole('searchbox', { name: 'Filter servers' })).not.toBeInTheDocument();
+
+    await user.click(web);
+    expect(within(rail).getByRole('button', { name: 'web-01, not tested', pressed: true })).toBeInTheDocument();
+
+    await user.click(within(rail).getByRole('button', { name: 'Expand Servers' }));
+    expect(screen.getByRole('searchbox', { name: 'Filter servers' })).toBeInTheDocument();
+  });
+
+  it('expands the collapsed rail and focuses the filter with the keyboard shortcut', async () => {
+    restoreWorkspaceLayout([], ['servers']);
+    listMock.mockResolvedValue([makeConnection()]);
+    renderInRegion();
+    await screen.findByRole('navigation', { name: 'Servers, collapsed' });
+
+    fireEvent.keyDown(document.body, { key: 'k', metaKey: true });
+
+    expect(await screen.findByRole('searchbox', { name: 'Filter servers' })).toHaveFocus();
   });
 });

@@ -7,6 +7,11 @@ public sealed class DockerOperationRecorder(IOperationJournal journal)
     public const string StartKind = "docker.start";
     public const string StopKind = "docker.stop";
     public const string RestartKind = "docker.restart";
+    public const string RemoveKind = "docker.remove";
+    public const string ComposeRestartKind = "docker.compose.restart";
+    public const string ComposeRecreateKind = "docker.compose.recreate";
+    public const string ImageRemoveKind = "docker.image.remove";
+    public const string PullKind = "docker.pull";
 
     public static string KindOf(DockerContainerAction action)
     {
@@ -15,11 +20,12 @@ public sealed class DockerOperationRecorder(IOperationJournal journal)
             DockerContainerAction.Start => StartKind,
             DockerContainerAction.Stop => StopKind,
             DockerContainerAction.Restart => RestartKind,
+            DockerContainerAction.Remove => RemoveKind,
             _ => throw new ArgumentOutOfRangeException(nameof(action), action, "Unsupported container action."),
         };
     }
 
-    public async Task<Guid> StartAsync(DockerOperationStart start, CancellationToken cancellationToken)
+    public Task<Guid> StartAsync(DockerOperationStart start, CancellationToken cancellationToken)
     {
         var details = new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -27,7 +33,13 @@ public sealed class DockerOperationRecorder(IOperationJournal journal)
             ["action"] = start.Action.ToString().ToLowerInvariant(),
         };
         var kind = KindOf(start.Action);
-        var request = new CreateOperationRequest(kind, start.Server, details, false);
+        var entry = new DockerOperationEntry(kind, start.Server, details);
+        return StartAsync(entry, cancellationToken);
+    }
+
+    public async Task<Guid> StartAsync(DockerOperationEntry entry, CancellationToken cancellationToken)
+    {
+        var request = new CreateOperationRequest(entry.Kind, entry.Server, entry.Details, false);
         var created = await journal.Create(request, cancellationToken);
         await journal.Start(created.Id, cancellationToken);
         return created.Id;

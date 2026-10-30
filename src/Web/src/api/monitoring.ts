@@ -19,15 +19,24 @@ export interface DiskUsage {
   mountPoint: string;
 }
 
+export interface LoadAverage {
+  oneMinute: number;
+  fiveMinutes: number;
+  fifteenMinutes: number;
+}
+
 export interface ServerMetrics {
   connectionId: string;
   state: MonitoringState;
   collectedAt: string;
   message: string | null;
+  latencyMilliseconds: number | null;
   uptimeSeconds: Metric<number>;
   cpuPercent: Metric<number>;
   memory: Metric<MemoryUsage>;
   disk: Metric<DiskUsage>;
+  loadAverage: Metric<LoadAverage>;
+  cpuCount: Metric<number>;
 }
 
 function isMetric(value: unknown): boolean {
@@ -44,7 +53,9 @@ export function isServerMetrics(value: unknown): value is ServerMetrics {
     isMetric(candidate.uptimeSeconds) &&
     isMetric(candidate.cpuPercent) &&
     isMetric(candidate.memory) &&
-    isMetric(candidate.disk)
+    isMetric(candidate.disk) &&
+    isMetric(candidate.loadAverage) &&
+    isMetric(candidate.cpuCount)
   );
 }
 

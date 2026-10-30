@@ -8,6 +8,11 @@ const KIND_LABELS: Record<string, string> = {
   'docker.start': 'Docker',
   'docker.stop': 'Docker',
   'docker.restart': 'Docker',
+  'docker.remove': 'Docker',
+  'docker.compose.restart': 'Docker',
+  'docker.compose.recreate': 'Docker',
+  'docker.image.remove': 'Docker',
+  'docker.pull': 'Docker',
   'file.save': 'File save',
   'file.rollback': 'Rollback',
 };
@@ -16,7 +21,24 @@ const DOCKER_ACTIONS: Record<string, string> = {
   start: 'Start',
   stop: 'Stop',
   restart: 'Restart',
+  remove: 'Remove',
+  recreate: 'Recreate',
+  pull: 'Pull',
 };
+
+const DOCKER_KIND_ACTIONS: Record<string, string> = {
+  'docker.compose.restart': 'restart',
+  'docker.compose.recreate': 'recreate',
+  'docker.image.remove': 'remove',
+  'docker.pull': 'pull',
+};
+
+function describeDocker(kind: string, details: Record<string, string>): string {
+  const actionKey = details.action ?? DOCKER_KIND_ACTIONS[kind] ?? '';
+  const action = DOCKER_ACTIONS[actionKey] ?? actionKey;
+  const target = details.container ?? details.project ?? details.image;
+  return target === undefined ? action : `${action} ${target}`.trim();
+}
 
 export const OPERATION_STATUS_TONES: Record<OperationStatus, StatusTone> = {
   queued: 'idle',
@@ -55,8 +77,7 @@ export function describeOperationDetails(operation: OperationRecord): string {
     return describeTransfer(details) ?? '';
   }
   if (operation.kind.startsWith('docker.')) {
-    const action = DOCKER_ACTIONS[details.action ?? ''] ?? details.action ?? '';
-    return details.container === undefined ? action : `${action} ${details.container}`.trim();
+    return describeDocker(operation.kind, details);
   }
   if (operation.kind.startsWith('file.')) {
     const backup = details.backup === undefined ? '' : ' · backup kept';

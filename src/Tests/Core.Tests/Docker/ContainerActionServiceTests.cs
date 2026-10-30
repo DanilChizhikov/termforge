@@ -44,6 +44,7 @@ public sealed class ContainerActionServiceTests
     [TestMethod]
     [DataRow(DockerContainerAction.Stop)]
     [DataRow(DockerContainerAction.Restart)]
+    [DataRow(DockerContainerAction.Remove)]
     public async Task StopOrRestart_WithoutConfirmation_IsRejectedBeforeAnyCommand(DockerContainerAction action)
     {
         var connection = await _graph.AddConnectionAsync("web", TestContext.CancellationToken);
@@ -156,5 +157,22 @@ public sealed class ContainerActionServiceTests
         result.Error!.Code.Should().Be(DockerErrorCode.InvalidRequest);
         _graph.RunnerFactory.Connections.Should().Be(0);
         _graph.Runner.ExecutedCommands.Should().BeEmpty();
+    }
+
+    [TestMethod]
+    public async Task Remove_WithConfirmation_ForceRemovesAndRecordsRemoveKind()
+    {
+        var connection = await _graph.AddConnectionAsync("web", TestContext.CancellationToken);
+        _graph.Runner.Respond("docker rm -f", 0, "web\n");
+        var service = _graph.CreateActionService();
+        var token = _graph.Safety.Confirm(DangerousOperation.ContainerRemove, connection.Id, "web");
+        var request = new ContainerActionRequest(connection.Id, "web", DockerContainerAction.Remove) { ConfirmationToken = token };
+
+        var result = await service.RunAsync(request, TestContext.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue(result.Error?.Message);
+        _graph.Runner.ExecutedCommands.Should().ContainSingle().Which.Should().Be("docker rm -f 'web'");
+        var operations = await _graph.ListOperationsAsync(TestContext.CancellationToken);
+        operations.Single().Kind.Should().Be(DockerOperationRecorder.RemoveKind);
     }
 }

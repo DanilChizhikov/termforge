@@ -73,6 +73,7 @@ public static partial class DockerContainerListParser
         var image = ReadString(element, "Image");
         var ports = ReadString(element, "Ports");
         var createdAt = ReadString(element, "CreatedAt");
+        var labels = ReadString(element, "Labels");
         return new DockerContainer
         {
             Id = id,
@@ -83,6 +84,7 @@ public static partial class DockerContainerListParser
             Health = FindHealth(status),
             Ports = RemoteText.Sanitize(ports, PortsMaxLength),
             CreatedAt = RemoteText.Sanitize(createdAt, CreatedAtMaxLength),
+            Compose = ComposeLabelParser.Parse(labels),
         };
     }
 

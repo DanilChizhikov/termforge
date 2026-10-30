@@ -5,10 +5,8 @@ public enum SettingsTransferErrorCode
     Invalid,
     UnsupportedVersion,
     TooLarge,
-    WrongPassword,
-    ArchiveDamaged,
-    ArchiveMismatch,
-    WeakPassword,
+    WrongKey,
+    FileDamaged,
     ConfirmationRequired,
     SecretsUnavailable,
 }

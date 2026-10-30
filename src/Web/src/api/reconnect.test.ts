@@ -38,6 +38,7 @@ describe('reconnect api', () => {
       reconnectMaxAttempts: 9,
       reconnectInitialDelaySeconds: 3,
       readOnly: false,
+      aiAccess: false,
       reconnectMaxDelaySeconds: 90,
     } satisfies SavedConnection;
 

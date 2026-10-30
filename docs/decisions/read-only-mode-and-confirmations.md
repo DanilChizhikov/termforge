@@ -14,7 +14,9 @@ Every saved server has a `ReadOnly` flag (column `saved_connections.read_only`, 
 | Upload (enqueue and retry) | `TransferEnqueuer` |
 | Save and rollback | `RemoteFileSaveService` |
 | Privileged (sudo) save and rollback | `SudoFileSaveService` |
-| Docker start, stop, restart | `ContainerActionService` |
+| Docker start, stop, restart, remove | `ContainerActionService` |
+| Docker compose restart and recreate | `ComposeActionService` |
+| Docker image remove and pull | `ImageRemoveService`, `ImagePullService` |
 | Docker exec shell | `ContainerShellLauncher` |
 
 A blocked request returns `423 Locked` with `code: ReadOnlyServer`. 403 is not used because the browser client retries a 403 once to refresh its CSRF token. Reading stays allowed: listing, downloads, opening files and backups, comparing, Docker logs, diagnostics and monitoring. The check sits in the services and not in the connection openers, so it cannot be bypassed by a different entry point (for example retrying an upload from the operation journal).
@@ -30,7 +32,9 @@ The central list is `DangerousOperation`:
 | Operation | Target |
 |---|---|
 | `RemoteDelete` | remote path, as sent to `/delete` |
-| `ContainerStop`, `ContainerRestart` | container name or id |
+| `ContainerStop`, `ContainerRestart`, `ContainerRemove` | container name or id |
+| `ImageRemove` | image reference |
+| `ComposeRestart`, `ComposeRecreate` | compose project name |
 | `FileRollback` (normal and sudo) | file path |
 | `TransferOverwrite` (upload with `overwrite: true`) | target directory |
 
@@ -38,14 +42,14 @@ Flow: after the user confirms in the dialog, the client calls `POST /api/confirm
 
 Order of checks: read-only first, then the token, so a read-only server never consumes a token. `POST /api/confirmations` returns 404 for an unknown server and 423 for a read-only one.
 
-The former boolean flags (`confirm` on remote delete, `confirmed` on Docker actions) were replaced by the token. Local deletes, settings import replacement, secrets export and host key replacement keep their own explicit confirmations because they are not tied to a remote server.
+The former boolean flags (`confirm` on remote delete, `confirmed` on Docker actions) were replaced by the token. Local deletes, settings import replacement and host key replacement keep their own explicit confirmations because they are not tied to a remote server.
 
 ## UI
 
 - Sidebar rows show a caution `read-only` badge; the server name gets ", read-only" for screen readers.
 - Remote pane: New folder, Rename, Delete and drops into the pane are disabled; the local pane's Upload button explains that the server is read-only.
-- Editor: Save, Edit with sudo and Roll back are disabled with a notice; Docker: start/stop/restart and Shell are disabled, logs stay available.
-- Confirmations name the server and the target: delete lists full paths and the server, rollback names the path and server, transfer overwrite names the target directory and server, Docker names container and server.
+- Editor: Save, Edit with sudo and Roll back are disabled with a notice; Docker: container, compose and image actions, Pull and Shell are disabled, logs and lists stay available.
+- Confirmations name the server and the target: delete lists full paths and the server, rollback names the path and server, transfer overwrite names the target directory and server, Docker names container, compose project or image and server.
 - The mockup's "Confirm dangerous operations" toggle is not implemented: PROJECT_SPEC §11 requires confirmations.
 
 ## Out of scope

@@ -13,6 +13,7 @@ import {
 import type { FileSearchMatch, FileSearchSource } from '../api/fileSearch';
 import { RegionToggle } from './CollapsibleRegion';
 import { EmptyState } from './EmptyState';
+import { LoadingState } from './LoadingState';
 import { FileBreadcrumbs } from './FileBreadcrumbs';
 import { FileSearchPanel } from './FileSearchPanel';
 import { FileTable } from './FileTable';
@@ -407,7 +408,7 @@ export function FilePane({ title, label = null, sourceKey, source, path, onPathC
       {showSearch && (
         <FileSearchPanel title={title} search={search} rootPath={currentPath} onOpenLocation={openSearchLocation} />
       )}
-      {!showSearch && loading && <EmptyState message="Loading..." />}
+      {!showSearch && loading && <LoadingState message="Loading..." className="empty-state" />}
       {!showSearch && listing !== null && entries.length === 0 && <EmptyState message="This folder is empty." />}
       {!showSearch && listing !== null && entries.length > 0 && (
         <div className="file-table-scroll">

@@ -46,6 +46,19 @@ public sealed class ServerMonitoringServiceTests
     }
 
     [TestMethod]
+    public async Task Collect_ReportsConnectLatency()
+    {
+        var connection = await CreateConnectionAsync();
+        _runner.Respond("uname -s", 0, RecordedMetricOutputs.GlibcLinux);
+        var step = TimeSpan.FromMilliseconds(38);
+        var timeProvider = new SteppingTimeProvider(step);
+
+        var result = await CreateService(timeProvider).CollectAsync(connection.Id, TestContext.CancellationToken);
+
+        result.Value.LatencyMilliseconds.Should().Be(38);
+    }
+
+    [TestMethod]
     public async Task Collect_WhenConnectionFails_ReportsStateAndNoValues()
     {
         var connection = await CreateConnectionAsync();
@@ -58,6 +71,7 @@ public sealed class ServerMonitoringServiceTests
         result.Value.Message.Should().Contain("no route to host");
         result.Value.Readings.Memory.IsAvailable.Should().BeFalse();
         result.Value.Readings.Memory.Reason.Should().NotBeNullOrWhiteSpace();
+        result.Value.LatencyMilliseconds.Should().BeNull();
     }
 
     [TestMethod]
@@ -97,11 +111,12 @@ public sealed class ServerMonitoringServiceTests
         return new SavedConnectionDraft { Name = "web", Host = "example.org", UserName = "deploy" };
     }
 
-    private ServerMonitoringService CreateService()
+    private ServerMonitoringService CreateService(TimeProvider? timeProvider = null)
     {
-        var targetFactory = new ConnectionTargetFactory(new ConnectionPasswordStore(_credentials));
+        var passwordStore = new ConnectionPasswordStore(_credentials);
+        var targetFactory = new ConnectionTargetFactory(passwordStore);
         var collector = new ServerMetricsCollector();
-        return new ServerMonitoringService(_repository, targetFactory, _runnerFactory, collector, TimeProvider.System);
+        return new ServerMonitoringService(_repository, targetFactory, _runnerFactory, collector, timeProvider ?? TimeProvider.System);
     }
 
     private async Task<SavedConnection> CreateConnectionAsync(SavedConnectionDraft? draft = null)

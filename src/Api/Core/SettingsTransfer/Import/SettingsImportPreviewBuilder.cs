@@ -23,13 +23,11 @@ public static class SettingsImportPreviewBuilder
             ExportedAt = document.ExportedAt,
             SectionsInFile = document.IncludedSections(),
             SectionsToApply = sections,
-            HasSecretsArchive = document.HasSecretsArchive,
             Connections = plan.Steps,
             Removals = plan.Removals,
             PreferenceChanges = prepared.Preferences?.Changes ?? [],
             Workspace = workspace,
             PinnedCommands = sections.PinnedCommands ? document.PinnedCommands!.Count : 0,
-            SecretsSupplied = prepared.Loaded.Secrets is not null,
             ConnectionsWithPassword = CollectConnectionIds(prepared.Loaded.Secrets, ArchivedSecretKind.Password),
             ConnectionsWithSudoPassword = CollectConnectionIds(prepared.Loaded.Secrets, ArchivedSecretKind.SudoPassword),
             Warnings = warnings,
@@ -58,17 +56,11 @@ public static class SettingsImportPreviewBuilder
     private static List<string> CollectWarnings(PreparedSettingsImport prepared)
     {
         var warnings = new List<string>();
-        var document = prepared.Loaded.Document;
         var secrets = prepared.Loaded.Secrets;
         var sections = prepared.Sections;
-        if (sections.Connections && document.HasSecretsArchive && secrets is null)
+        if (secrets is not null && secrets.Secrets.Count > 0 && !sections.Connections)
         {
-            warnings.Add("This export has a secrets archive. Add it to import the saved passwords.");
-        }
-
-        if (secrets is not null && !sections.Connections)
-        {
-            warnings.Add("Passwords from the secrets archive are imported only together with server connections.");
+            warnings.Add("Saved passwords from the settings file are imported only together with server connections.");
         }
 
         var steps = prepared.Plan.Steps;
@@ -90,7 +82,7 @@ public static class SettingsImportPreviewBuilder
         var keepsOwnVersion = step.Action == ConnectionImportAction.Conflict && step.Resolution == ConnectionConflictResolution.KeepExisting;
         if (keepsOwnVersion && hasArchivedPassword)
         {
-            return $"'{step.Draft.Name}': you keep your version, so its password from the archive is not imported.";
+            return $"'{step.Draft.Name}': you keep your version, so its password from the settings file is not imported.";
         }
 
         if (!step.WritesConnection || step.Draft.AuthMethod != ConnectionAuthMethod.Password || hasArchivedPassword)

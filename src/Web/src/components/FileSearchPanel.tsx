@@ -15,6 +15,7 @@ import {
   type FileSearchWarning,
 } from '../api/fileSearch';
 import { FileIcon, FolderIcon, LinkIcon } from './icons/Icons';
+import { Spinner } from './Spinner';
 
 export interface FileSearchPanelProps {
   title: string;
@@ -84,7 +85,7 @@ function StatusLine({ state }: { state: SearchState }) {
   if (state.status === 'running') {
     return (
       <span className="status-text status-text-active">
-        <span className="status-dot status-dot-sm status-dot-active" aria-hidden="true" />
+        <Spinner size={12} />
         Searching... {state.matches.length} found
       </span>
     );

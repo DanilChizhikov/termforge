@@ -96,6 +96,11 @@ public sealed class ContainerActionService
 
     private static string DescribePastTense(DockerContainerAction action)
     {
-        return action == DockerContainerAction.Stop ? "stopped" : "restarted";
+        return action switch
+        {
+            DockerContainerAction.Stop => "stopped",
+            DockerContainerAction.Remove => "removed",
+            _ => "restarted",
+        };
     }
 }

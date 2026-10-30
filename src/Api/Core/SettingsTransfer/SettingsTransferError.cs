@@ -7,19 +7,14 @@ public sealed record SettingsTransferError(SettingsTransferErrorCode Code, strin
         return new SettingsTransferError(SettingsTransferErrorCode.Invalid, message);
     }
 
-    public static SettingsTransferError ArchiveDamaged()
+    public static SettingsTransferError FileDamaged()
     {
-        return new SettingsTransferError(SettingsTransferErrorCode.ArchiveDamaged, "The secrets archive is damaged or was modified after it was exported.");
+        return new SettingsTransferError(SettingsTransferErrorCode.FileDamaged, "The settings file is damaged, was modified after it was exported, or is not a TermForge settings export.");
     }
 
-    public static SettingsTransferError WrongPassword()
+    public static SettingsTransferError WrongKey()
     {
-        return new SettingsTransferError(SettingsTransferErrorCode.WrongPassword, "The archive password is incorrect.");
-    }
-
-    public static SettingsTransferError ArchiveMismatch()
-    {
-        return new SettingsTransferError(SettingsTransferErrorCode.ArchiveMismatch, "The secrets archive belongs to a different settings export. Choose the archive exported together with this settings file.");
+        return new SettingsTransferError(SettingsTransferErrorCode.WrongKey, "The key is incorrect.");
     }
 
     public static SettingsTransferError TooLarge(string what, int limit)

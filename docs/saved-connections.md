@@ -2,14 +2,15 @@
 
 ## Model
 
-A saved connection has a name, host, port, user, optional group (plain string), auth method (password, private key file, agent), optional key path and optional jump host (id of another saved connection). Rows live in the SQLite `saved_connections` table.
+A saved connection has a name, host, port, user, optional group (plain string), auth method (password, private key file, agent), optional key path, optional jump host (id of another saved connection), a read-only flag ([read-only-mode-and-confirmations.md](decisions/read-only-mode-and-confirmations.md)) and an AI access flag that makes the server visible to the AI bridge ([ai-bridge.md](decisions/ai-bridge.md)). Rows live in the SQLite `saved_connections` table.
 
-Passwords are never stored in the database or returned by the API. They are written through `ICredentialStore` under a key derived from the connection id and removed on delete. Private keys are referenced by path only.
+Passwords are never stored in the database and never included in connection responses. They are written through `ICredentialStore` under a key derived from the connection id and removed on delete. The only way to read one back is `GET /api/connections/{id}/password`, used by the Show password button of the edit dialog; like every `/api` endpoint it needs the browser session and is served with `Cache-Control: no-store`. Private keys are referenced by path only.
 
 ## API
 
 - `GET /api/connections`, `POST /api/connections`
 - `GET|PUT|DELETE /api/connections/{id}`
+- `GET /api/connections/{id}/password` returns `{ password }`; 404 when the connection does not exist or has no stored password
 - `POST /api/connections/{id}/test`
 - `POST /api/connections/import/ssh-config` imports the default user config (`~/.ssh/config`), no body
 - `PUT|DELETE /api/connection-groups/{name}` rename a group or remove it (members become ungrouped)

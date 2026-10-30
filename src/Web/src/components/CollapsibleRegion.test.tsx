@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { Group, Panel } from 'react-resizable-panels';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { resetWorkspaceLayout, restoreWorkspaceLayout } from '../state/workspaceLayout';
-import { CollapsibleRegion, RegionToggle } from './CollapsibleRegion';
+import { CollapsibleRegion, RegionToggle, useRegionToggleState } from './CollapsibleRegion';
 
 function renderRailRegion() {
   return render(
@@ -43,5 +43,42 @@ describe('CollapsibleRegion rail layout', () => {
     const region = screen.getByRole('region', { name: 'Logs' });
     expect(within(region).getByText('Log lines')).toBeInTheDocument();
     expect(within(region).getByRole('button', { name: 'Collapse Logs' })).toHaveAttribute('aria-expanded', 'true');
+  });
+});
+
+function renderContentRegion() {
+  return render(
+    <Group orientation="horizontal" id="content-test">
+      <CollapsibleRegion id="servers" title="Servers" defaultSize="30%" minSize="10%" collapsedLayout="content">
+        <CollapsedAwareContent />
+      </CollapsibleRegion>
+      <Panel id="rest" minSize="30%" />
+    </Group>,
+  );
+}
+
+function CollapsedAwareContent() {
+  const region = useRegionToggleState();
+  return (
+    <>
+      <p>{region?.collapsed === true ? 'Compact view' : 'Full view'}</p>
+      <RegionToggle />
+    </>
+  );
+}
+
+describe('CollapsibleRegion content layout', () => {
+  it('keeps the content visible and lets it render the collapsed state', async () => {
+    restoreWorkspaceLayout([], ['servers']);
+    const user = userEvent.setup();
+    renderContentRegion();
+
+    const region = screen.getByRole('region', { name: 'Servers' });
+    expect(within(region).getByText('Compact view')).toBeVisible();
+    expect(within(region).queryByText('Servers')).not.toBeInTheDocument();
+
+    await user.click(within(region).getByRole('button', { name: 'Expand Servers' }));
+
+    expect(within(region).getByText('Full view')).toBeVisible();
   });
 });

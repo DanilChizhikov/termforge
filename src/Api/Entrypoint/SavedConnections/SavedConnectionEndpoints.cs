@@ -14,6 +14,7 @@ public static class SavedConnectionEndpoints
         group.MapGet("/", List);
         group.MapPost("/", Create);
         group.MapGet("/{id:guid}", Get);
+        group.MapGet("/{id:guid}/password", RevealPassword);
         group.MapPut("/{id:guid}", Update);
         group.MapDelete("/{id:guid}", Delete);
         group.MapPost("/{id:guid}/test", Test);
@@ -41,6 +42,18 @@ public static class SavedConnectionEndpoints
     {
         var result = await service.GetAsync(id, cancellationToken);
         return ToOk(result);
+    }
+
+    private static async Task<IResult> RevealPassword(Guid id, SavedConnectionService service, CancellationToken cancellationToken)
+    {
+        var result = await service.RevealPasswordAsync(id, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return SavedConnectionErrorResults.ToProblem(result.Error);
+        }
+
+        var response = new SavedConnectionPasswordResponse { Password = result.Value };
+        return Results.Ok(response);
     }
 
     private static async Task<IResult> Create(SavedConnectionRequest request, SavedConnectionService service, CancellationToken cancellationToken)

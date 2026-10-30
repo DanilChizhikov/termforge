@@ -24,5 +24,7 @@ public sealed record ExportedConnection
 
     public bool ReadOnly { get; init; }
 
+    public bool AiAccess { get; init; }
+
     public ExportedReconnectPolicy? Reconnect { get; init; }
 }

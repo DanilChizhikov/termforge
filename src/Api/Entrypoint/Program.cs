@@ -34,6 +34,7 @@ builder.Services.AddTransfers(builder.Configuration);
 builder.Services.AddDockerManagement();
 builder.Services.AddWorkspacePersistence();
 builder.Services.AddSettingsTransfer();
+builder.Services.AddAiBridge(builder.Configuration);
 
 var app = builder.Build();
 await app.MigrateDatabaseAsync();
@@ -60,6 +61,7 @@ app.MapTransferEndpoints();
 app.MapDockerEndpoints();
 app.MapWorkspaceEndpoints();
 app.MapSettingsTransferEndpoints();
+app.MapAiBridgeEndpoints();
 app.UseSpaHosting();
 
 app.Run();

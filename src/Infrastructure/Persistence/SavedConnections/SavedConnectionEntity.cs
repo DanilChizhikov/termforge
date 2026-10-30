@@ -29,6 +29,8 @@ public sealed class SavedConnectionEntity
 
     public bool ReadOnly { get; set; }
 
+    public bool AiAccess { get; set; }
+
     public ReconnectMode ReconnectMode { get; set; }
 
     public int ReconnectMaxAttempts { get; set; }

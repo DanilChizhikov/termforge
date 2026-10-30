@@ -25,13 +25,13 @@ Download the archive for your system from the GitHub releases page, unpack it an
 | macOS, Intel | `osx-x64` | verified under Rosetta 2 |
 | Linux x64, glibc | `linux-x64` | verified |
 | Linux arm64, glibc | `linux-arm64` | verified |
-| Windows x64 | `win-x64` | verified in CI |
+| Windows x64 | `win-x64` | smoke-tested in the release workflow |
 | Windows arm64 | `win-arm64` | built, not verified |
 
 ```sh
-tar -xzf termforge-1.0.0-osx-arm64.tar.gz
-xattr -dr com.apple.quarantine termforge-1.0.0-osx-arm64
-./termforge-1.0.0-osx-arm64/TermForge
+tar -xzf termforge-1.1.0-osx-arm64.tar.gz
+xattr -dr com.apple.quarantine termforge-1.1.0-osx-arm64
+./termforge-1.1.0-osx-arm64/TermForge
 ```
 
 macOS builds are not notarized, so the `xattr` line is needed for a downloaded copy. Linux needs ICU (`libicu`); `libsecret` is optional and lets TermForge keep passwords in the system keyring. Details for each system, data locations, updates and removal are in [docs/installation.md](docs/installation.md). The checks behind the "verified" column are in [docs/release-verification.md](docs/release-verification.md).
@@ -48,7 +48,7 @@ The launch link works once. If the browser loses the session, start TermForge ag
 
 ### Servers
 
-Add a server with the Add server button in the sidebar, or import hosts from `~/.ssh/config`. A server has a host, port, user and either a private key path, an SSH agent or a password. Passwords go to the credential store, never to the database. Test on a server row opens a session and reports the result. Servers can carry a group label and can be marked read-only. See [docs/saved-connections.md](docs/saved-connections.md).
+Add a server with the Add server button in the sidebar, or import hosts from `~/.ssh/config`. A server has a host, port, user and either a private key path, an SSH agent or a password. Passwords go to the credential store, never to the database. Test on a server row opens a session and reports the result. Servers can carry a group label, can be marked read-only and can be opened to the AI bridge with AI access. The edit dialog shows a saved password on request. The filter above the list (⌘K or Ctrl+K) matches names, hosts, users and groups; the collapsed sidebar keeps a rail of server initials with their status. See [docs/saved-connections.md](docs/saved-connections.md).
 
 On the first connection TermForge shows the server's `SHA256:` host key fingerprint and asks you to accept it once, accept and save it, or reject it. Keys already in `~/.ssh/known_hosts` are trusted without a prompt; TermForge reads that file and never writes to it. A changed key blocks the connection until you confirm the new one separately. See [docs/decisions/host-key-verification.md](docs/decisions/host-key-verification.md).
 
@@ -74,11 +74,11 @@ Files that your SSH user cannot read or write open only after you pick Edit with
 
 ### Docker
 
-The Docker tab lists the containers of the selected server with state, ports and status. You can start, stop and restart them (stop and restart ask first), follow logs and open a shell inside a running container. If Docker is missing or your user has no access to it, the tab says so. See [docs/decisions/docker-management.md](docs/decisions/docker-management.md).
+The Docker tab lists the containers of the selected server with state, ports and uptime, grouped by compose project. You can start, stop, restart and remove containers, restart or recreate a compose project, follow logs and open a shell inside a running container. The Images view lists images with the containers that use them, removes them and pulls new ones. Checkboxes select several containers or images for one action. Stop, restart, remove and compose actions ask first; remove confirmations can be turned off with "Don't ask again" and back on in Settings. If Docker is missing or your user has no access to it, the tab says so. See [docs/decisions/docker-management.md](docs/decisions/docker-management.md).
 
 ### Diagnostics and monitoring
 
-The Diagnostics tab checks the selected server for command execution, SFTP, Docker, sudo and common utilities, and explains what is missing. The sidebar and the Diagnostics tab also show uptime, CPU, memory and free disk space, refreshed every 10, 30 or 60 seconds while visible. See [docs/diagnostics.md](docs/diagnostics.md) and [docs/decisions/server-monitoring.md](docs/decisions/server-monitoring.md).
+The Diagnostics tab checks the selected server for command execution, SFTP, Docker, sudo and common utilities, and explains what is missing. The sidebar and the Diagnostics tab also show connection latency, uptime, load average, CPU with a 15-minute chart, memory and free disk space, refreshed every 10, 30 or 60 seconds while visible. See [docs/diagnostics.md](docs/diagnostics.md) and [docs/decisions/server-monitoring.md](docs/decisions/server-monitoring.md).
 
 ### Journal
 
@@ -90,11 +90,21 @@ TermForge saves the workspace about a second after it changes and restores it on
 
 ### Read-only servers
 
-A read-only server rejects uploads, deletes, renames, saves, rollbacks and Docker actions in the backend. Terminals stay available with a read-only banner, since a shell cannot be fully restricted. Risky actions on any server (remote delete, Docker stop and restart, rollback, overwriting upload) need a confirmation first. See [docs/decisions/read-only-mode-and-confirmations.md](docs/decisions/read-only-mode-and-confirmations.md).
+A read-only server rejects uploads, deletes, renames, saves, rollbacks and Docker actions in the backend. Terminals stay available with a read-only banner, since a shell cannot be fully restricted. Risky actions on any server (remote delete, Docker stop, restart and remove, image remove, compose restart and recreate, rollback, overwriting upload) need a confirmation first. See [docs/decisions/read-only-mode-and-confirmations.md](docs/decisions/read-only-mode-and-confirmations.md).
+
+### AI bridge
+
+TermForge can act as an MCP server for AI agents such as Claude Code. Turn it on in Settings → AI bridge, generate a token and run the command shown there, for example:
+
+```sh
+claude mcp add --transport http termforge http://127.0.0.1:5023/mcp --header "Authorization: Bearer <token>"
+```
+
+The agent sees only servers with AI access turned on in the server dialog. It can run commands, type into open terminals and read their output, manage Docker containers and read and write text files. Every change waits for your approval in the browser unless you turn "Ask before AI actions" off. Read-only servers refuse all changes. The bridge accepts local connections only. See [docs/decisions/ai-bridge.md](docs/decisions/ai-bridge.md).
 
 ### Import and export
 
-Settings → Import & export writes servers, preferences, the workspace layout and pinned commands to a versioned JSON file without secrets. Passwords are exported only when you turn on "Also export secrets", type an archive password of at least 12 characters twice and confirm the risk. They go into a separate `.tfvault` archive encrypted with PBKDF2-SHA256 and AES-256-GCM. Private keys are never exported, only their paths. Import shows every change before applying it and lets you merge or replace. See [docs/decisions/settings-import-and-export.md](docs/decisions/settings-import-and-export.md).
+Settings → Import & export writes servers with their saved passwords, preferences, the workspace layout and pinned commands to one `.tfsettings` file encrypted with PBKDF2-SHA256 and AES-256-GCM. Every export generates a new key that is shown once; the import asks for the file and that key. Private keys are never exported, only their paths. Import shows every change before applying it and lets you merge or replace. See [docs/decisions/settings-import-and-export.md](docs/decisions/settings-import-and-export.md).
 
 ### Updates
 
@@ -118,6 +128,7 @@ Settings live in `appsettings.json` next to the binary. Any key can also be pass
 | `Editor:MaxFileBytes` | `2097152` | largest file the editor opens |
 | `Editor:MaxBackupsPerFile` | `10` | backups kept per edited file |
 | `Updates:CheckOnStartup` | `true` | check GitHub releases at start |
+| `AiBridge:ApprovalTimeoutSeconds` | `120` (10–900) | how long an AI action waits for approval before it is denied |
 | `NetworkAccess:Enabled` | `false` | allow access from other devices, see [docs/security.md](docs/security.md#network-access-mode) |
 
 Example: `./TermForge --Kestrel:Endpoints:Http:Url=http://127.0.0.1:5199 --Lifecycle:OpenBrowser=false`.
@@ -126,7 +137,7 @@ Network access from other devices needs a password hash from `TermForge --hash-p
 
 ## Security
 
-The browser session uses an HttpOnly `SameSite=Strict` cookie, a CSRF token on every state-changing request, exact `Origin` checks, a host header allow-list against DNS rebinding and origin checks on WebSockets. Passwords live in Windows Credential Manager, the macOS Keychain or the Linux Secret Service. Without a usable system store they go to an encrypted vault file (PBKDF2-SHA256, AES-256-GCM) that you unlock with a master password. Logs never contain secrets, launch tokens or cookies.
+The browser session uses an HttpOnly `SameSite=Strict` cookie, a CSRF token on every state-changing request, exact `Origin` checks, a host header allow-list against DNS rebinding and origin checks on WebSockets. Passwords live in Windows Credential Manager, the macOS Keychain or the Linux Secret Service. Without a usable system store they go to an encrypted vault file (PBKDF2-SHA256, AES-256-GCM) that you unlock with a master password. Logs never contain secrets, launch tokens or cookies. The AI bridge at `/mcp` answers local clients only and needs its own bearer token.
 
 The threat model and the browser contract are in [docs/security.md](docs/security.md), credential storage in [docs/credentials.md](docs/credentials.md), and supported SSH features (key types, agents, ProxyJump, what is missing) in [docs/ssh-capabilities.md](docs/ssh-capabilities.md).
 
@@ -159,7 +170,7 @@ npm test
 npm run build          # writes the UI into src/Api/Entrypoint/wwwroot
 ```
 
-`src/Tests/Ssh.IntegrationTests` starts disposable OpenSSH servers in Docker through Testcontainers, so it needs a Docker engine that runs Linux containers. The agent tests also need `ssh-agent` and `ssh-add` on `PATH`, and the system ssh probe needs `ssh`. Without Docker these tests are reported as inconclusive with the reason. `TERMFORGE_SKIP_DOCKER_TESTS=true` skips them on purpose, as CI does on macOS and Windows.
+`src/Tests/Ssh.IntegrationTests` starts disposable OpenSSH servers in Docker through Testcontainers, so it needs a Docker engine that runs Linux containers. The agent tests also need `ssh-agent` and `ssh-add` on `PATH`, and the system ssh probe needs `ssh`. Without Docker these tests are reported as inconclusive with the reason. `TERMFORGE_SKIP_DOCKER_TESTS=true` skips them on purpose.
 
 The OS credential store tests run against the real store of the machine. Where it is unusable, for example on a headless Linux runner without Secret Service, they are reported as inconclusive with the reason.
 
@@ -177,7 +188,7 @@ Without the script: build the UI, then `dotnet run --project src/Api/Entrypoint`
 ```sh
 ./scripts/publish.sh                    # all six runtimes into publish/, with archives
 ./scripts/publish.sh -r linux-x64 -n    # one runtime, no archive
-./scripts/smoke-test.sh publish/termforge-1.0.0-linux-x64
+./scripts/smoke-test.sh publish/termforge-1.1.0-linux-x64
 ```
 
 `publish.sh` builds the UI once and publishes a self-contained TermForge per runtime identifier. `smoke-test.sh` starts a published build, creates a browser session through the launch link, checks the API and the UI, then exits through the API and expects exit code 0. Both scripts are described in [scripts/README.md](scripts/README.md).
@@ -214,9 +225,9 @@ scripts/                        helper scripts, described in scripts/README.md
 
 ## CI and releases
 
-- `ci` builds and tests the solution on Linux, macOS and Windows, checks the UI, and publishes and smoke-tests the app on each of the three systems. It runs for every push and pull request to `develop` and `master`.
+- `ci` builds and tests the solution on Linux, checks the UI, and publishes and smoke-tests the `linux-x64` app. It runs for every push and pull request to `develop` and `master`.
 - `release-start` (run by hand) bumps `<Version>` in `Directory.Build.props`, pushes `release/X.Y.Z` from `develop` or `hotfix/X.Y.Z` from `master`, and opens a pull request to `master`. It needs the `RELEASE_TOKEN` secret, a token with `contents` and `pull-requests` write access.
-- `release` runs when that pull request is merged. It publishes the six archives with `scripts/publish.sh`, smoke-tests the native ones, creates the GitHub release `X.Y.Z` and merges `master` back into `develop`.
+- `release` runs when that pull request is merged. It publishes the six archives with `scripts/publish.sh` on Linux, macOS and Windows runners, smoke-tests `linux-x64`, `osx-arm64` and `win-x64`, creates the GitHub release `X.Y.Z` and merges `master` back into `develop`.
 - `pr-labeler` labels pull requests by branch prefix (`feature/`, `bugfix/`, `hotfix/`, `release/`). The labels group the release notes.
 
 ## License

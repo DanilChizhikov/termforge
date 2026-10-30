@@ -13,6 +13,7 @@ import { showAppView } from '../state/appView';
 import { openEditorFile } from '../state/editorFiles';
 import { flushWorkspaceState } from '../state/workspacePersistence';
 import { InfoIcon } from './icons/Icons';
+import { LoadingState } from './LoadingState';
 
 export const EXIT_POLL_INTERVAL_MS = 1000;
 
@@ -184,7 +185,7 @@ function StatusCard({ title, message }: { title: string; message: string }) {
           <h2 id="exit-status-title" className="dialog-title">
             {title}
           </h2>
-          <p className="text-secondary">{message}</p>
+          <LoadingState message={message} />
         </div>
       </div>
     </div>

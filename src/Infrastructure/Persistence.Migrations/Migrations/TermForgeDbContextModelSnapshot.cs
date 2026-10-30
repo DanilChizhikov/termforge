@@ -176,6 +176,11 @@ namespace DTech.Persistence.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("id");
 
+                    b.Property<bool>("AiAccess")
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false)
+                        .HasColumnName("ai_access");
+
                     b.Property<string>("AuthMethod")
                         .IsRequired()
                         .HasMaxLength(20)

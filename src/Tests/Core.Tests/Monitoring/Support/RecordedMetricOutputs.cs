@@ -22,6 +22,10 @@ internal static class RecordedMetricOutputs
         @@disk
         Filesystem     1024-blocks      Used Available Capacity Mounted on
         /dev/sda1         82836480  57000000  25836480      69% /
+        @@loadavg
+        0.42 0.38 0.35 1/234 5678
+        @@cpucount
+        2
         """;
 
     public const string BusyBoxLinuxWithoutMemAvailable = """
@@ -64,6 +68,10 @@ internal static class RecordedMetricOutputs
         @@disk
         Filesystem       1024-blocks      Used Available Capacity  Mounted on
         /dev/disk3s1s1     971350180  15000000 500000000     3%    /
+        @@loadavg
+        { 1,85 2,10 2,25 }
+        @@cpucount
+        10
         """;
 
     public const string FreeBsd = """
@@ -76,6 +84,10 @@ internal static class RecordedMetricOutputs
         @@disk
         Filesystem 1024-blocks    Used   Avail Capacity  Mounted on
         /dev/ada0p2   20000000 5000000 13400000      27%    /
+        @@loadavg
+        { 0.10 0.20 0.30 }
+        @@cpucount
+        4
         """;
 
     public const string LinuxWithoutTools = """
@@ -86,6 +98,8 @@ internal static class RecordedMetricOutputs
         @@uptime
         @@mem
         @@disk
+        @@loadavg
+        @@cpucount
         """;
 
     public const string Garbage = "total nonsense\n\u0000\u0001 @@ @@@\nstill nothing useful";

@@ -31,11 +31,10 @@ describe('settings transfer api', () => {
     expect(decodeBase64(encodeBase64(bytes))).toEqual(bytes);
   });
 
-  it('posts the export request with the chosen sections and secrets', async () => {
+  it('posts the export request with the chosen sections', async () => {
     const calls: RecordedCall[] = [];
     const request = {
       sections: { connections: true, preferences: false, workspace: true, pinnedCommands: false },
-      secrets: { password: 'correct-horse-staple', confirmed: true },
     };
 
     await exportSettings(request, recordingClient(calls));
@@ -46,9 +45,8 @@ describe('settings transfer api', () => {
   it('posts the import request to the apply endpoint', async () => {
     const calls: RecordedCall[] = [];
     const request: SettingsImportRequest = {
-      settingsFile: '{}',
-      secretsArchive: null,
-      password: null,
+      file: 'VEZWVAAB',
+      key: '7K3M-9QX2-HV4T-PW8R-ZB6D-NJ5C-FG05-AY1E',
       mode: 'replace',
       sections: { connections: true, preferences: true, workspace: true, pinnedCommands: true },
       resolutions: { 'id-1': 'keepBoth' },

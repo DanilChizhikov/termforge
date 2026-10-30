@@ -33,6 +33,21 @@ public static class DockerFailureClassifier
             return new DockerError(DockerErrorCode.ContainerNotFound, "The container does not exist on the server. Refresh the container list.");
         }
 
+        if (text.Contains("no such image", StringComparison.Ordinal))
+        {
+            return new DockerError(DockerErrorCode.ImageNotFound, "The image does not exist on the server. Refresh the image list.");
+        }
+
+        if (IsImageInUse(text))
+        {
+            return new DockerError(DockerErrorCode.ImageInUse, "The image is used by a container. Remove the container first.");
+        }
+
+        if (IsComposeMissing(text))
+        {
+            return new DockerError(DockerErrorCode.ComposeMissing, "Docker Compose v2 is not installed on the server. Install the docker compose plugin.");
+        }
+
         return new DockerError(DockerErrorCode.CommandFailed, DescribeCommandFailure(result));
     }
 
@@ -41,6 +56,20 @@ public static class DockerFailureClassifier
         var mentionsMissingDocker = text.Contains("docker: not found", StringComparison.Ordinal)
             || text.Contains("docker: command not found", StringComparison.Ordinal);
         return exitCode == CommandNotFoundExitCode || mentionsMissingDocker;
+    }
+
+    private static bool IsImageInUse(string text)
+    {
+        return text.Contains("image is being used by", StringComparison.Ordinal)
+            || text.Contains("conflict: unable to remove", StringComparison.Ordinal)
+            || text.Contains("conflict: unable to delete", StringComparison.Ordinal);
+    }
+
+    private static bool IsComposeMissing(string text)
+    {
+        return text.Contains("'compose' is not a docker command", StringComparison.Ordinal)
+            || text.Contains("unknown command \"compose\"", StringComparison.Ordinal)
+            || text.Contains("unknown command: docker compose", StringComparison.Ordinal);
     }
 
     private static string DescribeCommandFailure(RemoteCommandResult result)

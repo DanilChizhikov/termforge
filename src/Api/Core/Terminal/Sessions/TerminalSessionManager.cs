@@ -48,6 +48,11 @@ public sealed class TerminalSessionManager(ITerminalSessionFactory sessionFactor
         return IsOwnedBy(session, ownerKey) ? session : null;
     }
 
+    public ManagedTerminalSession? FindAnyOwner(TerminalSessionId id)
+    {
+        return _sessions.GetValueOrDefault(id);
+    }
+
     public IReadOnlyList<TerminalSessionDescriptor> List(string ownerKey)
     {
         return _sessions.Values

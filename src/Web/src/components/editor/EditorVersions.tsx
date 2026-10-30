@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { describeEditorError, listBackups, type FileBackup } from '../../api/editor';
 import { useConnectionName } from '../../state/connections';
+import { LoadingState } from '../LoadingState';
 import { formatDayAndClock } from '../timeFormat';
 
 export interface EditorVersionsProps {
@@ -78,7 +79,7 @@ export function EditorVersions({
       </div>
       <div className="editor-aside-section">
         <span className="editor-aside-title">Versions</span>
-        {loaded === null ? <p className="text-muted">Loading backups…</p> : null}
+        {loaded === null ? <LoadingState message="Loading backups…" /> : null}
         {loaded?.error != null ? <p className="form-error">{loaded.error}</p> : null}
         {loaded !== null && loaded.error === null && loaded.backups.length === 0 ? (
           <p className="text-muted">No backups yet. One is taken before every save.</p>

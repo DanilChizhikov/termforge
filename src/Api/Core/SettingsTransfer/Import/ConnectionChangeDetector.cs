@@ -19,6 +19,7 @@ public static class ConnectionChangeDetector
         AddIf(changes, current.SshAlias != imported.SshAlias, "SSH alias");
         AddIf(changes, current.ReconnectPolicy != imported.ReconnectPolicy, "reconnect");
         AddIf(changes, current.ReadOnly != imported.ReadOnly, "read-only");
+        AddIf(changes, current.AiAccess != imported.AiAccess, "AI access");
         return changes;
     }
 

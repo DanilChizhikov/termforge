@@ -29,6 +29,7 @@ function makeConnection(id: string, name: string): SavedConnection {
     reconnectInitialDelaySeconds: 2,
     reconnectMaxDelaySeconds: 60,
     readOnly: false,
+    aiAccess: false,
   };
 }
 
