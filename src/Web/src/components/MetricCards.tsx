@@ -1,36 +1,66 @@
-import type { ServerMetrics } from '../api/monitoring';
+import type { LoadAverage, ServerMetrics } from '../api/monitoring';
+import type { MetricsTrend } from '../state/serverMetrics';
+import { CpuSparkline } from './CpuSparkline';
 import { formatBytes, formatUptime, percentOf, unitIndexOf, type ByteSize } from './metricsFormat';
 
 export interface MetricCardsProps {
+  metrics: ServerMetrics;
+  trend: MetricsTrend;
+}
+
+interface MetricCardProps {
   metrics: ServerMetrics;
 }
 
 const NOT_MEASURED = 'Not measured';
 
-export function MetricCards({ metrics }: MetricCardsProps) {
+export function MetricCards({ metrics, trend }: MetricCardsProps) {
   return (
     <div className="metric-grid">
-      <ConnectionCard metrics={metrics} />
+      <ConnectionCard metrics={metrics} trend={trend} />
       <UptimeCard metrics={metrics} />
-      <CpuCard metrics={metrics} />
+      <CpuCard metrics={metrics} trend={trend} />
       <MemoryCard metrics={metrics} />
       <DiskCard metrics={metrics} />
     </div>
   );
 }
 
-function ConnectionCard({ metrics }: MetricCardsProps) {
+function ConnectionCard({ metrics, trend }: MetricCardsProps) {
   const connected = metrics.state === 'Connected';
   return (
     <div className="metric-card" role="group" aria-label="Connection">
       <span className="metric-label">Connection</span>
       <span className="metric-value">
         <span className={`status-dot ${connected ? 'status-dot-ok' : 'status-dot-danger'}`} aria-hidden="true" />
-        {connected ? 'Connected' : 'Disconnected'}
+        {describeConnectionValue(metrics)}
       </span>
-      {connected ? null : <span className="metric-detail">{metrics.message ?? metrics.state}</span>}
+      <span className="metric-detail">
+        {connected ? describeConnectedFor(metrics, trend) : (metrics.message ?? metrics.state)}
+      </span>
     </div>
   );
+}
+
+function describeConnectionValue(metrics: ServerMetrics): string {
+  if (metrics.state !== 'Connected') {
+    return 'Disconnected';
+  }
+  return metrics.latencyMilliseconds === null ? 'Connected' : `${metrics.latencyMilliseconds} ms`;
+}
+
+function describeConnectedFor(metrics: ServerMetrics, trend: MetricsTrend): string {
+  const drops = trend.dropsToday === 1 ? '1 drop today' : `${trend.dropsToday} drops today`;
+  if (trend.connectedSince === null) {
+    return `Connected · ${drops}`;
+  }
+  const connectedMilliseconds = Date.parse(metrics.collectedAt) - Date.parse(trend.connectedSince);
+  const connectedSeconds = Math.max(0, connectedMilliseconds / 1000);
+  return `Connected ${formatUptime(connectedSeconds)} · ${drops}`;
+}
+
+function formatLoadAverage(load: LoadAverage): string {
+  return `Load ${load.oneMinute.toFixed(2)} · ${load.fiveMinutes.toFixed(2)} · ${load.fifteenMinutes.toFixed(2)}`;
 }
 
 function UnavailableCard({ label, reason }: { label: string; reason: string | null }) {
@@ -43,34 +73,42 @@ function UnavailableCard({ label, reason }: { label: string; reason: string | nu
   );
 }
 
-function UptimeCard({ metrics }: MetricCardsProps) {
+function UptimeCard({ metrics }: MetricCardProps) {
   const uptime = metrics.uptimeSeconds;
   if (!uptime.available || uptime.value === null) {
     return <UnavailableCard label="Uptime" reason={uptime.reason} />;
   }
+  const load = metrics.loadAverage;
   return (
     <div className="metric-card" role="group" aria-label="Uptime">
       <span className="metric-label">Uptime</span>
       <span className="metric-value">{formatUptime(uptime.value)}</span>
+      {load.available && load.value !== null ? (
+        <span className="metric-detail">{formatLoadAverage(load.value)}</span>
+      ) : null}
     </div>
   );
 }
 
-function CpuCard({ metrics }: MetricCardsProps) {
+function CpuCard({ metrics, trend }: MetricCardsProps) {
   const cpu = metrics.cpuPercent;
   if (!cpu.available || cpu.value === null) {
     return <UnavailableCard label="CPU" reason={cpu.reason} />;
   }
+  const cpuCount = metrics.cpuCount;
   return (
     <div className="metric-card" role="group" aria-label="CPU">
-      <span className="metric-label">CPU</span>
+      <span className="metric-label">
+        <span>CPU</span>
+        {cpuCount.available && cpuCount.value !== null ? <span>{cpuCount.value} vCPU</span> : null}
+      </span>
       <span className="metric-value">{cpu.value.toFixed(0)}%</span>
-      <Meter label="CPU usage" percent={Math.round(cpu.value)} />
+      <CpuSparkline samples={trend.cpuHistory} />
     </div>
   );
 }
 
-function MemoryCard({ metrics }: MetricCardsProps) {
+function MemoryCard({ metrics }: MetricCardProps) {
   const memory = metrics.memory;
   if (!memory.available || memory.value === null) {
     return <UnavailableCard label="Memory" reason={memory.reason} />;
@@ -92,7 +130,7 @@ function MemoryCard({ metrics }: MetricCardsProps) {
   );
 }
 
-function DiskCard({ metrics }: MetricCardsProps) {
+function DiskCard({ metrics }: MetricCardProps) {
   const disk = metrics.disk;
   if (!disk.available || disk.value === null) {
     return <UnavailableCard label="Disk" reason={disk.reason} />;

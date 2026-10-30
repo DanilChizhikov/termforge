@@ -162,6 +162,12 @@
   color: var(--text-idle);
 }
 
+.icon-btn-bordered {
+  border-color: var(--border-default);
+  background: var(--surface-control);
+  color: var(--text-primary);
+}
+
 .icon-btn-sm {
   position: relative;
   width: 28px;
@@ -728,6 +734,19 @@ dl.fingerprint {
 .meter::-moz-progress-bar {
   border-radius: 3px;
   background: var(--text-primary);
+}
+
+.sparkline {
+  display: block;
+  width: 100%;
+  height: 28px;
+}
+
+.sparkline-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
 }
 
 .progress {
