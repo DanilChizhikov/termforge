@@ -104,7 +104,7 @@
   border: 1px solid var(--border-control);
   border-radius: var(--radius-card);
   background: var(--surface-selected);
-  box-shadow: var(--shadow-dialog);
+  box-shadow: var(--shadow-dialog);  transition: opacity var(--duration-notice) var(--ease-out);
 }
 
 .docker-confirm-title {
@@ -329,4 +329,10 @@
   color: var(--text-primary);
   font-size: var(--text-small);
   font-weight: 600;
+}
+
+@starting-style {
+  .docker-confirm {
+    opacity: 0;
+  }
 }
