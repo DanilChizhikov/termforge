@@ -48,6 +48,8 @@ Open the Diagnostics tab for the server. It checks command execution, SFTP, Dock
 | The user is not in the docker group | `sudo usermod -aG docker <user>` on the server, then log in again |
 | sudo needs a password | Editing with sudo still works and asks for the password. Only the check runs without one |
 
+The Diagnostics tab does not check Docker Compose. If Restart or Recreate of a compose project reports that Docker Compose v2 is not installed, install the `docker compose` plugin on the server; container and image actions work without it.
+
 ## A transfer stopped
 
 Failed transfers keep their `.part` file. Retry in the transfer panel or in the History tab continues from it. Discard partial removes it. See [decisions/transfer-queue.md](decisions/transfer-queue.md).
@@ -55,6 +57,19 @@ Failed transfers keep their `.part` file. Retry in the transfer panel or in the 
 ## A file was changed on the server while you edited it
 
 The editor refuses to save over the newer version and offers Compare, Reload from server, or Overwrite after a second confirmation. Each save keeps a backup that you can compare with and roll back to. See [decisions/remote-file-editor.md](decisions/remote-file-editor.md).
+
+## The AI agent cannot reach TermForge
+
+| Symptom | Fix |
+|---|---|
+| `404` "The AI bridge is turned off" | Turn it on in Settings → AI bridge |
+| `401` "A valid AI bridge token is required" | The token is missing or was replaced. Generate a new one in Settings → AI bridge and run the `claude mcp add` command shown there again |
+| `403` "The AI bridge accepts local connections only" | The bridge answers only clients on the same machine, also in network access mode. Run the agent on the computer that runs TermForge |
+| `403` because of `Origin` | The client sends a foreign `Origin` header. MCP clients normally send none; do not call `/mcp` from a web page |
+| The agent does not see a server | Turn on AI access for the server in its server dialog |
+| A write is denied without a prompt | The server is read-only, or nobody answered the approval in the browser within `AiBridge:ApprovalTimeoutSeconds` (120 by default). Keep a TermForge tab open while the agent works |
+
+See [decisions/ai-bridge.md](decisions/ai-bridge.md).
 
 ## Logs
 

@@ -2,6 +2,8 @@
 
 Detects which remote features a saved connection supports and explains missing ones. Shown in the Diagnostics workspace tab ("Server diagnostics") for the selected server.
 
+The same tab shows the server metrics (latency, uptime, load average, CPU, memory, disk); they are described in [decisions/server-monitoring.md](decisions/server-monitoring.md).
+
 ## API
 
 - `GET /api/connections/{id}/capabilities` returns the cached report, running the checks if none is cached yet.

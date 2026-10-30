@@ -12,7 +12,7 @@ Download the archive for your system from the GitHub releases page of the reposi
 | macOS on Intel | `termforge-<version>-osx-x64.tar.gz` | verified on Apple silicon under Rosetta 2 |
 | Linux x64 (glibc) | `termforge-<version>-linux-x64.tar.gz` | verified |
 | Linux arm64 (glibc) | `termforge-<version>-linux-arm64.tar.gz` | verified |
-| Windows x64 | `termforge-<version>-win-x64.zip` | verified in CI on Windows Server 2025 |
+| Windows x64 | `termforge-<version>-win-x64.zip` | smoke-tested by the release workflow on `windows-latest` |
 | Windows arm64 | `termforge-<version>-win-arm64.zip` | built, not verified |
 
 What "verified" covers is listed in [release-verification.md](release-verification.md). Alpine and other musl-based Linux distributions are not supported: there is no `linux-musl` build.
@@ -20,9 +20,9 @@ What "verified" covers is listed in [release-verification.md](release-verificati
 ## macOS
 
 ```sh
-tar -xzf termforge-1.0.0-osx-arm64.tar.gz
-xattr -dr com.apple.quarantine termforge-1.0.0-osx-arm64
-./termforge-1.0.0-osx-arm64/TermForge
+tar -xzf termforge-1.1.0-osx-arm64.tar.gz
+xattr -dr com.apple.quarantine termforge-1.1.0-osx-arm64
+./termforge-1.1.0-osx-arm64/TermForge
 ```
 
 The binaries are ad-hoc signed and not notarized, so Gatekeeper rejects them. A copy downloaded with a browser carries the quarantine attribute, and Finder then refuses to open it with a dialog that the developer cannot be verified. The `xattr` command removes the attribute from the binary and its libraries.
@@ -32,8 +32,8 @@ Passwords go to the login keychain. macOS may ask once whether TermForge can use
 ## Linux
 
 ```sh
-tar -xzf termforge-1.0.0-linux-x64.tar.gz
-./termforge-1.0.0-linux-x64/TermForge
+tar -xzf termforge-1.1.0-linux-x64.tar.gz
+./termforge-1.1.0-linux-x64/TermForge
 ```
 
 Required system packages:

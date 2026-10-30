@@ -33,6 +33,8 @@ This document describes the threat model, the protections implemented in `src/Ap
 | Token leakage | Bootstrap token in server logs, proxy logs, `Referer`, or browser history | The token travels in the URL fragment (never sent to the server), the bootstrap page clears it with `history.replaceState`, sends `Referrer-Policy: no-referrer`, and the token is exchanged with a `POST` body. Tests run with `Trace` logging and assert that no token or cookie value appears in any log message |
 | Timing attacks | Guessing secrets byte by byte | All secret comparisons use `CryptographicOperations.FixedTimeEquals`; sessions are looked up by the SHA-256 of the token |
 | Password guessing (network mode) | Brute force against `POST /api/session/login` | PBKDF2-SHA256 hash (600 000 iterations by default), per-client and global attempt limits with lockout, `429` with `Retry-After` |
+| AI bridge misuse | A local process or another device calls the MCP endpoint `/mcp`, or a web page drives it through the user's browser | `/mcp` answers only loopback clients (`403` otherwise, also in network access mode), only while the bridge is turned on (`404` otherwise) and only with the bearer token, stored as a SHA-256 hash and compared in constant time (`401`). A foreign `Origin` gets `403`. The agent sees only servers with AI access turned on, read-only servers refuse writes, and by default every write waits for Approve or Deny in the browser. See [decisions/ai-bridge.md](decisions/ai-bridge.md) |
+| Saved password disclosure | Reading a server password back through the API | `GET /api/connections/{id}/password` is a normal `/api` endpoint: it needs the browser session, the `Origin` check applies and the response is `Cache-Control: no-store`. Connection lists and details never contain passwords |
 | Eavesdropping (network mode) | Sniffing the password or session cookie on the LAN | HTTPS is required for every non-loopback binding; plain HTTP needs `NetworkAccess:AllowInsecureHttp=true` and is reported at `Critical` level on every start and in the sign-in form |
 
 ### Known limitations
@@ -92,7 +94,7 @@ The SPA cannot and must not read it. `fetch` sends it automatically for same-ori
 
 ### Requests
 
-- All API endpoints live under `/api`. Every `/api` request except `POST /api/session/bootstrap` and `GET`/`POST /api/session/login` requires the session cookie; without it the backend answers `401`. On `401` the UI asks `GET /api/session/login`: when password sign-in is enabled it shows the sign-in form, otherwise it tells the user to restart TermForge.
+- All API endpoints live under `/api`; the only exception is the AI bridge at `/mcp`, which uses a bearer token instead of the session cookie (see [Request pipeline](#request-pipeline)). Every `/api` request except `POST /api/session/bootstrap` and `GET`/`POST /api/session/login` requires the session cookie; without it the backend answers `401`. On `401` the UI asks `GET /api/session/login`: when password sign-in is enabled it shows the sign-in form, otherwise it tells the user to restart TermForge.
 - Use relative URLs (same origin). The backend rejects any request whose `Origin` header differs from its own origin (`403`) and any request the browser marks with `Sec-Fetch-Site` other than `same-origin` or `none` (`403`).
 - The `Host` must be `localhost`, a loopback IP or, in network access mode, one of `NetworkAccess:AllowedHosts` (`400` otherwise).
 - The SPA shell and static assets outside `/api` are served without a session: they must not contain secrets.
@@ -124,8 +126,9 @@ A dev server (e.g. Vite) works without backend changes:
 3. `UseWebSockets()`. Endpoints must not call it again.
 4. Origin and `Sec-Fetch-Site` validation → `403`.
 5. Browser session: required for `/api/*` (except the bootstrap exchange and `/api/session/login`) and every WebSocket → `401`.
-6. CSRF: required for every `POST`/`PUT`/`PATCH`/`DELETE` (except the bootstrap exchange and the password sign-in) → `403`.
-7. Bootstrap, session and sign-in endpoints.
+6. CSRF: required for every `POST`/`PUT`/`PATCH`/`DELETE` (except the bootstrap exchange, the password sign-in and `/mcp`) → `403`.
+7. AI bridge token for `/mcp`: non-loopback client → `403`, bridge turned off → `404`, missing or wrong bearer token → `401`.
+8. Bootstrap, session and sign-in endpoints.
 
 New endpoints are protected automatically when they are mapped under `/api`. Endpoints that read the session can use `context.Features.Get<BrowserSession>()`.
 
