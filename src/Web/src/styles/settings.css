@@ -490,3 +490,20 @@
   margin: 0;
   padding-left: 28px;
 }
+
+.ai-bridge-token {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding-block: 12px;
+}
+
+.ai-bridge-command {
+  padding: 8px 10px;
+  overflow-wrap: anywhere;
+  border-radius: var(--radius-sm);
+  background: var(--surface-terminal);
+  color: var(--text-primary);
+  font-size: var(--text-dense);
+  user-select: all;
+}

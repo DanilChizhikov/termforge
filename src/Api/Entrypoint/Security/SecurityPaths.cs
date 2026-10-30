@@ -9,10 +9,16 @@ internal static class SecurityPaths
     public const string Session = "/api/session";
     public const string Login = "/api/session/login";
     public const string Logout = "/api/session/logout";
+    public const string AiBridge = "/mcp";
 
     public static bool IsApi(PathString path)
     {
         return path.StartsWithSegments(ApiPrefix, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool IsAiBridge(PathString path)
+    {
+        return path.StartsWithSegments(AiBridge, StringComparison.OrdinalIgnoreCase);
     }
 
     public static bool IsBootstrapExchange(PathString path)

@@ -296,7 +296,8 @@ select.input:disabled {
   color: var(--status-caution);
 }
 
-.read-only-badge {
+.read-only-badge,
+.ai-access-badge {
   flex: none;
 }
 
@@ -845,4 +846,29 @@ dl.fingerprint {
   background: var(--surface-badge);
   font-family: var(--font-mono);
   font-size: var(--text-badge);
+}
+
+.ai-approval-dialog-diff {
+  width: min(960px, 100%);
+}
+
+.ai-approval-summary {
+  margin: 0;
+  padding: 10px 12px;
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-terminal);
+  color: var(--text-primary);
+  font-size: var(--text-dense);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ai-approval-diff {
+  height: 360px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
 }

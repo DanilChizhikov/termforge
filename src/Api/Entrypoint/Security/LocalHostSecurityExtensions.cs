@@ -30,6 +30,7 @@ internal static class LocalHostSecurityExtensions
         app.UseMiddleware<OriginValidationMiddleware>();
         app.UseMiddleware<BrowserSessionMiddleware>();
         app.UseMiddleware<CsrfProtectionMiddleware>();
+        app.UseMiddleware<AiBridgeTokenMiddleware>();
         app.MapBrowserSession();
         return app;
     }

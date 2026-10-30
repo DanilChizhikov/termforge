@@ -1,6 +1,7 @@
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import { AppHeader } from './components/AppHeader';
 import { CollapsibleRegion } from './components/CollapsibleRegion';
+import { AiApprovalPrompt } from './components/AiApprovalPrompt';
 import { HostKeyPrompt } from './components/HostKeyPrompt';
 import { ServerSidebar } from './components/ServerSidebar';
 import { SessionBanner } from './components/SessionBanner';
@@ -34,6 +35,7 @@ export function App() {
       </div>
       {view === 'settings' ? <SettingsView /> : null}
       <HostKeyPrompt />
+      <AiApprovalPrompt />
     </div>
   );
 }
