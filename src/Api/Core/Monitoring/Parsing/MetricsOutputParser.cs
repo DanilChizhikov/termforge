@@ -6,21 +6,32 @@ public static class MetricsOutputParser
     {
         var sections = MetricSections.Parse(output);
         var os = sections.Get(MetricsScript.OsSection);
-        var disk = ReadDisk(sections);
+        var system = ParseSystem(os, sections);
+        var df = sections.Get(MetricsScript.DiskSection);
+        var disk = DiskUsageParser.ParseDf(df);
+        var loadAverageOutput = sections.Get(MetricsScript.LoadAverageSection);
+        var loadAverage = LoadAverageParser.Parse(loadAverageOutput);
+        var cpuCountOutput = sections.Get(MetricsScript.CpuCountSection);
+        var cpuCount = CpuCountParser.Parse(cpuCountOutput);
+        return new MetricReadings(system.Uptime, system.CpuPercent, system.Memory, disk, loadAverage, cpuCount);
+    }
+
+    private static SystemReadings ParseSystem(string os, MetricSections sections)
+    {
         if (os == "Linux")
         {
-            return ParseLinux(sections, disk);
+            return ParseLinux(sections);
         }
 
         if (os == "Darwin")
         {
-            return ParseDarwin(sections, disk);
+            return ParseDarwin(sections);
         }
 
-        return ParseOther(os, sections, disk);
+        return ParseOther(os, sections);
     }
 
-    private static MetricReadings ParseLinux(MetricSections sections, MetricReading<DiskUsage> disk)
+    private static SystemReadings ParseLinux(MetricSections sections)
     {
         var first = sections.Get(MetricsScript.CpuFirstSection);
         var second = sections.Get(MetricsScript.CpuSecondSection);
@@ -29,10 +40,10 @@ public static class MetricsOutputParser
         var uptime = UptimeParser.ParseProcUptime(procUptime);
         var meminfo = sections.Get(MetricsScript.MemorySection);
         var memory = MemoryUsageParser.ParseMeminfo(meminfo);
-        return new MetricReadings(uptime, cpu, memory, disk);
+        return new SystemReadings(uptime, cpu, memory);
     }
 
-    private static MetricReadings ParseDarwin(MetricSections sections, MetricReading<DiskUsage> disk)
+    private static SystemReadings ParseDarwin(MetricSections sections)
     {
         var topLine = sections.Get(MetricsScript.CpuTopSection);
         var cpu = CpuUsageParser.ParseTop(topLine);
@@ -40,10 +51,10 @@ public static class MetricsOutputParser
         var memorySize = sections.Get(MetricsScript.MemorySizeSection);
         var vmStat = sections.Get(MetricsScript.VmStatSection);
         var memory = MemoryUsageParser.ParseVmStat(memorySize, vmStat);
-        return new MetricReadings(uptime, cpu, memory, disk);
+        return new SystemReadings(uptime, cpu, memory);
     }
 
-    private static MetricReadings ParseOther(string os, MetricSections sections, MetricReading<DiskUsage> disk)
+    private static SystemReadings ParseOther(string os, MetricSections sections)
     {
         var hasOs = !string.IsNullOrWhiteSpace(os);
         var name = hasOs ? os : "this operating system";
@@ -53,7 +64,7 @@ public static class MetricsOutputParser
         var uptime = hasOs
             ? ReadBootTimeUptime(sections)
             : MetricReading<TimeSpan>.Unavailable("The server did not report its operating system.");
-        return new MetricReadings(uptime, cpu, memory, disk);
+        return new SystemReadings(uptime, cpu, memory);
     }
 
     private static MetricReading<TimeSpan> ReadBootTimeUptime(MetricSections sections)
@@ -61,11 +72,5 @@ public static class MetricsOutputParser
         var bootTime = sections.Get(MetricsScript.BootTimeSection);
         var now = sections.Get(MetricsScript.NowSection);
         return UptimeParser.ParseBootTime(bootTime, now);
-    }
-
-    private static MetricReading<DiskUsage> ReadDisk(MetricSections sections)
-    {
-        var df = sections.Get(MetricsScript.DiskSection);
-        return DiskUsageParser.ParseDf(df);
     }
 }

@@ -13,9 +13,9 @@ export interface CollapsibleRegionProps {
   children: ReactNode;
 }
 
-export type CollapsedLayout = 'header' | 'rail';
+export type CollapsedLayout = 'header' | 'rail' | 'content';
 
-interface RegionToggleState {
+export interface RegionToggleState {
   title: string;
   collapsed: boolean;
   toggle: () => void;
@@ -25,7 +25,19 @@ const COLLAPSED_HEADER_SIZE_PX = 28;
 
 const COLLAPSED_RAIL_SIZE_PX = 32;
 
+const COLLAPSED_CONTENT_SIZE_PX = 60;
+
+const COLLAPSED_SIZES_PX: Record<CollapsedLayout, number> = {
+  header: COLLAPSED_HEADER_SIZE_PX,
+  rail: COLLAPSED_RAIL_SIZE_PX,
+  content: COLLAPSED_CONTENT_SIZE_PX,
+};
+
 const RegionToggleContext = createContext<RegionToggleState | null>(null);
+
+export function useRegionToggleState(): RegionToggleState | null {
+  return useContext(RegionToggleContext);
+}
 
 export function RegionToggle() {
   const region = useContext(RegionToggleContext);
@@ -86,7 +98,9 @@ export function CollapsibleRegion({
 
   const toggleState: RegionToggleState = { title, collapsed, toggle };
   const isRail = collapsedLayout === 'rail';
-  const collapsedSize = isRail ? COLLAPSED_RAIL_SIZE_PX : COLLAPSED_HEADER_SIZE_PX;
+  const isHeader = collapsedLayout === 'header';
+  const rendersOwnCollapsedState = collapsedLayout === 'content';
+  const collapsedSize = COLLAPSED_SIZES_PX[collapsedLayout];
 
   return (
     <Panel
@@ -107,14 +121,14 @@ export function CollapsibleRegion({
               <span className="section-label region-rail-label">{title}</span>
             </header>
           ) : null}
-          {collapsed && !isRail ? (
+          {collapsed && isHeader ? (
             <header className="region-header">
               <span className="section-label">{title}</span>
               <RegionToggle />
             </header>
           ) : null}
-          {collapsed && !keepMounted ? null : (
-            <div className="region-body" hidden={collapsed}>
+          {collapsed && !keepMounted && !rendersOwnCollapsedState ? null : (
+            <div className="region-body" hidden={collapsed && !rendersOwnCollapsedState}>
               {children}
             </div>
           )}

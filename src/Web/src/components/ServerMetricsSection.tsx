@@ -19,7 +19,7 @@ export function ServerMetricsSection({ serverId }: { serverId: string }) {
           </button>
         </p>
       )}
-      {metrics !== null ? <MetricCards metrics={metrics} /> : null}
+      {metrics !== null ? <MetricCards metrics={metrics} trend={snapshot.trend} /> : null}
     </section>
   );
 }

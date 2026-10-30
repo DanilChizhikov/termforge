@@ -16,7 +16,7 @@ namespace DTech.Entrypoint.Tests.Monitoring;
 public sealed class MonitoringEndpointsTests
 {
     private const string ConnectionsPath = "/api/connections";
-    private const string LinuxOutput = "@@os\nLinux\n@@cpu1\ncpu  100 0 50 800 0 0 0 0\n@@cpu2\ncpu  110 0 55 835 0 0 0 0\n@@uptime\n3600.25 7000.00\n@@mem\nMemTotal: 1000 kB\nMemAvailable: 400 kB\n@@disk\nFilesystem 1024-blocks Used Available Capacity Mounted on\n/dev/sda1 1000 400 600 40% /\n";
+    private const string LinuxOutput = "@@os\nLinux\n@@cpu1\ncpu  100 0 50 800 0 0 0 0\n@@cpu2\ncpu  110 0 55 835 0 0 0 0\n@@uptime\n3600.25 7000.00\n@@mem\nMemTotal: 1000 kB\nMemAvailable: 400 kB\n@@disk\nFilesystem 1024-blocks Used Available Capacity Mounted on\n/dev/sda1 1000 400 600 40% /\n@@loadavg\n0.42 0.38 0.35 1/234 5678\n@@cpucount\n2\n";
 
     private IRemoteCommandRunnerFactory _runnerFactory = null!;
     private TermForgeApplicationFactory _factory = null!;
@@ -71,6 +71,9 @@ public sealed class MonitoringEndpointsTests
         body.GetProperty("cpuPercent").GetProperty("available").GetBoolean().Should().BeTrue();
         body.GetProperty("memory").GetProperty("value").GetProperty("totalBytes").GetInt64().Should().Be(1000 * 1024);
         body.GetProperty("disk").GetProperty("value").GetProperty("mountPoint").GetString().Should().Be("/");
+        body.GetProperty("loadAverage").GetProperty("value").GetProperty("oneMinute").GetDouble().Should().Be(0.42);
+        body.GetProperty("cpuCount").GetProperty("value").GetInt32().Should().Be(2);
+        body.GetProperty("latencyMilliseconds").ValueKind.Should().Be(JsonValueKind.Number);
     }
 
     [TestMethod]

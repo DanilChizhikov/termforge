@@ -33,5 +33,7 @@ public sealed class ServerMetricsCollectionTests
         readings.Memory.Value!.Value.UsedBytes.Should().BeInRange(0, readings.Memory.Value.Value.TotalBytes);
         readings.Disk.IsAvailable.Should().BeTrue(readings.Disk.Reason);
         readings.Disk.Value!.Value.MountPoint.Should().Be("/");
+        readings.LoadAverage.IsAvailable.Should().BeTrue(readings.LoadAverage.Reason);
+        readings.CpuCount.Value.Should().BePositive();
     }
 }
