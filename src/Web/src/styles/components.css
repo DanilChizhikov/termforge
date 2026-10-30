@@ -818,7 +818,7 @@ dl.fingerprint {
   padding: 0;
   border: 0;
   border-radius: var(--radius-xl);
-  background: var(--border-strong);
+  background: var(--border-strong);  transition: background-color var(--duration-press) ease;
 }
 
 .switch-knob {
@@ -836,7 +836,7 @@ dl.fingerprint {
 }
 
 .switch[aria-checked='true'] .switch-knob {
-  left: 21px;
+  transform: translateX(18px);
   background: var(--accent-on);
 }
 
@@ -890,4 +890,60 @@ dl.fingerprint {
   overflow: hidden;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
+}
+
+.dialog-backdrop {
+  transition: opacity var(--duration-modal) var(--ease-out);
+}
+
+.dialog-card {
+  transition:
+    opacity var(--duration-modal) var(--ease-out),
+    transform var(--duration-modal) var(--ease-out);
+}
+
+@starting-style {
+  .dialog-backdrop,
+  .dialog-card {
+    opacity: 0;
+  }
+}
+
+.btn,
+.icon-btn {
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn,
+  .icon-btn {
+    transition:
+      transform var(--duration-press) var(--ease-out),
+      background-color var(--duration-hover) ease,
+      border-color var(--duration-hover) ease,
+      color var(--duration-hover) ease;
+  }
+
+  .segmented button {
+    transition:
+      background-color var(--duration-hover) ease,
+      color var(--duration-hover) ease;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .btn:active:not(:disabled),
+  .icon-btn:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  .switch-knob {
+    transition: transform var(--duration-press) var(--ease-out);
+  }
+
+  @starting-style {
+    .dialog-card {
+      transform: scale(0.96);
+    }
+  }
 }
