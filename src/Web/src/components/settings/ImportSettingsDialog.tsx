@@ -1,6 +1,7 @@
 import { useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { describeError } from '../../api/connections';
 import {
+  SETTINGS_FILE_EXTENSION,
   applyImport,
   encodeBase64,
   previewImport,
@@ -16,7 +17,7 @@ import { reloadConnections } from '../../state/connections';
 import { flushWorkspaceState, pauseWorkspaceAutosave } from '../../state/workspacePersistence';
 import { formatDayAndClock } from '../timeFormat';
 import { CloseIcon } from '../icons/Icons';
-import { readFileBytes, readFileText } from './transferFiles';
+import { readFileBytes } from './transferFiles';
 
 export interface ImportSettingsDialogProps {
   onClose: () => void;
@@ -24,11 +25,6 @@ export interface ImportSettingsDialogProps {
 }
 
 interface ChosenSettingsFile {
-  name: string;
-  text: string;
-}
-
-interface ChosenArchive {
   name: string;
   base64: string;
 }
@@ -102,8 +98,7 @@ function describeResult(result: SettingsImportResult): string[] {
 
 export function ImportSettingsDialog({ onClose, reloadPage = reloadBrowserPage }: ImportSettingsDialogProps) {
   const [settingsFile, setSettingsFile] = useState<ChosenSettingsFile | null>(null);
-  const [archive, setArchive] = useState<ChosenArchive | null>(null);
-  const [password, setPassword] = useState('');
+  const [key, setKey] = useState('');
   const [mode, setMode] = useState<ImportMode>('merge');
   const [sections, setSections] = useState<SettingsSections>(ALL_SECTIONS);
   const [preview, setPreview] = useState<SettingsImportPreview | null>(null);
@@ -129,28 +124,11 @@ export function ImportSettingsDialog({ onClose, reloadPage = reloadBrowserPage }
       return;
     }
     try {
-      const text = await readFileText(file);
-      setSettingsFile({ name: file.name, text });
+      const bytes = await readFileBytes(file);
+      setSettingsFile({ name: file.name, base64: encodeBase64(bytes) });
     } catch {
       setSettingsFile(null);
       setError('The settings file could not be read.');
-    }
-  };
-
-  const chooseArchive = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    resetPreview();
-    if (file === undefined) {
-      setArchive(null);
-      setPassword('');
-      return;
-    }
-    try {
-      const bytes = await readFileBytes(file);
-      setArchive({ name: file.name, base64: encodeBase64(bytes) });
-    } catch {
-      setArchive(null);
-      setError('The secrets archive could not be read.');
     }
   };
 
@@ -159,9 +137,8 @@ export function ImportSettingsDialog({ onClose, reloadPage = reloadBrowserPage }
       return null;
     }
     return {
-      settingsFile: settingsFile.text,
-      secretsArchive: archive?.base64 ?? null,
-      password: archive === null ? null : password,
+      file: settingsFile.base64,
+      key,
       mode: requestMode,
       sections: requestSections,
       resolutions,
@@ -218,7 +195,7 @@ export function ImportSettingsDialog({ onClose, reloadPage = reloadBrowserPage }
       if (imported.workspaceImported) {
         pauseWorkspaceAutosave();
       }
-      setPassword('');
+      setKey('');
       setResult(imported);
       await reloadConnections().catch(() => undefined);
     } catch (failure: unknown) {
@@ -238,7 +215,7 @@ export function ImportSettingsDialog({ onClose, reloadPage = reloadBrowserPage }
   const needsReplaceConfirmation = mode === 'replace' && removals.length > 0;
   const nothingSelected = !SECTION_KEYS.some((key) => sections[key]);
   const canImport = preview !== null && !busy && !nothingSelected && (!needsReplaceConfirmation || confirmReplace);
-  const canPreview = settingsFile !== null && !busy && (archive === null || password.length > 0);
+  const canPreview = settingsFile !== null && !busy && key.trim().length > 0;
   const visibleSteps = preview?.connections.filter((step) => step.action !== 'skipped') ?? [];
 
   return (
@@ -268,28 +245,29 @@ export function ImportSettingsDialog({ onClose, reloadPage = reloadBrowserPage }
               <div className="transfer-password-grid">
                 <label className="field">
                   <span className="field-label">Settings file</span>
-                  <input type="file" className="transfer-file-input" accept=".json,application/json" onChange={(event) => void chooseSettingsFile(event)} />
+                  <input
+                    type="file"
+                    className="transfer-file-input"
+                    accept={SETTINGS_FILE_EXTENSION}
+                    onChange={(event) => void chooseSettingsFile(event)}
+                  />
                 </label>
                 <label className="field">
-                  <span className="field-label">Secrets archive (optional)</span>
-                  <input type="file" className="transfer-file-input" accept=".tfvault" onChange={(event) => void chooseArchive(event)} />
-                </label>
-              </div>
-              {archive === null ? null : (
-                <label className="field">
-                  <span className="field-label">Archive password</span>
+                  <span className="field-label">Key</span>
                   <input
                     type="password"
-                    className="input"
+                    className="input mono"
                     autoComplete="off"
-                    value={password}
+                    spellCheck={false}
+                    placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
+                    value={key}
                     onChange={(event) => {
-                      setPassword(event.target.value);
+                      setKey(event.target.value);
                       resetPreview();
                     }}
                   />
                 </label>
-              )}
+              </div>
               <fieldset className="auth-options">
                 <legend className="field-label">When a server already exists</legend>
                 <label className="auth-option">
@@ -493,7 +471,8 @@ function ImportPreview({ preview, sections, visibleSteps, resolutions, busy, onT
 function sectionHint(key: keyof SettingsSections, preview: SettingsImportPreview): string {
   switch (key) {
     case 'connections': {
-      const passwords = preview.secrets.supplied ? ` · ${plural(preview.secrets.passwords + preview.secrets.sudoPasswords, 'password', 'passwords')}` : '';
+      const passwordCount = preview.secrets.passwords + preview.secrets.sudoPasswords;
+      const passwords = passwordCount > 0 ? ` · ${plural(passwordCount, 'password', 'passwords')}` : '';
       return `${plural(preview.connections.length, 'server', 'servers')}${passwords}`;
     }
     case 'preferences':

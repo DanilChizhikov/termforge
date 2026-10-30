@@ -13,30 +13,19 @@ export interface SettingsTransferSummary {
   pinnedCommands: number;
 }
 
-export interface SecretsExportOptions {
-  password: string;
-  confirmed: boolean;
-}
-
 export interface SettingsExportRequest {
   sections: SettingsSections;
-  secrets: SecretsExportOptions | null;
 }
 
 export interface ExportedFile {
   fileName: string;
-  content: string;
-}
-
-export interface ExportedArchive {
-  fileName: string;
   contentBase64: string;
-  secretCount: number;
 }
 
 export interface SettingsExport {
-  settings: ExportedFile;
-  secrets: ExportedArchive | null;
+  file: ExportedFile;
+  key: string;
+  secretCount: number;
 }
 
 export type ImportMode = 'merge' | 'replace';
@@ -46,9 +35,8 @@ export type ConflictResolution = 'keepExisting' | 'useImported' | 'keepBoth';
 export type ConnectionImportAction = 'add' | 'update' | 'unchanged' | 'conflict' | 'skipped';
 
 export interface SettingsImportRequest {
-  settingsFile: string;
-  secretsArchive: string | null;
-  password: string | null;
+  file: string;
+  key: string;
   mode: ImportMode;
   sections: SettingsSections;
   resolutions: Record<string, ConflictResolution>;
@@ -85,13 +73,12 @@ export interface SettingsImportPreview {
   exportedAt: string;
   sectionsInFile: SettingsSections;
   sectionsToApply: SettingsSections;
-  hasSecretsArchive: boolean;
   connections: ConnectionImportStep[];
   removals: RemovedConnection[];
   preferenceChanges: string[];
   workspace: WorkspaceImportSummary | null;
   pinnedCommands: number;
-  secrets: { supplied: boolean; passwords: number; sudoPasswords: number };
+  secrets: { passwords: number; sudoPasswords: number };
   warnings: string[];
 }
 
@@ -109,7 +96,7 @@ export interface SettingsImportResult {
   warnings: string[];
 }
 
-export const ARCHIVE_PASSWORD_MIN_LENGTH = 12;
+export const SETTINGS_FILE_EXTENSION = '.tfsettings';
 
 const ROUTE = '/api/settings-transfer';
 

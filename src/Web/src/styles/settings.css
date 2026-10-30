@@ -278,94 +278,21 @@
   font-size: var(--text-small);
 }
 
-.transfer-secrets {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin: 14px 24px 0;
-  padding: 16px;
-  border: 1px solid var(--status-caution-border);
-  border-radius: var(--radius-lg);
-  background: var(--surface-canvas);
-}
-
-.transfer-secrets-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.transfer-secrets-text {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.transfer-secrets-title {
-  font-weight: 600;
-}
-
-.transfer-secrets-hint {
-  color: var(--text-secondary);
-  font-size: var(--text-small);
-}
-
 .transfer-password-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
   gap: 10px;
 }
 
-.transfer-secrets .input {
-  background: var(--surface-card);
-}
-
-.strength {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.strength-bars {
-  display: grid;
-  flex: 1;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 4px;
-}
-
-.strength-bar {
-  height: 4px;
-  border-radius: 2px;
-  background: var(--border-default);
-}
-
-.strength-bar-weak {
-  background: var(--status-danger);
-}
-
-.strength-bar-fair {
-  background: var(--status-caution);
-}
-
-.strength-bar-strong {
-  background: var(--status-ok);
-}
-
-.strength-label {
-  font-size: var(--text-small);
-}
-
-.strength-label-weak {
-  color: var(--text-secondary);
-}
-
-.strength-label-fair {
-  color: var(--status-caution);
-}
-
-.strength-label-strong {
-  color: var(--status-ok-text);
+.transfer-key {
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+  border-radius: var(--radius-sm);
+  background: var(--surface-terminal);
+  color: var(--text-primary);
+  font-size: var(--text-fingerprint);
+  letter-spacing: 0.04em;
+  user-select: all;
 }
 
 .transfer-files {

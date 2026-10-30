@@ -22,10 +22,6 @@ function readFile<T>(read: (reader: FileReader) => void): Promise<T> {
   });
 }
 
-export function readFileText(file: Blob): Promise<string> {
-  return readFile<string>((reader) => reader.readAsText(file));
-}
-
 export async function readFileBytes(file: Blob): Promise<Uint8Array> {
   const buffer = await readFile<ArrayBuffer>((reader) => reader.readAsArrayBuffer(file));
   return new Uint8Array(buffer);
