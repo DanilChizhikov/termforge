@@ -12,8 +12,6 @@ public sealed record SettingsDocument
 
     public DateTime ExportedAt { get; init; }
 
-    public bool HasSecretsArchive { get; init; }
-
     public IReadOnlyList<ExportedConnection>? Connections { get; init; }
 
     public ExportedPreferences? Preferences { get; init; }

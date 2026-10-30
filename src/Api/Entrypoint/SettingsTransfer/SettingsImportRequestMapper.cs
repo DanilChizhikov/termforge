@@ -9,9 +9,15 @@ internal static class SettingsImportRequestMapper
 
     public static SettingsTransferResult<SettingsImportRequest> ToRequest(SettingsImportBody body)
     {
-        if (string.IsNullOrWhiteSpace(body.SettingsFile))
+        var package = ReadPackage(body.File);
+        if (!package.IsSuccess)
         {
-            return Invalid("Choose a TermForge settings file to import.");
+            return SettingsTransferResult<SettingsImportRequest>.Failure(package.Error);
+        }
+
+        if (string.IsNullOrWhiteSpace(body.Key))
+        {
+            return Invalid("Enter the key shown when the settings were exported.");
         }
 
         var mode = ImportMode.Merge;
@@ -26,53 +32,39 @@ internal static class SettingsImportRequestMapper
             return Invalid("A conflict resolution is invalid. Use keepExisting, useImported or keepBoth.");
         }
 
-        var secrets = ReadSecrets(body);
-        if (!secrets.IsSuccess)
-        {
-            return SettingsTransferResult<SettingsImportRequest>.Failure(secrets.Error);
-        }
-
         var allSections = new SettingsSections(true, true, true, true);
         var sections = body.Sections?.ToSections() ?? allSections;
         var options = new SettingsImportOptions(mode, sections, resolutions) { ConfirmReplace = body.ConfirmReplace };
-        var request = new SettingsImportRequest(body.SettingsFile, secrets.Value, options);
-        body.Password = null;
+        var request = new SettingsImportRequest(package.Value, body.Key, options);
+        body.Key = null;
         return SettingsTransferResult<SettingsImportRequest>.Success(request);
     }
 
-    private static SettingsTransferResult<SecretsImportInput?> ReadSecrets(SettingsImportBody body)
+    private static SettingsTransferResult<byte[]> ReadPackage(string? encoded)
     {
-        if (string.IsNullOrEmpty(body.SecretsArchive))
+        if (string.IsNullOrWhiteSpace(encoded))
         {
-            return SettingsTransferResult<SecretsImportInput?>.Success(null);
+            var missing = SettingsTransferError.Invalid("Choose a TermForge settings file to import.");
+            return SettingsTransferResult<byte[]>.Failure(missing);
         }
 
-        var maxEncodedLength = ((SettingsTransferLimits.MaxSecretsArchiveBytes + 2) / 3 * 4) + 4;
-        if (body.SecretsArchive.Length > maxEncodedLength)
+        var maxEncodedLength = ((SettingsTransferLimits.MaxPackageBytes + 2) / 3 * 4) + 4;
+        if (encoded.Length > maxEncodedLength)
         {
-            var tooLarge = SettingsTransferError.TooLarge("secrets archive", SettingsTransferLimits.MaxSecretsArchiveBytes);
-            return SettingsTransferResult<SecretsImportInput?>.Failure(tooLarge);
+            var tooLarge = SettingsTransferError.TooLarge("settings file", SettingsTransferLimits.MaxPackageBytes);
+            return SettingsTransferResult<byte[]>.Failure(tooLarge);
         }
 
-        if (string.IsNullOrEmpty(body.Password))
-        {
-            var missingPassword = SettingsTransferError.Invalid("Enter the archive password to import the secrets archive.");
-            return SettingsTransferResult<SecretsImportInput?>.Failure(missingPassword);
-        }
-
-        byte[] archive;
         try
         {
-            archive = Convert.FromBase64String(body.SecretsArchive);
+            var package = Convert.FromBase64String(encoded);
+            return SettingsTransferResult<byte[]>.Success(package);
         }
         catch (FormatException)
         {
-            var damaged = SettingsTransferError.ArchiveDamaged();
-            return SettingsTransferResult<SecretsImportInput?>.Failure(damaged);
+            var damaged = SettingsTransferError.FileDamaged();
+            return SettingsTransferResult<byte[]>.Failure(damaged);
         }
-
-        var input = new SecretsImportInput(archive, body.Password);
-        return SettingsTransferResult<SecretsImportInput?>.Success(input);
     }
 
     private static bool TryParseName<TEnum>(string value, out TEnum parsed)

@@ -3,7 +3,9 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using DTech.Core.CommandHistory;
+using DTech.Core.Credentials;
 using DTech.Core.SavedConnections;
+using DTech.Core.SettingsTransfer.Package;
 using DTech.Core.SettingsTransfer.Secrets;
 using DTech.Entrypoint.Tests.SettingsTransfer.Support;
 using FluentAssertions;
@@ -17,7 +19,7 @@ public sealed class SettingsTransferEndpointsTests
     private const string ExportPath = "/api/settings-transfer/export";
     private const string PreviewPath = "/api/settings-transfer/import/preview";
     private const string ImportPath = "/api/settings-transfer/import";
-    private const string ArchivePassword = "correct-horse-staple";
+    private const string ForeignKey = "0000-0000-0000-0000-0000-0000-0000-0000";
     private const string ServerPassword = "server-password-never-in-plaintext";
     private const string SudoPassword = "sudo-password-never-in-plaintext";
 
@@ -41,7 +43,7 @@ public sealed class SettingsTransferEndpointsTests
     }
 
     [TestMethod]
-    public async Task ExportWithoutSecrets_ThenImportIntoAnotherInstallation_RestoresEverySection()
+    public async Task Export_ThenImportIntoAnotherInstallation_RestoresEverySection()
     {
         var bastionId = await _source.CreateConnectionAsync("bastion");
         var webExtra = new { jumpHostId = bastionId, groupName = "Production" };
@@ -54,8 +56,8 @@ public sealed class SettingsTransferEndpointsTests
         using var workspaceSaved = await _source.SendAsync(HttpMethod.Put, "/api/workspace", workspace);
         await AddPinnedCommandAsync(_source, webId, "docker compose ps");
 
-        var export = await ExportAsync(_source, null);
-        var importBody = ImportBody(export, null);
+        var export = await ExportAsync(_source);
+        var importBody = ImportBody(export);
         using var imported = await _target.SendAsync(HttpMethod.Post, ImportPath, importBody);
         var result = await _target.ReadJsonAsync(imported);
 
@@ -63,7 +65,7 @@ public sealed class SettingsTransferEndpointsTests
         exclusionsSaved.StatusCode.Should().Be(HttpStatusCode.OK);
         workspaceSaved.StatusCode.Should().Be(HttpStatusCode.NoContent);
         imported.StatusCode.Should().Be(HttpStatusCode.OK);
-        export.GetProperty("secrets").ValueKind.Should().Be(JsonValueKind.Null);
+        export.GetProperty("secretCount").GetInt32().Should().Be(0);
         result.GetProperty("added").GetInt32().Should().Be(2);
         result.GetProperty("preferencesImported").GetBoolean().Should().BeTrue();
         result.GetProperty("workspaceImported").GetBoolean().Should().BeTrue();
@@ -93,22 +95,21 @@ public sealed class SettingsTransferEndpointsTests
     }
 
     [TestMethod]
-    public async Task ExportWithSecrets_ThenImport_PutsThePasswordsIntoTheCredentialStore()
+    public async Task Export_ThenImport_PutsThePasswordsIntoTheCredentialStore()
     {
         var passwordServer = new { authMethod = "Password", password = ServerPassword };
         var sourceId = await _source.CreateConnectionAsync("web", passwordServer);
         var sudoKey = ConnectionSecretKeys.For(sourceId, ArchivedSecretKind.SudoPassword);
         _source.CredentialStore.Put(sudoKey, SudoPassword);
 
-        var secrets = new { password = ArchivePassword, confirmed = true };
-        var export = await ExportAsync(_source, secrets);
-        var importBody = ImportBody(export, ArchivePassword);
+        var export = await ExportAsync(_source);
+        var importBody = ImportBody(export);
         using var imported = await _target.SendAsync(HttpMethod.Post, ImportPath, importBody);
         var result = await _target.ReadJsonAsync(imported);
 
         imported.StatusCode.Should().Be(HttpStatusCode.OK);
-        export.GetProperty("secrets").GetProperty("fileName").GetString().Should().EndWith(".tfvault");
-        export.GetProperty("secrets").GetProperty("secretCount").GetInt32().Should().Be(2);
+        export.GetProperty("file").GetProperty("fileName").GetString().Should().EndWith(".tfsettings");
+        export.GetProperty("secretCount").GetInt32().Should().Be(2);
         result.GetProperty("secretsStored").GetInt32().Should().Be(2);
         var connections = await _target.ListConnectionsAsync();
         var web = connections.EnumerateArray().Single();
@@ -125,101 +126,103 @@ public sealed class SettingsTransferEndpointsTests
     {
         var passwordServer = new { authMethod = "Password", password = ServerPassword };
         await _source.CreateConnectionAsync("web", passwordServer);
-        var secrets = new { password = ArchivePassword, confirmed = true };
-        var body = new { sections = AllSections(), secrets };
+        var body = new { sections = AllSections() };
 
         using var response = await _source.SendAsync(HttpMethod.Post, ExportPath, body);
         var responseText = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
         using var exportDocument = JsonDocument.Parse(responseText);
         var export = exportDocument.RootElement;
-        var importBody = ImportBody(export, ArchivePassword);
+        var importBody = ImportBody(export);
         using var imported = await _target.SendAsync(HttpMethod.Post, ImportPath, importBody);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         imported.StatusCode.Should().Be(HttpStatusCode.OK);
+        var key = ReadKey(export);
         var settingsContent = ReadSettingsContent(export);
-        var archive = ReadArchive(export);
-        settingsContent.Should().NotContain(ServerPassword).And.NotContain(ArchivePassword);
+        var package = ReadPackage(export);
+        settingsContent.Should().NotContain(ServerPassword);
         settingsContent.Should().NotContain("password\":");
-        responseText.Should().NotContain(ServerPassword).And.NotContain(ArchivePassword);
+        responseText.Should().NotContain(ServerPassword);
         var plaintext = Encoding.UTF8.GetBytes(ServerPassword);
-        archive.AsSpan().IndexOf(plaintext).Should().Be(-1);
+        var keyBytes = Encoding.UTF8.GetBytes(key);
+        package.AsSpan().IndexOf(plaintext).Should().Be(-1);
+        package.AsSpan().IndexOf(keyBytes).Should().Be(-1);
         AssertNoFileContains(_source.DatabaseDirectory, ServerPassword);
         AssertNoFileContains(_target.DatabaseDirectory, ServerPassword);
-        _source.Logs.Messages.Should().NotContain(message => message.Contains(ServerPassword) || message.Contains(ArchivePassword));
-        _target.Logs.Messages.Should().NotContain(message => message.Contains(ServerPassword) || message.Contains(ArchivePassword));
+        AssertNoFileContains(_source.DatabaseDirectory, key);
+        _source.Logs.Messages.Should().NotContain(message => message.Contains(ServerPassword) || message.Contains(key));
+        _target.Logs.Messages.Should().NotContain(message => message.Contains(ServerPassword) || message.Contains(key));
     }
 
     [TestMethod]
-    public async Task Import_WithAWrongArchivePassword_IsRejectedAndChangesNothing()
+    [DataRow(ForeignKey)]
+    [DataRow("not-a-key")]
+    public async Task Import_WithAWrongKey_IsRejectedAndChangesNothing(string wrongKey)
     {
         var passwordServer = new { authMethod = "Password", password = ServerPassword };
         await _source.CreateConnectionAsync("web", passwordServer);
-        var secrets = new { password = ArchivePassword, confirmed = true };
-        var export = await ExportAsync(_source, secrets);
+        var export = await ExportAsync(_source);
 
-        var importBody = ImportBody(export, "not-the-archive-password");
+        var importBody = ImportBody(export);
+        importBody["key"] = wrongKey;
         using var preview = await _target.SendAsync(HttpMethod.Post, PreviewPath, importBody);
         using var imported = await _target.SendAsync(HttpMethod.Post, ImportPath, importBody);
 
         preview.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         imported.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var problem = await _target.ReadJsonAsync(imported);
-        problem.GetProperty("code").GetString().Should().Be("WrongPassword");
+        problem.GetProperty("code").GetString().Should().Be("WrongKey");
         var connections = await _target.ListConnectionsAsync();
         connections.GetArrayLength().Should().Be(0);
         _target.CredentialStore.Secrets.Should().BeEmpty();
     }
 
     [TestMethod]
-    public async Task Import_WithATamperedArchive_IsRejectedAsDamaged()
+    public async Task Import_WithATamperedFile_IsRejectedAsDamaged()
     {
         var passwordServer = new { authMethod = "Password", password = ServerPassword };
         await _source.CreateConnectionAsync("web", passwordServer);
-        var secrets = new { password = ArchivePassword, confirmed = true };
-        var export = await ExportAsync(_source, secrets);
-        var archive = ReadArchive(export);
-        archive[^20] ^= 0x40;
-        var importBody = ImportBody(export, ArchivePassword);
-        var tampered = Convert.ToBase64String(archive);
-        importBody["secretsArchive"] = tampered;
+        var export = await ExportAsync(_source);
+        var package = ReadPackage(export);
+        package[^20] ^= 0x40;
+        var importBody = ImportBody(export);
+        var tampered = Convert.ToBase64String(package);
+        importBody["file"] = tampered;
 
         using var imported = await _target.SendAsync(HttpMethod.Post, ImportPath, importBody);
         var problem = await _target.ReadJsonAsync(imported);
 
         imported.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        problem.GetProperty("code").GetString().Should().Be("ArchiveDamaged");
+        problem.GetProperty("code").GetString().Should().Be("FileDamaged");
         var connections = await _target.ListConnectionsAsync();
         connections.GetArrayLength().Should().Be(0);
     }
 
     [TestMethod]
-    public async Task Import_AnArchiveFromAnotherExport_IsRejected()
+    public async Task Import_APlainJsonSettingsFile_IsRejectedAsDamaged()
     {
-        var passwordServer = new { authMethod = "Password", password = ServerPassword };
-        await _source.CreateConnectionAsync("web", passwordServer);
-        var secrets = new { password = ArchivePassword, confirmed = true };
-        var first = await ExportAsync(_source, secrets);
-        var second = await ExportAsync(_source, secrets);
-        var importBody = ImportBody(first, ArchivePassword);
-        importBody["secretsArchive"] = second.GetProperty("secrets").GetProperty("contentBase64").GetString();
+        await _source.CreateConnectionAsync("web");
+        var export = await ExportAsync(_source);
+        var settingsContent = ReadSettingsContent(export);
+        var plainBytes = Encoding.UTF8.GetBytes(settingsContent);
+        var importBody = ImportBody(export);
+        importBody["file"] = Convert.ToBase64String(plainBytes);
 
         using var imported = await _target.SendAsync(HttpMethod.Post, ImportPath, importBody);
         var problem = await _target.ReadJsonAsync(imported);
 
         imported.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        problem.GetProperty("code").GetString().Should().Be("ArchiveMismatch");
+        problem.GetProperty("code").GetString().Should().Be("FileDamaged");
     }
 
     [TestMethod]
     public async Task Import_ASettingsFileFromANewerSchemaVersion_IsRejected()
     {
         await _source.CreateConnectionAsync("web");
-        var export = await ExportAsync(_source, null);
+        var export = await ExportAsync(_source);
         var settings = ReadSettings(export);
         settings["schemaVersion"] = 2;
-        var settingsFile = settings.ToJsonString();
-        var importBody = new Dictionary<string, object?> { ["settingsFile"] = settingsFile };
+        var importBody = ImportBodyWithSettings(export, settings);
 
         using var imported = await _target.SendAsync(HttpMethod.Post, ImportPath, importBody);
         var problem = await _target.ReadJsonAsync(imported);
@@ -235,11 +238,10 @@ public sealed class SettingsTransferEndpointsTests
     {
         await _source.CreateConnectionAsync("web");
         await _source.CreateConnectionAsync("db");
-        var export = await ExportAsync(_source, null);
+        var export = await ExportAsync(_source);
         var settings = ReadSettings(export);
         settings["connections"]![1]!["host"] = "-oProxyCommand=touch /tmp/pwned";
-        var settingsFile = settings.ToJsonString();
-        var importBody = new Dictionary<string, object?> { ["settingsFile"] = settingsFile };
+        var importBody = ImportBodyWithSettings(export, settings);
 
         using var imported = await _target.SendAsync(HttpMethod.Post, ImportPath, importBody);
         var problem = await _target.ReadJsonAsync(imported);
@@ -255,11 +257,11 @@ public sealed class SettingsTransferEndpointsTests
     {
         await _source.CreateConnectionAsync("web");
         await _source.CreateConnectionAsync("db");
-        var export = await ExportAsync(_source, null);
+        var export = await ExportAsync(_source);
         var conflicting = new { host = "10.0.0.5" };
         var targetWebId = await _target.CreateConnectionAsync("web", conflicting);
 
-        var importBody = ImportBody(export, null);
+        var importBody = ImportBody(export);
         using var response = await _target.SendAsync(HttpMethod.Post, PreviewPath, importBody);
         var preview = await _target.ReadJsonAsync(response);
 
@@ -280,12 +282,12 @@ public sealed class SettingsTransferEndpointsTests
         var sourceWebId = await _source.CreateConnectionAsync("web");
         var sourceDbId = await _source.CreateConnectionAsync("db");
         await _source.CreateConnectionAsync("cache");
-        var export = await ExportAsync(_source, null);
+        var export = await ExportAsync(_source);
         var webHost = new { host = "10.0.0.5" };
         var dbHost = new { host = "10.0.0.6" };
         var targetWebId = await _target.CreateConnectionAsync("web", webHost);
         var targetDbId = await _target.CreateConnectionAsync("db", dbHost);
-        var importBody = ImportBody(export, null);
+        var importBody = ImportBody(export);
         importBody["resolutions"] = new Dictionary<string, string>
         {
             [sourceWebId.ToString()] = "useImported",
@@ -310,10 +312,10 @@ public sealed class SettingsTransferEndpointsTests
     public async Task Import_Replace_RequiresConfirmationThenRemovesServersMissingFromTheFile()
     {
         await _source.CreateConnectionAsync("web");
-        var export = await ExportAsync(_source, null);
+        var export = await ExportAsync(_source);
         var oldPassword = new { authMethod = "Password", password = "old-password" };
         var oldId = await _target.CreateConnectionAsync("old", oldPassword);
-        var importBody = ImportBody(export, null);
+        var importBody = ImportBody(export);
         importBody["mode"] = "replace";
 
         using var preview = await _target.SendAsync(HttpMethod.Post, PreviewPath, importBody);
@@ -340,9 +342,9 @@ public sealed class SettingsTransferEndpointsTests
     {
         var recording = new { enabled = true, maxRecordingSizeMegabytes = 25, maxRecordings = 50, retentionDays = 30 };
         using var saved = await _source.SendAsync(HttpMethod.Put, "/api/recordings/settings", recording);
-        var export = await ExportAsync(_source, null);
+        var export = await ExportAsync(_source);
 
-        var importBody = ImportBody(export, null);
+        var importBody = ImportBody(export);
         using var imported = await _target.SendAsync(HttpMethod.Post, ImportPath, importBody);
         var settings = await GetJsonAsync(_target, "/api/recordings/settings");
 
@@ -353,21 +355,30 @@ public sealed class SettingsTransferEndpointsTests
     }
 
     [TestMethod]
-    public async Task ExportSecrets_RequiresConfirmationAStrongPasswordAndConnections()
+    public async Task Export_WithoutAnySection_IsRejected()
     {
-        var unconfirmed = new { sections = AllSections(), secrets = new { password = ArchivePassword, confirmed = false } };
-        var weak = new { sections = AllSections(), secrets = new { password = "short", confirmed = true } };
-        var withoutConnections = new { sections = new { preferences = true }, secrets = new { password = ArchivePassword, confirmed = true } };
+        var body = new { sections = new { connections = false } };
 
-        using var unconfirmedResponse = await _source.SendAsync(HttpMethod.Post, ExportPath, unconfirmed);
-        using var weakResponse = await _source.SendAsync(HttpMethod.Post, ExportPath, weak);
-        using var withoutConnectionsResponse = await _source.SendAsync(HttpMethod.Post, ExportPath, withoutConnections);
+        using var response = await _source.SendAsync(HttpMethod.Post, ExportPath, body);
+        var problem = await _source.ReadJsonAsync(response);
 
-        unconfirmedResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
-        weakResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        var weakProblem = await _source.ReadJsonAsync(weakResponse);
-        weakProblem.GetProperty("code").GetString().Should().Be("WeakPassword");
-        withoutConnectionsResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        problem.GetProperty("code").GetString().Should().Be("Invalid");
+    }
+
+    [TestMethod]
+    public async Task Import_WithoutAKey_IsRejected()
+    {
+        await _source.CreateConnectionAsync("web");
+        var export = await ExportAsync(_source);
+        var importBody = ImportBody(export);
+        importBody["key"] = null;
+
+        using var imported = await _target.SendAsync(HttpMethod.Post, ImportPath, importBody);
+        var problem = await _target.ReadJsonAsync(imported);
+
+        imported.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        problem.GetProperty("code").GetString().Should().Be("Invalid");
     }
 
     [TestMethod]
@@ -384,7 +395,7 @@ public sealed class SettingsTransferEndpointsTests
         settings["connections"].Should().BeNull();
         settings["workspace"].Should().BeNull();
         settings["preferences"].Should().NotBeNull();
-        export.GetProperty("settings").GetProperty("fileName").GetString().Should().StartWith("termforge-settings-").And.EndWith(".json");
+        export.GetProperty("file").GetProperty("fileName").GetString().Should().StartWith("termforge-settings-").And.EndWith(".tfsettings");
     }
 
     [TestMethod]
@@ -402,20 +413,14 @@ public sealed class SettingsTransferEndpointsTests
         summary.GetProperty("pinnedCommands").GetInt32().Should().Be(1);
     }
 
-    private static string ReadSettingsContent(JsonElement export)
+    private static string ReadKey(JsonElement export)
     {
-        return export.GetProperty("settings").GetProperty("content").GetString()!;
+        return export.GetProperty("key").GetString()!;
     }
 
-    private static JsonNode ReadSettings(JsonElement export)
+    private static byte[] ReadPackage(JsonElement export)
     {
-        var content = ReadSettingsContent(export);
-        return JsonNode.Parse(content)!;
-    }
-
-    private static byte[] ReadArchive(JsonElement export)
-    {
-        var encoded = export.GetProperty("secrets").GetProperty("contentBase64").GetString()!;
+        var encoded = export.GetProperty("file").GetProperty("contentBase64").GetString()!;
         return Convert.FromBase64String(encoded);
     }
 
@@ -424,18 +429,57 @@ public sealed class SettingsTransferEndpointsTests
         return new { connections = true, preferences = true, workspace = true, pinnedCommands = true };
     }
 
-    private static Dictionary<string, object?> ImportBody(JsonElement export, string? archivePassword)
+    private static Dictionary<string, object?> ImportBody(JsonElement export)
     {
-        var secrets = export.GetProperty("secrets");
-        var archive = secrets.ValueKind == JsonValueKind.Null ? null : secrets.GetProperty("contentBase64").GetString();
         return new Dictionary<string, object?>
         {
-            ["settingsFile"] = export.GetProperty("settings").GetProperty("content").GetString(),
-            ["secretsArchive"] = archivePassword is null ? null : archive,
-            ["password"] = archivePassword,
+            ["file"] = export.GetProperty("file").GetProperty("contentBase64").GetString(),
+            ["key"] = ReadKey(export),
             ["mode"] = "merge",
             ["sections"] = AllSections(),
         };
+    }
+
+    private string ReadSettingsContent(JsonElement export)
+    {
+        using var package = DecryptPackage(export);
+        return package.SettingsJson;
+    }
+
+    private JsonNode ReadSettings(JsonElement export)
+    {
+        var content = ReadSettingsContent(export);
+        return JsonNode.Parse(content)!;
+    }
+
+    private Dictionary<string, object?> ImportBodyWithSettings(JsonElement export, JsonNode settings)
+    {
+        var cipher = _source.Factory.Services.GetRequiredService<ISettingsPackageCipher>();
+        using var original = DecryptPackage(export);
+        var settingsJson = settings.ToJsonString();
+        var modified = new SettingsPackage(settingsJson, original.Secrets);
+        using var key = NormalizedKey(export);
+        var encrypted = cipher.Encrypt(modified, key);
+        var importBody = ImportBody(export);
+        importBody["file"] = Convert.ToBase64String(encrypted);
+        return importBody;
+    }
+
+    private SettingsPackage DecryptPackage(JsonElement export)
+    {
+        var cipher = _source.Factory.Services.GetRequiredService<ISettingsPackageCipher>();
+        var package = ReadPackage(export);
+        using var key = NormalizedKey(export);
+        var decrypted = cipher.Decrypt(package, key);
+        decrypted.IsSuccess.Should().BeTrue();
+        return decrypted.Value;
+    }
+
+    private static Secret NormalizedKey(JsonElement export)
+    {
+        var key = ReadKey(export);
+        var normalized = ExportKeyNormalizer.Normalize(key)!;
+        return Secret.FromString(normalized);
     }
 
     private static object CreateWorkspace(Guid connectionId)
@@ -470,9 +514,9 @@ public sealed class SettingsTransferEndpointsTests
         }
     }
 
-    private async Task<JsonElement> ExportAsync(SettingsTransferApiHarness harness, object? secrets)
+    private async Task<JsonElement> ExportAsync(SettingsTransferApiHarness harness)
     {
-        var body = new { sections = AllSections(), secrets };
+        var body = new { sections = AllSections() };
         using var response = await harness.SendAsync(HttpMethod.Post, ExportPath, body);
         var content = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.OK, content);

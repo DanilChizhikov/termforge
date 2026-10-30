@@ -104,7 +104,7 @@ The agent sees only servers with AI access turned on in the server dialog. It ca
 
 ### Import and export
 
-Settings → Import & export writes servers, preferences, the workspace layout and pinned commands to a versioned JSON file without secrets. Passwords are exported only when you turn on "Also export secrets", type an archive password of at least 12 characters twice and confirm the risk. They go into a separate `.tfvault` archive encrypted with PBKDF2-SHA256 and AES-256-GCM. Private keys are never exported, only their paths. Import shows every change before applying it and lets you merge or replace. See [docs/decisions/settings-import-and-export.md](docs/decisions/settings-import-and-export.md).
+Settings → Import & export writes servers with their saved passwords, preferences, the workspace layout and pinned commands to one `.tfsettings` file encrypted with PBKDF2-SHA256 and AES-256-GCM. Every export generates a new key that is shown once; the import asks for the file and that key. Private keys are never exported, only their paths. Import shows every change before applying it and lets you merge or replace. See [docs/decisions/settings-import-and-export.md](docs/decisions/settings-import-and-export.md).
 
 ### Updates
 

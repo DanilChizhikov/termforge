@@ -10,8 +10,6 @@ public sealed record SettingsImportPreviewResponse
 
     public required SettingsSectionsBody SectionsToApply { get; init; }
 
-    public bool HasSecretsArchive { get; init; }
-
     public required IReadOnlyList<ConnectionImportStepResponse> Connections { get; init; }
 
     public required IReadOnlyList<RemovedConnectionResponse> Removals { get; init; }
@@ -43,13 +41,12 @@ public sealed record SettingsImportPreviewResponse
             removals.Add(response);
         }
 
-        var secrets = new SecretsPreviewResponse(preview.SecretsSupplied, preview.ConnectionsWithPassword.Count, preview.ConnectionsWithSudoPassword.Count);
+        var secrets = new SecretsPreviewResponse(preview.ConnectionsWithPassword.Count, preview.ConnectionsWithSudoPassword.Count);
         return new SettingsImportPreviewResponse
         {
             ExportedAt = preview.ExportedAt,
             SectionsInFile = SettingsSectionsBody.From(preview.SectionsInFile),
             SectionsToApply = SettingsSectionsBody.From(preview.SectionsToApply),
-            HasSecretsArchive = preview.HasSecretsArchive,
             Connections = connections,
             Removals = removals,
             PreferenceChanges = preview.PreferenceChanges,

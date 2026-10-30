@@ -2,14 +2,13 @@
 
 ## Decision
 
-Settings move between computers as two files that the backend produces and the browser saves:
+Settings move between computers as one encrypted file, `termforge-settings-YYYY-MM-DD.tfsettings`, that holds the versioned settings document together with the saved passwords of the exported servers. Every export generates a new random key; the export dialog shows it once with a copy button, and the import dialog asks for the file and the key. Anyone with the file and the key can sign in to the servers.
 
-- `termforge-settings-YYYY-MM-DD.json` — a versioned JSON document without secrets.
-- `termforge-secrets-YYYY-MM-DD.tfvault` — an optional encrypted archive with saved passwords. It is created only when the user turns on "Also export secrets", types an archive password twice and confirms that anyone with the archive and the password can sign in to the servers.
+The backend never writes the file or the key to disk and never logs the key: `POST /api/settings-transfer/export` returns the encrypted bytes as base64 together with the key, and the browser saves the file through a download. Plaintext secrets exist only in backend memory while the file is built or read and are zeroed after use.
 
-The backend never writes either file to disk: `POST /api/settings-transfer/export` returns the settings document as text and the archive as base64 of its encrypted bytes, and the browser saves them through a download. Plaintext secrets exist only in backend memory while the archive is built or read and are zeroed after use.
+## Settings document
 
-## Settings file
+The document inside the file:
 
 ```json
 {
@@ -17,7 +16,6 @@ The backend never writes either file to disk: `POST /api/settings-transfer/expor
   "schemaVersion": 1,
   "exportId": "1f6c…",
   "exportedAt": "2026-10-27T10:00:00Z",
-  "hasSecretsArchive": true,
   "connections": [{ "id": "…", "name": "web-01", "groupName": "Production", "host": "203.0.113.24", "port": 22, "userName": "deploy", "authMethod": "Password", "privateKeyPath": null, "jumpHostId": null, "sshAlias": null, "reconnect": { "mode": "Manual", "maxAttempts": 5, "initialDelaySeconds": 2, "maxDelaySeconds": 60 } }],
   "preferences": { "terminalRecording": { "maxRecordingSizeMegabytes": 10, "maxRecordings": 50, "retentionDays": 30 }, "commandExclusionPatterns": ["…"] },
   "workspace": { "selectedConnectionId": "…", "terminalTabs": [], "…": "same shape as GET /api/workspace state" },
@@ -26,23 +24,26 @@ The backend never writes either file to disk: `POST /api/settings-transfer/expor
 ```
 
 - Sections are optional: a section the user did not select is `null`. The export dialog offers server connections, preferences, workspace layout and open tabs, and pinned commands (off by default).
-- Never exported: passwords (only in the archive), private key files (only their paths), unsaved editor content (it may hold secrets and lives with the workspace on this computer), command history other than pinned commands, trusted host keys, terminal recordings, the operation journal, and configuration from `appsettings.json` (network access, update check, paths).
+- Never exported: private key files (only their paths), unsaved editor content (it may hold secrets and lives with the workspace on this computer), command history other than pinned commands, trusted host keys, terminal recordings, the operation journal, and configuration from `appsettings.json` (network access, update check, paths).
 - Preferences are the settings stored by the application: terminal recording limits and command history exclusion patterns. Whether recording is turned on is not exported, and an import never turns recording on: that stays an explicit choice in Settings.
 
-## Secrets archive
+## Encrypted file and key
 
-The archive reuses the credential vault format and crypto (`Infrastructure/Credentials/Vault`): PBKDF2-HMAC-SHA256 with a random 32-byte salt and the vault iteration count (`Credentials:VaultKdfIterations`, 600 000 by default), HKDF-derived AES-256-GCM key and password verifier, a random 96-bit nonce, and the whole header as associated data. The plaintext is the vault entry list:
+The key is 32 random symbols of the Crockford Base32 alphabet (160 bits), shown in eight groups of four: `7K3M-9QX2-…`. On import spaces, dashes and case are ignored, and `O`, `I`, `L` are read as `0`, `1`, `1`.
 
-- `export-id` — the `exportId` of the settings file the archive belongs to;
-- `connection:<id>:password` and `connection:<id>:sudo-password` — the saved SSH and sudo passwords of exported connections, keyed by the connection id in the settings file.
+The file reuses the credential vault format and crypto (`Infrastructure/Credentials/Vault`) with the key as the password: PBKDF2-HMAC-SHA256 with a random 32-byte salt and the vault iteration count (`Credentials:VaultKdfIterations`, 600 000 by default), HKDF-derived AES-256-GCM key and password verifier, a random 96-bit nonce, and the whole header as associated data. The plaintext is the vault entry list:
 
-On import a wrong password is detected by the verifier before decryption ("The archive password is incorrect."); any change to the header, ciphertext or tag fails the GCM check ("damaged or modified"); an archive whose `export-id` differs from the settings file, or that names connections the file does not contain, is rejected as belonging to another export. The KDF iteration count read from an untrusted archive is capped at 10 000 000. The archive password must be at least 12 characters.
+- `export-id` — the `exportId` of the settings document;
+- `settings` — the settings document as UTF-8 JSON;
+- `connection:<id>:password` and `connection:<id>:sudo-password` — the saved SSH and sudo passwords of exported connections, keyed by the connection id in the document.
+
+On import a wrong key is detected by the verifier before decryption ("The key is incorrect."); any change to the header, ciphertext or tag, a plain JSON file or any other file fails as damaged; secrets whose `export-id` differs from the document or that name connections the document does not contain are rejected as damaged. The KDF iteration count read from an untrusted file is capped at 10 000 000. The older two-file format (plain JSON plus `.tfvault` archive) is not supported.
 
 ## Import
 
 Import is two calls with the same request: `POST /api/settings-transfer/import/preview` shows what would change, `POST /api/settings-transfer/import` applies it. The backend keeps nothing between the calls and recomputes the plan from the current data on apply.
 
-1. Read: the settings file is at most 4 MiB, the archive at most 1 MiB. `format` must be `termforge-settings`; `schemaVersion` newer than 1 is rejected as created by a newer TermForge, missing or older values as invalid. The document is then deserialized strictly: unknown properties fail.
+1. Read: the encrypted file is at most 16 MiB and the settings document inside it at most 4 MiB. `format` must be `termforge-settings`; `schemaVersion` newer than 1 is rejected as created by a newer TermForge, missing or older values as invalid. The document is then deserialized strictly: unknown properties fail.
 2. Validate (the file is untrusted): at most 1000 connections with unique non-empty ids and unique names; every connection passes the saved connection rules plus import rules (no control characters; host, user, SSH alias and key path do not start with `-`; key paths are kept as written because the file may come from another OS); jump hosts point to connections in the file and do not loop; recording limits and exclusion patterns pass the existing validators; the workspace passes the workspace validator; at most 5000 pinned commands of at most 2000 characters without control characters (commands of servers that do not exist after the import are skipped).
 3. Plan. Imported connections are matched to saved ones by name (case-insensitive, names are unique):
    - Merge (default): new names are added (keeping the file's id when it is free); an identical connection is unchanged; a connection that differs is a conflict, resolved per connection as **Keep mine** (default), **Use imported** (update in place, the id stays) or **Keep both** (added as `name (imported)`). Saved connections missing from the file stay.
@@ -60,13 +61,14 @@ Import is two calls with the same request: `POST /api/settings-transfer/import/p
 Protected like every `/api/` endpoint (browser session, CSRF, Origin and network access).
 
 - `GET /api/settings-transfer/summary` → `{ connections, groups, pinnedCommands }` for the export dialog.
-- `POST /api/settings-transfer/export` `{ sections: { connections, preferences, workspace, pinnedCommands }, secrets: { password, confirmed } | null }` → `{ settings: { fileName, content }, secrets: { fileName, contentBase64 } | null, warnings }`.
-- `POST /api/settings-transfer/import/preview` and `POST /api/settings-transfer/import` `{ settingsFile, secretsArchive, password, mode, sections, resolutions, confirmReplace }` → preview `{ exportedAt, sectionsInFile, connections: [{ importedId, name, host, action, resolution, localName, changes, secrets }], removals, preferenceChanges, workspace, pinnedCommands, secrets, warnings }` or result `{ added, updated, unchanged, kept, removed, secretsStored, preferencesImported, workspaceImported, pinnedCommandsAdded, pinnedCommandsSkipped, warnings }`.
-- Errors are problem details with `code`: `Invalid`, `UnsupportedVersion`, `TooLarge`, `WrongPassword`, `ArchiveDamaged`, `ArchiveMismatch`, `WeakPassword`, `ConfirmationRequired`, `SecretsUnavailable`.
+- `POST /api/settings-transfer/export` `{ sections: { connections, preferences, workspace, pinnedCommands } }` → `{ file: { fileName, contentBase64 }, key, secretCount }`.
+- `POST /api/settings-transfer/import/preview` and `POST /api/settings-transfer/import` `{ file, key, mode, sections, resolutions, confirmReplace }` → preview `{ exportedAt, sectionsInFile, connections: [{ importedId, name, host, action, resolution, localName, changes, secrets }], removals, preferenceChanges, workspace, pinnedCommands, secrets, warnings }` or result `{ added, updated, unchanged, kept, removed, secretsStored, preferencesImported, workspaceImported, pinnedCommandsAdded, pinnedCommandsSkipped, warnings }`.
+- Errors are problem details with `code`: `Invalid`, `UnsupportedVersion`, `TooLarge`, `WrongKey`, `FileDamaged`, `ConfirmationRequired`, `SecretsUnavailable`.
 
 ## Limitations
 
 - Import is not one transaction: everything is validated first, but a database or credential store failure in the middle leaves the part applied so far. Passwords are written before their connections, so a connection never claims a password it does not have.
+- The key cannot be recovered: a file whose key is lost cannot be imported.
 - Only schema version 1 exists. A later version adds an upgrade step for older files, like the workspace state.
 - Settings from `appsettings.json` and read-only flags, host key policy and similar settings that are not stored by the application yet are not part of the file.
 - At most 500 pinned commands per server are exported.

@@ -1,82 +1,73 @@
 using System.Text.Json;
 using DTech.Core.Credentials;
 using DTech.Core.SettingsTransfer.Document;
+using DTech.Core.SettingsTransfer.Package;
 
 namespace DTech.Core.SettingsTransfer.Export;
 
-public sealed class SettingsExportService(SettingsDocumentBuilder documentBuilder, SecretsArchiveBuilder archiveBuilder, TimeProvider timeProvider)
+public sealed class SettingsExportService
 {
-    public async Task<SettingsTransferResult<SettingsExport>> ExportAsync(SettingsExportRequest request, CancellationToken cancellationToken)
+    private readonly SettingsDocumentBuilder _documentBuilder;
+    private readonly ConnectionSecretsCollector _secretsCollector;
+    private readonly ISettingsPackageCipher _cipher;
+    private readonly ExportKeyGenerator _keyGenerator;
+    private readonly TimeProvider _timeProvider;
+
+    public SettingsExportService(
+        SettingsDocumentBuilder documentBuilder,
+        ConnectionSecretsCollector secretsCollector,
+        ISettingsPackageCipher cipher,
+        ExportKeyGenerator keyGenerator,
+        TimeProvider timeProvider)
     {
-        var invalid = Validate(request);
-        if (invalid is not null)
-        {
-            return SettingsTransferResult<SettingsExport>.Failure(invalid);
-        }
-
-        var exportedAt = timeProvider.GetUtcNow().UtcDateTime;
-        var exportId = Guid.NewGuid();
-        var header = new SettingsDocumentHeader(exportId, exportedAt, request.Secrets is not null);
-        var document = await documentBuilder.BuildAsync(header, request.Sections, cancellationToken);
-        var content = JsonSerializer.Serialize(document, SettingsDocumentSchema.JsonOptions);
-        var export = new SettingsExport
-        {
-            SettingsFileName = SettingsExportFileNames.Settings(exportedAt),
-            SettingsContent = content,
-        };
-        if (request.Secrets is null)
-        {
-            return SettingsTransferResult<SettingsExport>.Success(export);
-        }
-
-        var archive = await BuildArchiveAsync(document, request.Secrets, cancellationToken);
-        if (!archive.IsSuccess)
-        {
-            return SettingsTransferResult<SettingsExport>.Failure(archive.Error);
-        }
-
-        var withSecrets = export with
-        {
-            SecretsFileName = SettingsExportFileNames.Secrets(exportedAt),
-            SecretsArchive = archive.Value.Archive,
-            SecretCount = archive.Value.SecretCount,
-        };
-        return SettingsTransferResult<SettingsExport>.Success(withSecrets);
+        _documentBuilder = documentBuilder;
+        _secretsCollector = secretsCollector;
+        _cipher = cipher;
+        _keyGenerator = keyGenerator;
+        _timeProvider = timeProvider;
     }
 
-    private static SettingsTransferError? Validate(SettingsExportRequest request)
+    public async Task<SettingsTransferResult<SettingsExport>> ExportAsync(SettingsExportRequest request, CancellationToken cancellationToken)
     {
         if (!request.Sections.Any)
         {
-            return SettingsTransferError.Invalid("Choose at least one part of the settings to export.");
+            var invalid = SettingsTransferError.Invalid("Choose at least one part of the settings to export.");
+            return SettingsTransferResult<SettingsExport>.Failure(invalid);
         }
 
-        var secrets = request.Secrets;
-        if (secrets is null)
+        var exportedAt = _timeProvider.GetUtcNow().UtcDateTime;
+        var exportId = Guid.NewGuid();
+        var header = new SettingsDocumentHeader(exportId, exportedAt);
+        var document = await _documentBuilder.BuildAsync(header, request.Sections, cancellationToken);
+        var connectionIds = CollectConnectionIds(document);
+        var secrets = await _secretsCollector.CollectAsync(exportId, connectionIds, cancellationToken);
+        if (!secrets.IsSuccess)
         {
-            return null;
+            return SettingsTransferResult<SettingsExport>.Failure(secrets.Error);
         }
 
-        if (!request.Sections.Connections)
+        var settingsJson = JsonSerializer.Serialize(document, SettingsDocumentSchema.JsonOptions);
+        using var package = new SettingsPackage(settingsJson, secrets.Value);
+        var keyText = _keyGenerator.Generate();
+        var encrypted = Encrypt(package, keyText);
+        var export = new SettingsExport
         {
-            return SettingsTransferError.Invalid("Secrets can be exported only together with server connections.");
-        }
-
-        if (!secrets.Confirmed)
-        {
-            return new SettingsTransferError(SettingsTransferErrorCode.ConfirmationRequired, "Confirm that anyone with the archive and its password can sign in to your servers.");
-        }
-
-        var passwordLength = secrets.Password.Length;
-        if (passwordLength < SettingsTransferLimits.MinArchivePasswordLength || passwordLength > SettingsTransferLimits.MaxArchivePasswordLength)
-        {
-            return new SettingsTransferError(SettingsTransferErrorCode.WeakPassword, $"The archive password must be at least {SettingsTransferLimits.MinArchivePasswordLength} characters long.");
-        }
-
-        return null;
+            FileName = SettingsExportFileNames.Package(exportedAt),
+            Package = encrypted,
+            Key = keyText,
+            SecretCount = package.Secrets.Secrets.Count,
+        };
+        return SettingsTransferResult<SettingsExport>.Success(export);
     }
 
-    private async Task<SettingsTransferResult<SecretsArchiveBuild>> BuildArchiveAsync(SettingsDocument document, SecretsExportOptions secrets, CancellationToken cancellationToken)
+    private byte[] Encrypt(SettingsPackage package, string keyText)
+    {
+        var normalizedKey = ExportKeyNormalizer.Normalize(keyText)!;
+        using var key = Secret.FromString(normalizedKey);
+        return _cipher.Encrypt(package, key);
+    }
+
+    private static List<Guid> CollectConnectionIds(SettingsDocument document)
     {
         var connections = document.Connections ?? [];
         var connectionIds = new List<Guid>(connections.Count);
@@ -85,8 +76,6 @@ public sealed class SettingsExportService(SettingsDocumentBuilder documentBuilde
             connectionIds.Add(connections[i].Id);
         }
 
-        using var password = Secret.FromString(secrets.Password);
-        var archiveRequest = new SecretsArchiveRequest(document.ExportId, connectionIds, password);
-        return await archiveBuilder.BuildAsync(archiveRequest, cancellationToken);
+        return connectionIds;
     }
 }

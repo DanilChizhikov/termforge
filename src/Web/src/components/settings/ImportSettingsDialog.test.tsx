@@ -35,7 +35,9 @@ vi.mock('../../state/connections', async (importOriginal) => ({
   reloadConnections: mocks.reloadConnections,
 }));
 
-const SETTINGS_TEXT = '{"format":"termforge-settings","schemaVersion":1}';
+const SETTINGS_BYTES = new Uint8Array([0x54, 0x46, 0x56, 0x54]);
+const SETTINGS_BASE64 = 'VEZWVA==';
+const EXPORT_KEY = '7K3M-9QX2-HV4T-PW8R-ZB6D-NJ5C-FG05-AY1E';
 const ALL = { connections: true, preferences: true, workspace: true, pinnedCommands: true };
 
 function step(overrides: Partial<ConnectionImportStep>): ConnectionImportStep {
@@ -60,7 +62,6 @@ function preview(overrides: Partial<SettingsImportPreview> = {}): SettingsImport
     exportedAt: '2026-10-25T10:00:00Z',
     sectionsInFile: ALL,
     sectionsToApply: ALL,
-    hasSecretsArchive: false,
     connections: [
       step({ importedId: 'web-id', name: 'web', action: 'conflict', resolution: 'keepExisting', changes: ['host'] }),
       step({ importedId: 'db-id', name: 'db', host: 'db.example.test', localName: 'db' }),
@@ -69,7 +70,7 @@ function preview(overrides: Partial<SettingsImportPreview> = {}): SettingsImport
     preferenceChanges: ['Recordings kept: 50 → 10'],
     workspace: { terminalTabs: 2, editorTabs: 1, remotePaths: 3 },
     pinnedCommands: 4,
-    secrets: { supplied: false, passwords: 0, sudoPasswords: 0 },
+    secrets: { passwords: 0, sudoPasswords: 0 },
     warnings: [],
     ...overrides,
   };
@@ -100,9 +101,10 @@ beforeEach(() => {
   mocks.reloadConnections.mockReset().mockResolvedValue([]);
 });
 
-async function chooseSettingsFile(user: ReturnType<typeof userEvent.setup>) {
-  const file = new File([SETTINGS_TEXT], 'termforge-settings-2026-10-25.json', { type: 'application/json' });
+async function chooseSettingsFile(user: ReturnType<typeof userEvent.setup>, key = EXPORT_KEY) {
+  const file = new File([SETTINGS_BYTES], 'termforge-settings-2026-10-25.tfsettings');
   await user.upload(screen.getByLabelText('Settings file'), file);
+  await user.type(screen.getByLabelText('Key'), key);
   await waitFor(() => expect(screen.getByRole('button', { name: 'Preview import' })).toBeEnabled());
 }
 
@@ -116,7 +118,7 @@ describe('ImportSettingsDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Preview import' }));
 
     expect(mocks.previewImport).toHaveBeenCalledWith(
-      expect.objectContaining({ settingsFile: SETTINGS_TEXT, mode: 'merge', secretsArchive: null, password: null }),
+      expect.objectContaining({ file: SETTINGS_BASE64, key: EXPORT_KEY, mode: 'merge' }),
     );
     expect(mocks.applyImport).not.toHaveBeenCalled();
     const changes = await screen.findByRole('list', { name: 'Server changes' });
@@ -177,23 +179,42 @@ describe('ImportSettingsDialog', () => {
     expect(mocks.applyImport).toHaveBeenCalledWith(expect.objectContaining({ mode: 'replace', confirmReplace: true }));
   });
 
-  it('sends the secrets archive with its password and shows a wrong password error', async () => {
+  it('requires both the settings file and the key before previewing', async () => {
     const user = userEvent.setup();
-    mocks.previewImport.mockRejectedValue(new ApiError(400, { detail: 'The archive password is incorrect.', code: 'WrongPassword' }));
     render(<ImportSettingsDialog onClose={vi.fn()} />);
-    await chooseSettingsFile(user);
-    const archive = new File([new Uint8Array([0x54, 0x46, 0x56, 0x54])], 'termforge-secrets-2026-10-25.tfvault');
-    await user.upload(screen.getByLabelText('Secrets archive (optional)'), archive);
 
-    expect(await screen.findByLabelText('Archive password')).toBeInTheDocument();
+    const file = new File([SETTINGS_BYTES], 'termforge-settings-2026-10-25.tfsettings');
+    await user.upload(screen.getByLabelText('Settings file'), file);
+
+    expect(screen.getByLabelText('Settings file')).toHaveAttribute('accept', '.tfsettings');
     expect(screen.getByRole('button', { name: 'Preview import' })).toBeDisabled();
-    await user.type(screen.getByLabelText('Archive password'), 'wrong-password');
+    await user.type(screen.getByLabelText('Key'), EXPORT_KEY);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Preview import' })).toBeEnabled());
+  });
+
+  it('shows a wrong key error', async () => {
+    const user = userEvent.setup();
+    mocks.previewImport.mockRejectedValue(new ApiError(400, { detail: 'The key is incorrect.', code: 'WrongKey' }));
+    render(<ImportSettingsDialog onClose={vi.fn()} />);
+    await chooseSettingsFile(user, '0000-0000-0000-0000-0000-0000-0000-0000');
+
     await user.click(screen.getByRole('button', { name: 'Preview import' }));
 
     expect(mocks.previewImport).toHaveBeenCalledWith(
-      expect.objectContaining({ secretsArchive: 'VEZWVA==', password: 'wrong-password' }),
+      expect.objectContaining({ file: SETTINGS_BASE64, key: '0000-0000-0000-0000-0000-0000-0000-0000' }),
     );
-    expect(await screen.findByRole('alert')).toHaveTextContent('The archive password is incorrect.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('The key is incorrect.');
+  });
+
+  it('shows how many saved passwords the file brings', async () => {
+    const user = userEvent.setup();
+    mocks.previewImport.mockResolvedValue(preview({ secrets: { passwords: 2, sudoPasswords: 1 } }));
+    render(<ImportSettingsDialog onClose={vi.fn()} />);
+    await chooseSettingsFile(user);
+
+    await user.click(screen.getByRole('button', { name: 'Preview import' }));
+
+    expect(await screen.findByText(/3 passwords/)).toBeInTheDocument();
   });
 
   it('pauses workspace autosave and offers a reload after importing the workspace', async () => {

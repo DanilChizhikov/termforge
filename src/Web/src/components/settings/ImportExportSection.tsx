@@ -21,8 +21,8 @@ export function ImportExportSection() {
             Import &amp; export
           </h2>
           <span className="settings-row-hint">
-            Move TermForge to another computer, or keep a backup. Passwords leave this computer only in a separate
-            encrypted archive.
+            Move TermForge to another computer, or keep a backup. The export is one encrypted file, opened with a key
+            shown once.
           </span>
         </div>
       </div>
@@ -30,7 +30,7 @@ export function ImportExportSection() {
         <div className="settings-row">
           <span className="settings-row-text">
             <span className="settings-row-title">Export settings</span>
-            <span className="settings-row-hint">Server connections, preferences, workspace layout and pinned commands as a JSON file.</span>
+            <span className="settings-row-hint">Server connections with saved passwords, preferences, workspace layout and pinned commands.</span>
           </span>
           <button type="button" className="btn btn-sm" onClick={() => setOpenDialog('export')}>
             Export…
