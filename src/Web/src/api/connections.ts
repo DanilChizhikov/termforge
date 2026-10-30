@@ -26,6 +26,7 @@ export interface SavedConnection {
   reconnectInitialDelaySeconds: number;
   reconnectMaxDelaySeconds: number;
   readOnly: boolean;
+  aiAccess: boolean;
 }
 
 export interface ConnectionInput {
@@ -43,6 +44,7 @@ export interface ConnectionInput {
   reconnectInitialDelaySeconds: number;
   reconnectMaxDelaySeconds: number;
   readOnly: boolean;
+  aiAccess: boolean;
 }
 
 export type ConnectionTestState =
@@ -97,6 +99,7 @@ export function emptyInput(): ConnectionInput {
     reconnectInitialDelaySeconds: 2,
     reconnectMaxDelaySeconds: 60,
     readOnly: false,
+    aiAccess: false,
   };
 }
 
@@ -116,6 +119,7 @@ export function inputFrom(connection: SavedConnection): ConnectionInput {
     reconnectInitialDelaySeconds: connection.reconnectInitialDelaySeconds,
     reconnectMaxDelaySeconds: connection.reconnectMaxDelaySeconds,
     readOnly: connection.readOnly,
+    aiAccess: connection.aiAccess,
   };
 }
 
@@ -134,6 +138,7 @@ function toBody(input: ConnectionInput): Record<string, unknown> {
     reconnectInitialDelaySeconds: input.reconnectInitialDelaySeconds,
     reconnectMaxDelaySeconds: input.reconnectMaxDelaySeconds,
     readOnly: input.readOnly,
+    aiAccess: input.aiAccess,
   };
   if (input.authMethod === 'Password' && input.password !== '') {
     body['password'] = input.password;

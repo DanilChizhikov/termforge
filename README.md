@@ -92,6 +92,16 @@ TermForge saves the workspace about a second after it changes and restores it on
 
 A read-only server rejects uploads, deletes, renames, saves, rollbacks and Docker actions in the backend. Terminals stay available with a read-only banner, since a shell cannot be fully restricted. Risky actions on any server (remote delete, Docker stop and restart, rollback, overwriting upload) need a confirmation first. See [docs/decisions/read-only-mode-and-confirmations.md](docs/decisions/read-only-mode-and-confirmations.md).
 
+### AI bridge
+
+TermForge can act as an MCP server for AI agents such as Claude Code. Turn it on in Settings → AI bridge, generate a token and run the command shown there, for example:
+
+```sh
+claude mcp add --transport http termforge http://127.0.0.1:5023/mcp --header "Authorization: Bearer <token>"
+```
+
+The agent sees only servers with AI access turned on in the server dialog. It can run commands, type into open terminals and read their output, manage Docker containers and read and write text files. Every change waits for your approval in the browser unless you turn "Ask before AI actions" off. Read-only servers refuse all changes. The bridge accepts local connections only. See [docs/decisions/ai-bridge.md](docs/decisions/ai-bridge.md).
+
 ### Import and export
 
 Settings → Import & export writes servers, preferences, the workspace layout and pinned commands to a versioned JSON file without secrets. Passwords are exported only when you turn on "Also export secrets", type an archive password of at least 12 characters twice and confirm the risk. They go into a separate `.tfvault` archive encrypted with PBKDF2-SHA256 and AES-256-GCM. Private keys are never exported, only their paths. Import shows every change before applying it and lets you merge or replace. See [docs/decisions/settings-import-and-export.md](docs/decisions/settings-import-and-export.md).
@@ -118,6 +128,7 @@ Settings live in `appsettings.json` next to the binary. Any key can also be pass
 | `Editor:MaxFileBytes` | `2097152` | largest file the editor opens |
 | `Editor:MaxBackupsPerFile` | `10` | backups kept per edited file |
 | `Updates:CheckOnStartup` | `true` | check GitHub releases at start |
+| `AiBridge:ApprovalTimeoutSeconds` | `120` (10–900) | how long an AI action waits for approval before it is denied |
 | `NetworkAccess:Enabled` | `false` | allow access from other devices, see [docs/security.md](docs/security.md#network-access-mode) |
 
 Example: `./TermForge --Kestrel:Endpoints:Http:Url=http://127.0.0.1:5199 --Lifecycle:OpenBrowser=false`.

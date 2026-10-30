@@ -39,6 +39,7 @@ internal static class SavedConnectionRequestMapper
             SshAlias = request.SshAlias,
             ReconnectPolicy = reconnectPolicy.Value,
             ReadOnly = request.ReadOnly ?? false,
+            AiAccess = request.AiAccess ?? false,
         };
         var submission = new SavedConnectionSubmission(draft, request.Password);
         request.Password = null;

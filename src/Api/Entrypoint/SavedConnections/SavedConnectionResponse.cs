@@ -36,6 +36,8 @@ public sealed class SavedConnectionResponse
 
     public bool ReadOnly { get; init; }
 
+    public bool AiAccess { get; init; }
+
     public DateTime? LastConnectedAt { get; init; }
 
     public static SavedConnectionResponse From(SavedConnection connection)
@@ -59,6 +61,7 @@ public sealed class SavedConnectionResponse
             ReconnectInitialDelaySeconds = details.ReconnectPolicy.InitialDelaySeconds,
             ReconnectMaxDelaySeconds = details.ReconnectPolicy.MaxDelaySeconds,
             ReadOnly = details.ReadOnly,
+            AiAccess = details.AiAccess,
             LastConnectedAt = connection.LastConnectedAt,
         };
     }

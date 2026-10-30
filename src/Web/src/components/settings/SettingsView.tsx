@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AiBridgeSection } from './AiBridgeSection';
 import { DockerConfirmationsSection } from './DockerConfirmationsSection';
 import { ImportExportSection } from './ImportExportSection';
 import { ReadOnlyServersSection } from './ReadOnlyServersSection';
@@ -31,6 +32,7 @@ export function SettingsView() {
           <RecordingList version={version} />
           <ReadOnlyServersSection />
           <DockerConfirmationsSection />
+          <AiBridgeSection />
           <ImportExportSection />
           <UpdatesCard />
         </div>

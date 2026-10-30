@@ -73,6 +73,19 @@ describe('ServerForm read-only mode', () => {
   });
 });
 
+describe('ServerForm AI access', () => {
+  it('is off by default and submits the AI access flag when turned on', async () => {
+    const onSubmit = renderForm();
+    const toggle = screen.getByRole('switch', { name: 'AI access' });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+
+    await userEvent.click(toggle);
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ aiAccess: true }));
+  });
+});
+
 function renderPasswordForm(hasStoredPassword: boolean, onSubmit = vi.fn(() => Promise.resolve())) {
   render(
     <ServerForm

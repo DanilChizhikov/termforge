@@ -29,6 +29,7 @@ const CONNECTION: SavedConnection = {
   reconnectInitialDelaySeconds: 2,
   reconnectMaxDelaySeconds: 60,
   readOnly: false,
+  aiAccess: false,
 };
 
 function respond(body: unknown, status = 200): Promise<Response> {

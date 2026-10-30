@@ -35,6 +35,7 @@ function connection(overrides: Partial<SavedConnection>): SavedConnection {
     reconnectInitialDelaySeconds: 2,
     reconnectMaxDelaySeconds: 60,
     readOnly: false,
+    aiAccess: false,
     ...overrides,
   };
 }

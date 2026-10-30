@@ -32,6 +32,8 @@ public sealed class ManagedTerminalSession
 
     public TerminalSize Size => _size;
 
+    public TerminalOutputTail OutputTail { get; } = new();
+
     internal string OwnerKey { get; }
 
     public bool TryAttach()
@@ -43,12 +45,15 @@ public sealed class ManagedTerminalSession
     public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
     {
         var length = await _session.ReadAsync(buffer, cancellationToken);
-        var observer = Volatile.Read(ref _outputObserver);
-        if (length > 0 && observer is not null)
+        if (length <= 0)
         {
-            var output = buffer.Span[..length];
-            observer.Observe(output);
+            return length;
         }
+
+        var output = buffer.Span[..length];
+        OutputTail.Append(output);
+        var observer = Volatile.Read(ref _outputObserver);
+        observer?.Observe(output);
 
         return length;
     }

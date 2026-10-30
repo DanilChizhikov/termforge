@@ -25,4 +25,6 @@ public sealed record SavedConnectionDraft
     public ReconnectPolicy ReconnectPolicy { get; init; } = ReconnectPolicy.Default;
 
     public bool ReadOnly { get; init; }
+
+    public bool AiAccess { get; init; }
 }
