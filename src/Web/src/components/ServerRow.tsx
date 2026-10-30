@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ConnectionTestResult, ConnectionTestState, SavedConnection } from '../api/connections';
+import { AiAccessBadge } from './AiAccessBadge';
 import { ReadOnlyBadge } from './ReadOnlyBadge';
 import { statusDotClass, type StatusTone } from './statusTone';
 import { formatRelativeTime } from './timeFormat';
@@ -74,8 +75,10 @@ export function ServerRow({ connection, status, sessionCount, selected, onSelect
             <button type="button" className="server-name" aria-pressed={selected} onClick={onSelect}>
               {connection.name}
               {connection.readOnly ? <span className="visually-hidden">, read-only</span> : null}
+              {connection.aiAccess ? <span className="visually-hidden">, AI access</span> : null}
             </button>
             {connection.readOnly ? <ReadOnlyBadge /> : null}
+            {connection.aiAccess ? <AiAccessBadge /> : null}
           </span>
           {inline ? (
             <span className="server-subtitle">

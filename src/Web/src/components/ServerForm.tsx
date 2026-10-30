@@ -306,6 +306,13 @@ export function ServerForm({
                   <span className="field-hint">Block uploads, saves and Docker actions on this server</span>
                 </span>
               </div>
+              <div className="server-form-toggle span-2">
+                <Switch label="AI access" checked={input.aiAccess} onChange={(checked) => update('aiAccess', checked)} />
+                <span className="server-form-toggle-text">
+                  <span className="server-form-toggle-title">AI access</span>
+                  <span className="field-hint">Let an AI agent connected through the AI bridge use this server</span>
+                </span>
+              </div>
             </div>
             {error === null ? null : (
               <p role="alert" className="form-error">

@@ -40,6 +40,7 @@ function makeConnection(overrides: Partial<SavedConnection> = {}): SavedConnecti
     reconnectMaxAttempts: 5,
     reconnectInitialDelaySeconds: 2,
     readOnly: false,
+    aiAccess: false,
     reconnectMaxDelaySeconds: 60,
     ...overrides,
   };

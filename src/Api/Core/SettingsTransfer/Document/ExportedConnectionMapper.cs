@@ -29,6 +29,7 @@ public static class ExportedConnectionMapper
             JumpHostId = details.JumpHostId,
             SshAlias = details.SshAlias,
             ReadOnly = details.ReadOnly,
+            AiAccess = details.AiAccess,
             Reconnect = reconnect,
         };
     }
@@ -60,6 +61,7 @@ public static class ExportedConnectionMapper
             SshAlias = connection.SshAlias,
             ReconnectPolicy = policy,
             ReadOnly = connection.ReadOnly,
+            AiAccess = connection.AiAccess,
         };
         return SavedConnectionValidator.Normalize(draft);
     }

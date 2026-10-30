@@ -34,6 +34,8 @@ public sealed class SavedConnectionRequest
 
     public bool? ReadOnly { get; set; }
 
+    public bool? AiAccess { get; set; }
+
     public override string ToString()
     {
         return $"{nameof(SavedConnectionRequest)} {{ {nameof(Name)} = {Name}, {nameof(Password)} = {Secret.Redacted} }}";

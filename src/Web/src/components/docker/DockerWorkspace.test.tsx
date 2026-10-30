@@ -271,6 +271,7 @@ describe('DockerWorkspace', () => {
           reconnectInitialDelaySeconds: 2,
           reconnectMaxDelaySeconds: 60,
           readOnly: true,
+          aiAccess: false,
         },
       ]),
     );
@@ -543,6 +544,7 @@ describe('DockerWorkspace multi-select', () => {
           reconnectInitialDelaySeconds: 2,
           reconnectMaxDelaySeconds: 60,
           readOnly: true,
+          aiAccess: false,
         },
       ]),
     );

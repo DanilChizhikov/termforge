@@ -23,6 +23,7 @@ function connection(readOnly: boolean): SavedConnection {
     reconnectInitialDelaySeconds: 2,
     reconnectMaxDelaySeconds: 60,
     readOnly,
+    aiAccess: false,
   };
 }
 
