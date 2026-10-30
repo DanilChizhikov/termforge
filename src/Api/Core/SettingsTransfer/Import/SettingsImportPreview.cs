@@ -10,8 +10,6 @@ public sealed record SettingsImportPreview
 
     public required SettingsSections SectionsToApply { get; init; }
 
-    public bool HasSecretsArchive { get; init; }
-
     public required IReadOnlyList<ConnectionImportStep> Connections { get; init; }
 
     public required IReadOnlyList<SavedConnection> Removals { get; init; }
@@ -21,8 +19,6 @@ public sealed record SettingsImportPreview
     public WorkspaceImportSummary? Workspace { get; init; }
 
     public int PinnedCommands { get; init; }
-
-    public bool SecretsSupplied { get; init; }
 
     public IReadOnlySet<Guid> ConnectionsWithPassword { get; init; } = new HashSet<Guid>();
 

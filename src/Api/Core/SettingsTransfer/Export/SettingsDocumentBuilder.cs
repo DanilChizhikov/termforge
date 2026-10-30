@@ -41,7 +41,6 @@ public sealed class SettingsDocumentBuilder
             SchemaVersion = SettingsDocumentSchema.CurrentVersion,
             ExportId = header.ExportId,
             ExportedAt = header.ExportedAt,
-            HasSecretsArchive = header.HasSecretsArchive,
             Connections = exportedConnections,
             Preferences = preferences,
             Workspace = workspace,

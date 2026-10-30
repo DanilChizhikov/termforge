@@ -4,11 +4,9 @@ namespace DTech.Entrypoint.SettingsTransfer;
 
 public sealed class SettingsImportBody
 {
-    public string? SettingsFile { get; set; }
+    public string? File { get; set; }
 
-    public string? SecretsArchive { get; set; }
-
-    public string? Password { get; set; }
+    public string? Key { get; set; }
 
     public string? Mode { get; set; }
 
@@ -20,6 +18,6 @@ public sealed class SettingsImportBody
 
     public override string ToString()
     {
-        return $"{nameof(SettingsImportBody)} {{ {nameof(Mode)} = {Mode}, {nameof(Password)} = {Secret.Redacted} }}";
+        return $"{nameof(SettingsImportBody)} {{ {nameof(Mode)} = {Mode}, {nameof(Key)} = {Secret.Redacted} }}";
     }
 }

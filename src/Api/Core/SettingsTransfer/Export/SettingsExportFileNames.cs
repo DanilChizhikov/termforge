@@ -4,17 +4,11 @@ namespace DTech.Core.SettingsTransfer.Export;
 
 public static class SettingsExportFileNames
 {
-    public const string SecretsArchiveExtension = ".tfvault";
+    public const string PackageExtension = ".tfsettings";
 
-    public static string Settings(DateTime exportedAt)
+    public static string Package(DateTime exportedAt)
     {
         var date = exportedAt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-        return $"termforge-settings-{date}.json";
-    }
-
-    public static string Secrets(DateTime exportedAt)
-    {
-        var date = exportedAt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-        return $"termforge-secrets-{date}{SecretsArchiveExtension}";
+        return $"termforge-settings-{date}{PackageExtension}";
     }
 }
