@@ -196,7 +196,6 @@
 .separator {
   flex: none;
   background: var(--border-subtle);
-  transition: background-color 0.12s;
 }
 
 .separator:hover,
@@ -2192,4 +2191,36 @@
 
 .app-footer-spacer {
   flex: 1;
+}
+
+.session-banner:not(.session-banner-login),
+.workspace-restore-notice,
+.update-pill,
+.terminal-disconnected {
+  transition: opacity var(--duration-notice) var(--ease-out);
+}
+
+@starting-style {
+  .session-banner:not(.session-banner-login),
+  .workspace-restore-notice,
+  .update-pill,
+  .terminal-disconnected {
+    opacity: 0;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .separator,
+  .header-link,
+  .server-rail-button {
+    transition:
+      background-color var(--duration-hover) ease,
+      border-color var(--duration-hover) ease;
+  }
+
+  .update-pill {
+    transition:
+      opacity var(--duration-notice) var(--ease-out),
+      color var(--duration-hover) ease;
+  }
 }

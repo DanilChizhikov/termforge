@@ -4,6 +4,7 @@ import { getDockerOverview, type DockerOverview } from '../../api/docker';
 import { useConnection } from '../../state/connections';
 import { useSelectedServerId } from '../../state/selectedServer';
 import { EmptyState } from '../EmptyState';
+import { LoadingState } from '../LoadingState';
 import { CheckIcon, RefreshArcIcon } from '../icons/Icons';
 import { ContainersPanel } from './ContainersPanel';
 import { AVAILABILITY_TITLES, availabilityTone, isProblem, isRunning, type ContainerFilter } from './dockerStatus';
@@ -117,10 +118,12 @@ function DockerView({ serverId }: { serverId: string }) {
           disabled={state.isLoading}
           onClick={refresh}
         >
-          <RefreshArcIcon />
+          <span className={state.isLoading ? 'refresh-icon refresh-icon-spinning' : 'refresh-icon'}>
+            <RefreshArcIcon />
+          </span>
         </button>
       </div>
-      {state.isLoading && overview === null ? <p className="text-secondary">Checking Docker on the server...</p> : null}
+      {state.isLoading && overview === null ? <LoadingState message="Checking Docker on the server..." /> : null}
       {state.error !== null ? (
         <p role="alert" className="notice notice-danger">
           {state.error}

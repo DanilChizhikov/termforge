@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CapabilityReport } from '../api/diagnostics';
@@ -91,5 +91,42 @@ describe('ServerDiagnostics', () => {
     render(<ServerDiagnostics />);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not load diagnostics.');
+  });
+
+  it('shows a capability skeleton only while the first report loads', async () => {
+    act(() => selectServer('srv-1'));
+    const user = userEvent.setup();
+    let resolveRefresh: (response: Response) => void = () => {};
+    const pendingRefresh = new Promise<Response>((resolve) => {
+      resolveRefresh = resolve;
+    });
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === 'POST' && url.endsWith('/refresh')) {
+        return pendingRefresh;
+      }
+      if (url.endsWith('/api/session')) {
+        return Promise.resolve(json({ csrfToken: 'token' }));
+      }
+      return Promise.resolve(json(makeReport()));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<ServerDiagnostics />);
+
+    expect(screen.getByTestId('capability-card-skeleton')).toBeInTheDocument();
+    expect(await screen.findByText('SFTP file transfer')).toBeInTheDocument();
+    expect(screen.queryByTestId('capability-card-skeleton')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Run checks again' }));
+
+    expect(screen.getByText('Checking server…')).toBeInTheDocument();
+    expect(screen.getByText('SFTP file transfer')).toBeInTheDocument();
+    expect(screen.queryByTestId('capability-card-skeleton')).not.toBeInTheDocument();
+
+    const refreshedReport = makeReport();
+    const refreshedResponse = json(refreshedReport);
+    resolveRefresh(refreshedResponse);
+    await waitFor(() => expect(screen.queryByText('Checking server…')).not.toBeInTheDocument());
   });
 });

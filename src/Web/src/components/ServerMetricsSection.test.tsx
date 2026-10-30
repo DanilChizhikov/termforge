@@ -202,4 +202,26 @@ describe('ServerMetricsSection', () => {
     expect(screen.getByText('Could not load server metrics.')).toBeInTheDocument();
     view.unmount();
   });
+
+  it('shows skeleton cards until the first metrics arrive', async () => {
+    let resolveMetrics: (metrics: ServerMetrics) => void = () => {};
+    const pendingMetrics = new Promise<ServerMetrics>((resolve) => {
+      resolveMetrics = resolve;
+    });
+    getMetrics.mockReturnValue(pendingMetrics);
+
+    const view = render(<ServerMetricsSection serverId="srv-skeleton" />);
+    await flush();
+
+    expect(screen.getByText('Collecting metrics…')).toBeInTheDocument();
+    expect(screen.getByTestId('metric-cards-skeleton')).toHaveAttribute('aria-busy', 'true');
+
+    const metrics = makeMetrics({ connectionId: 'srv-skeleton' });
+    resolveMetrics(metrics);
+    await flush();
+
+    expect(screen.queryByTestId('metric-cards-skeleton')).not.toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Uptime' })).toBeInTheDocument();
+    view.unmount();
+  });
 });

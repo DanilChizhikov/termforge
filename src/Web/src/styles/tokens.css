@@ -106,4 +106,12 @@
   --diff-local-text: #46c08a2e;
 
   --shadow-dialog: 0 30px 80px rgb(0 0 0 / 60%);
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --duration-hover: 120ms;
+  --duration-press: 160ms;
+  --duration-notice: 200ms;
+  --duration-modal: 250ms;
+  --duration-spin: 800ms;
+  --duration-pulse: 1400ms;
 }
