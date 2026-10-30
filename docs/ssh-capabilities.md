@@ -33,5 +33,5 @@ Status legend: **supported** = implemented and covered by integration tests; **p
 | Platform | Status |
 |---|---|
 | Linux | integration tests against OpenSSH in Docker run in CI (`ubuntu-latest`) |
-| macOS | integration tests pass locally with Docker Desktop; in CI only the offline tests run, because GitHub macOS runners have no Docker |
-| Windows | in CI only the offline tests run, because Windows runners cannot start Linux containers; agent pipe and Pageant are not verified |
+| macOS | integration tests pass locally with Docker Desktop; CI does not run on macOS |
+| Windows | not tested in CI (CI runs on Linux only); the release workflow smoke-tests the `win-x64` build; agent pipe and Pageant are not verified |
