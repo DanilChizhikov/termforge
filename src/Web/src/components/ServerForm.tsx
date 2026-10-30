@@ -7,8 +7,9 @@ import {
   type ConnectionInput,
   type ReconnectMode,
   type SavedConnection,
+  revealPassword,
 } from '../api/connections';
-import { CloseIcon } from './icons/Icons';
+import { CloseIcon, EyeIcon, EyeOffIcon } from './icons/Icons';
 import { Switch } from './Switch';
 
 export interface ServerFormProps {
@@ -26,6 +27,8 @@ const AUTH_OPTIONS: Record<AuthMethod, { title: string; hint: string }> = {
   KeyFile: { title: 'Key file', hint: 'Path only, never copied' },
   Password: { title: 'Password', hint: 'Kept in the credential store' },
 };
+
+const STORED_PASSWORD_MASK = '********';
 
 function reconnectModeLabel(mode: ReconnectMode, attempts: number): string {
   if (mode === 'Automatic') {
@@ -46,6 +49,9 @@ export function ServerForm({
   const [input, setInput] = useState<ConnectionInput>(initial);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [storedPasswordLoaded, setStoredPasswordLoaded] = useState(false);
+  const storedPasswordMasked = editingId !== null && hasStoredPassword && !storedPasswordLoaded;
 
   const update = <K extends keyof ConnectionInput>(key: K, value: ConnectionInput[K]) => {
     setInput((current) => ({ ...current, [key]: value }));
@@ -59,6 +65,25 @@ export function ServerForm({
       setError(describeError(failure));
       setBusy(false);
     });
+  };
+
+  const togglePasswordVisibility = () => {
+    if (passwordVisible) {
+      setPasswordVisible(false);
+      return;
+    }
+    if (editingId === null || !storedPasswordMasked) {
+      setPasswordVisible(true);
+      return;
+    }
+    setError(null);
+    revealPassword(editingId)
+      .then((password) => {
+        update('password', password);
+        setStoredPasswordLoaded(true);
+        setPasswordVisible(true);
+      })
+      .catch((failure: unknown) => setError(describeError(failure)));
   };
 
   const jumpCandidates = connections.filter((connection) => connection.id !== editingId);
@@ -175,17 +200,32 @@ export function ServerForm({
                 </label>
               ) : null}
               {input.authMethod === 'Password' ? (
-                <label className="field span-4">
-                  <span className="field-label">Server password</span>
-                  <input
-                    className="input"
-                    type="password"
-                    autoComplete="new-password"
-                    placeholder={hasStoredPassword ? 'Leave empty to keep the stored password' : ''}
-                    value={input.password}
-                    onChange={(event) => update('password', event.target.value)}
-                  />
-                </label>
+                <div className="field span-4">
+                  <label className="field-label" htmlFor="server-password">
+                    Server password
+                  </label>
+                  <div className="input-with-action">
+                    <input
+                      id="server-password"
+                      className="input"
+                      type={passwordVisible ? 'text' : 'password'}
+                      autoComplete="new-password"
+                      placeholder={hasStoredPassword ? 'Leave empty to keep the stored password' : ''}
+                      readOnly={storedPasswordMasked}
+                      value={storedPasswordMasked ? STORED_PASSWORD_MASK : input.password}
+                      onChange={(event) => update('password', event.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      aria-label={passwordVisible ? 'Hide password' : 'Show password'}
+                      aria-pressed={passwordVisible}
+                      onClick={togglePasswordVisibility}
+                    >
+                      {passwordVisible ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                    </button>
+                  </div>
+                </div>
               ) : null}
               <label className="field span-2">
                 <span className="field-label">ProxyJump · optional</span>

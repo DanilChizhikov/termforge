@@ -240,6 +240,53 @@ public sealed class SavedConnectionServiceTests
     }
 
     [TestMethod]
+    public async Task RevealPassword_WithStoredPassword_ReturnsIt()
+    {
+        var draft = CreateDraft("db") with { AuthMethod = ConnectionAuthMethod.Password };
+        var created = await CreateAsync(draft, Password);
+
+        var result = await _service.RevealPasswordAsync(created.Id, TestContext.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(Password);
+    }
+
+    [TestMethod]
+    public async Task RevealPassword_WithoutStoredPassword_ReturnsNotFound()
+    {
+        var draft = CreateDraft("web");
+        var created = await CreateAsync(draft);
+
+        var result = await _service.RevealPasswordAsync(created.Id, TestContext.CancellationToken);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error!.Code.Should().Be(SavedConnectionErrorCode.NotFound);
+    }
+
+    [TestMethod]
+    public async Task RevealPassword_OfUnknownConnection_ReturnsNotFound()
+    {
+        var unknownId = Guid.NewGuid();
+
+        var result = await _service.RevealPasswordAsync(unknownId, TestContext.CancellationToken);
+
+        result.Error!.Code.Should().Be(SavedConnectionErrorCode.NotFound);
+    }
+
+    [TestMethod]
+    public async Task RevealPassword_WhenVaultIsLocked_ReturnsCredentialError()
+    {
+        var draft = CreateDraft("db") with { AuthMethod = ConnectionAuthMethod.Password };
+        var created = await CreateAsync(draft, Password);
+        _credentials.FailureToReturn = CredentialErrors.VaultLocked();
+
+        var result = await _service.RevealPasswordAsync(created.Id, TestContext.CancellationToken);
+
+        result.Error!.Code.Should().Be(SavedConnectionErrorCode.CredentialStoreFailure);
+        result.Error.CredentialCode.Should().Be(CredentialErrorCode.VaultLocked);
+    }
+
+    [TestMethod]
     public async Task RenameGroup_MovesConnectionsToNewGroup()
     {
         await CreateAsync(CreateDraft("one") with { GroupName = "old" });

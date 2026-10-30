@@ -16,6 +16,11 @@ public sealed record SavedConnectionError(SavedConnectionErrorCode Code, string 
         return new SavedConnectionError(SavedConnectionErrorCode.NotFound, $"Saved connection {id} was not found.");
     }
 
+    public static SavedConnectionError PasswordNotFound(Guid id)
+    {
+        return new SavedConnectionError(SavedConnectionErrorCode.NotFound, $"Saved connection {id} has no stored password.");
+    }
+
     public static SavedConnectionError NameTaken(string name)
     {
         return new SavedConnectionError(SavedConnectionErrorCode.NameTaken, $"A saved connection named '{name}' already exists.");

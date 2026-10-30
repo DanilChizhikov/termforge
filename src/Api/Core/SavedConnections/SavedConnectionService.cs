@@ -29,6 +29,24 @@ public sealed class SavedConnectionService
         return SavedConnectionResult<SavedConnection>.Success(connection);
     }
 
+    public async Task<SavedConnectionResult<string>> RevealPasswordAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var connection = await _repository.FindAsync(id, cancellationToken);
+        if (connection is null)
+        {
+            var notFound = SavedConnectionError.NotFound(id);
+            return SavedConnectionResult<string>.Failure(notFound);
+        }
+
+        if (connection.Details.AuthMethod != ConnectionAuthMethod.Password || !connection.HasPassword)
+        {
+            var passwordNotFound = SavedConnectionError.PasswordNotFound(id);
+            return SavedConnectionResult<string>.Failure(passwordNotFound);
+        }
+
+        return await _passwordStore.ReadAsync(id, cancellationToken);
+    }
+
     public async Task<SavedConnectionResult<SavedConnection>> CreateAsync(SavedConnectionSubmission submission, CancellationToken cancellationToken)
     {
         var draft = SavedConnectionValidator.Normalize(submission.Draft);
