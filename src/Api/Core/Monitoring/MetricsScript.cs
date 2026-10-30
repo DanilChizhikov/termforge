@@ -13,6 +13,8 @@ public static class MetricsScript
     public const string BootTimeSection = "boottime";
     public const string NowSection = "now";
     public const string DiskSection = "disk";
+    public const string LoadAverageSection = "loadavg";
+    public const string CpuCountSection = "cpucount";
     public const string SectionPrefix = "@@";
 
     public const string Text = """
@@ -48,5 +50,13 @@ public static class MetricsScript
         fi
         echo "@@disk"
         df -Pk / 2>/dev/null
+        echo "@@loadavg"
+        if [ -r /proc/loadavg ]; then
+          cat /proc/loadavg 2>/dev/null
+        else
+          sysctl -n vm.loadavg 2>/dev/null
+        fi
+        echo "@@cpucount"
+        getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null
         """;
 }

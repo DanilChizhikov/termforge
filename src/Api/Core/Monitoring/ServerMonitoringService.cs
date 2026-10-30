@@ -49,7 +49,9 @@ public sealed class ServerMonitoringService
 
     private async Task<ServerMetrics> CollectFromTargetAsync(Guid connectionId, SshConnectionTarget target, CancellationToken cancellationToken)
     {
+        var connectStartedAt = _timeProvider.GetTimestamp();
         var connected = await _runnerFactory.ConnectAsync(target, cancellationToken);
+        var connectDuration = _timeProvider.GetElapsedTime(connectStartedAt);
         if (!connected.IsSuccess)
         {
             return CreateMetrics(connectionId, MonitoringState.ConnectionFailed, connected.Error!.Message);
@@ -62,7 +64,8 @@ public sealed class ServerMonitoringService
             return CreateMetrics(connectionId, MonitoringState.ConnectionFailed, collected.Error!.Message);
         }
 
-        return new ServerMetrics(connectionId, UtcNow(), MonitoringState.Connected, collected.Value);
+        var latencyMilliseconds = (long)Math.Round(connectDuration.TotalMilliseconds);
+        return new ServerMetrics(connectionId, UtcNow(), MonitoringState.Connected, collected.Value) { LatencyMilliseconds = latencyMilliseconds };
     }
 
     private ServerMetrics CreateMetrics(Guid connectionId, MonitoringState state, string message)

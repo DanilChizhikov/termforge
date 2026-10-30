@@ -19,6 +19,8 @@ public sealed class MetricsOutputParserTests
         readings.Uptime.Value.Should().Be(TimeSpan.FromSeconds(1048576));
         readings.Memory.Value.Should().Be(new MemoryUsage((4046428 - 2046428) * KibiByte, 4046428 * KibiByte));
         readings.Disk.Value.Should().Be(new DiskUsage(25836480 * KibiByte, 82836480 * KibiByte, "/"));
+        readings.LoadAverage.Value.Should().Be(new LoadAverage(0.42, 0.38, 0.35));
+        readings.CpuCount.Value.Should().Be(2);
     }
 
     [TestMethod]
@@ -42,6 +44,8 @@ public sealed class MetricsOutputParserTests
         readings.Uptime.Value.Should().Be(TimeSpan.FromSeconds(90000));
         readings.Memory.Value.Should().Be(new MemoryUsage(17179869184 - 310000L * 16384, 17179869184));
         readings.Disk.Value!.Value.FreeBytes.Should().Be(500000000L * KibiByte);
+        readings.LoadAverage.Value.Should().Be(new LoadAverage(1.85, 2.10, 2.25));
+        readings.CpuCount.Value.Should().Be(10);
     }
 
     [TestMethod]
@@ -53,6 +57,8 @@ public sealed class MetricsOutputParserTests
         readings.Disk.IsAvailable.Should().BeTrue();
         readings.CpuPercent.Reason.Should().Contain("FreeBSD");
         readings.Memory.Reason.Should().Contain("FreeBSD");
+        readings.LoadAverage.Value.Should().Be(new LoadAverage(0.10, 0.20, 0.30));
+        readings.CpuCount.Value.Should().Be(4);
     }
 
     [TestMethod]
@@ -64,6 +70,8 @@ public sealed class MetricsOutputParserTests
         AssertUnavailable(readings.Uptime.IsAvailable, readings.Uptime.Value is null, readings.Uptime.Reason);
         AssertUnavailable(readings.Memory.IsAvailable, readings.Memory.Value is null, readings.Memory.Reason);
         AssertUnavailable(readings.Disk.IsAvailable, readings.Disk.Value is null, readings.Disk.Reason);
+        AssertUnavailable(readings.LoadAverage.IsAvailable, readings.LoadAverage.Value is null, readings.LoadAverage.Reason);
+        AssertUnavailable(readings.CpuCount.IsAvailable, readings.CpuCount.Value is null, readings.CpuCount.Reason);
     }
 
     [TestMethod]
@@ -75,6 +83,8 @@ public sealed class MetricsOutputParserTests
         readings.Uptime.IsAvailable.Should().BeFalse();
         readings.Memory.IsAvailable.Should().BeFalse();
         readings.Disk.IsAvailable.Should().BeFalse();
+        readings.LoadAverage.IsAvailable.Should().BeFalse();
+        readings.CpuCount.IsAvailable.Should().BeFalse();
         readings.Uptime.Reason.Should().Contain("operating system");
     }
 
@@ -132,6 +142,44 @@ public sealed class MetricsOutputParserTests
         var reading = UptimeParser.ParseBootTime("{ sec = 2000, usec = 0 }", "1000");
 
         reading.IsAvailable.Should().BeFalse();
+    }
+
+    [TestMethod]
+    public void LoadAverage_WithFewerThanThreeValues_IsUnavailable()
+    {
+        var reading = LoadAverageParser.Parse("{ 0.42 0.38 }");
+
+        reading.IsAvailable.Should().BeFalse();
+        reading.Reason.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [TestMethod]
+    public void LoadAverage_WithNegativeValue_IsUnavailable()
+    {
+        var reading = LoadAverageParser.Parse("-1 0.38 0.35");
+
+        reading.IsAvailable.Should().BeFalse();
+    }
+
+    [TestMethod]
+    [DataRow("0")]
+    [DataRow("-2")]
+    [DataRow("many")]
+    [DataRow("")]
+    public void CpuCount_WithInvalidValue_IsUnavailable(string output)
+    {
+        var reading = CpuCountParser.Parse(output);
+
+        reading.IsAvailable.Should().BeFalse();
+        reading.Reason.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [TestMethod]
+    public void CpuCount_UsesFirstLineOfFallbackOutput()
+    {
+        var reading = CpuCountParser.Parse("8\n8");
+
+        reading.Value.Should().Be(8);
     }
 
     private static void AssertUnavailable(bool isAvailable, bool hasNoValue, string? reason)
