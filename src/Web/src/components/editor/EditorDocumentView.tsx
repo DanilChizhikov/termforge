@@ -29,7 +29,7 @@ import {
 import { clearEditorDraft, getEditorDraft, setEditorDraft } from '../../state/editorDrafts';
 import { reopenEditorFile, setEditorFileDirty, type EditorFile } from '../../state/editorFiles';
 import { useConnection } from '../../state/connections';
-import { EmptyState } from '../EmptyState';
+import { LoadingState } from '../LoadingState';
 import { ShieldIcon } from '../icons/Icons';
 import { formatClock, formatDayAndClock } from '../timeFormat';
 import { EditorConflictNotice } from './EditorConflictNotice';
@@ -330,7 +330,7 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
     );
 
   if (state.status === 'loading') {
-    return <EmptyState message={`Opening ${path}…`} />;
+    return <LoadingState message={`Opening ${path}…`} className="empty-state" />;
   }
 
   if (state.status === 'failed' || state.server === null) {
@@ -465,7 +465,7 @@ function OpenedEditorDocument({ file }: EditorDocumentViewProps) {
               </span>
             </div>
           ) : null}
-          <Suspense fallback={<EmptyState message="Loading editor…" />}>
+          <Suspense fallback={<LoadingState message="Loading editor…" className="empty-state" />}>
             {view === 'edit' ? (
               <CodeEditor
                 value={state.draft}

@@ -7,6 +7,7 @@ import {
   type RecordingSettings,
   type RecordingSettingsResponse,
 } from '../../api/recordings';
+import { LoadingState } from '../LoadingState';
 import { RecordingWarningDialog } from '../RecordingWarningDialog';
 import { Switch } from '../Switch';
 
@@ -104,7 +105,7 @@ export function RecordingSettingsSection({ onChanged }: RecordingSettingsSection
     return (
       <section className="settings-card" aria-label="Terminal recording">
         {error === null ? (
-          <p className="settings-row text-muted">Loading recording settings…</p>
+          <LoadingState message="Loading recording settings…" className="settings-row" />
         ) : (
           <p role="alert" className="settings-row form-error">
             {error}

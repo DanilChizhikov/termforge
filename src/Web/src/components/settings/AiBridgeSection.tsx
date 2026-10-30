@@ -7,6 +7,7 @@ import {
   type AiBridgeSettings,
 } from '../../api/aiBridge';
 import { describeError } from '../../api/connections';
+import { LoadingState } from '../LoadingState';
 import { Switch } from '../Switch';
 
 function copyToClipboard(text: string): void {
@@ -71,7 +72,7 @@ export function AiBridgeSection() {
       <div className="settings-card">
         {settings === null ? (
           error === null ? (
-            <p className="settings-row text-muted">Loading AI bridge settings…</p>
+            <LoadingState message="Loading AI bridge settings…" className="settings-row" />
           ) : null
         ) : (
           <>

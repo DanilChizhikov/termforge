@@ -11,6 +11,8 @@ const HOVER_QUERY = '@media (hover: hover) and (pointer: fine)';
 
 const MOTION_QUERY = '@media (prefers-reduced-motion: no-preference)';
 
+const REDUCED_MOTION_QUERY = '@media (prefers-reduced-motion: reduce)';
+
 function readStyle(fileName: string): string {
   const filePath = join(STYLES_DIRECTORY, fileName);
   return readFileSync(filePath, 'utf8');
@@ -103,5 +105,37 @@ describe('motion styles', () => {
     expect(inside).toContain('scale(0.97)');
     expect(inside).toContain('scale(0.96)');
     expect(outside).not.toMatch(/scale\(/);
+  });
+
+  it('animates keyframes only through transform and opacity', () => {
+    const styles = readAllStyles();
+    const keyframesPattern = /@keyframes[^{]+\{((?:[^{}]*\{[^{}]*\})*)[^{}]*\}/g;
+    const declarationPattern = /([a-z-]+)\s*:/g;
+    const animatedProperties = new Set<string>();
+    for (const keyframes of styles.matchAll(keyframesPattern)) {
+      const body = keyframes[1] ?? '';
+      for (const declaration of body.matchAll(declarationPattern)) {
+        const property = declaration[1] ?? '';
+        animatedProperties.add(property);
+      }
+    }
+
+    expect([...animatedProperties].sort()).toEqual(['opacity', 'transform']);
+  });
+
+  it('takes animation durations only from tokens', () => {
+    const styles = readAllStyles();
+    const withoutCursorBlink = styles.replace('terminal-cursor-blink 1s', 'terminal-cursor-blink');
+
+    expect(withoutCursorBlink).not.toMatch(/animation(-duration)?:[^;]*\b\d+(\.\d+)?m?s\b/);
+  });
+
+  it('replaces spinning with a gentle pulse for reduced motion', () => {
+    const styles = readAllStyles();
+    const { inside } = splitByAtRule(styles, REDUCED_MOTION_QUERY);
+
+    expect(inside).toContain('.spinner');
+    expect(inside).toContain('animation-name: reduced-pulse');
+    expect(inside).not.toContain('rotate');
   });
 });

@@ -1,7 +1,7 @@
 import { lazy, Suspense, type KeyboardEvent } from 'react';
 import type { AiActionKind, AiApproval } from '../api/aiBridge';
 import { languageForPath } from './editor/editorLanguage';
-import { EmptyState } from './EmptyState';
+import { LoadingState } from './LoadingState';
 
 const CodeDiff = lazy(() => import('./editor/CodeDiff'));
 
@@ -57,7 +57,7 @@ export function AiApprovalDialog({ approval, queued, error, busy, onDecide }: Ai
             <>
               <code className="mono">{fileChange.path}</code>
               <div className="ai-approval-diff">
-                <Suspense fallback={<EmptyState message="Loading diff…" />}>
+                <Suspense fallback={<LoadingState message="Loading diff…" className="empty-state" />}>
                   <CodeDiff
                     original={fileChange.before}
                     modified={fileChange.after}

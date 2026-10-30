@@ -914,6 +914,69 @@ dl.fingerprint {
   transition: transform var(--duration-press) var(--ease-out);
 }
 
+.loading-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.spinner {
+  flex: none;
+  color: var(--accent);
+  animation: spinner-rotate var(--duration-spin) linear infinite;
+}
+
+.refresh-icon {
+  display: inline-flex;
+}
+
+.skeleton-line {
+  display: block;
+  height: 10px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-track);
+  animation: skeleton-pulse var(--duration-pulse) ease-in-out infinite;
+}
+
+.skeleton-line-value {
+  width: 55%;
+  height: 22px;
+}
+
+.skeleton-line-detail {
+  width: 80%;
+}
+
+.skeleton-line-name {
+  width: 60%;
+}
+
+.skeleton-line-icon {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+@keyframes spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes reduced-pulse {
+  50% {
+    opacity: 0.7;
+  }
+}
+
 @media (hover: hover) and (pointer: fine) {
   .btn,
   .icon-btn {
@@ -941,9 +1004,25 @@ dl.fingerprint {
     transition: transform var(--duration-press) var(--ease-out);
   }
 
+  .refresh-icon-spinning {
+    animation: spinner-rotate var(--duration-spin) linear infinite;
+  }
+
   @starting-style {
     .dialog-card {
       transform: scale(0.96);
     }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-name: reduced-pulse;
+    animation-duration: var(--duration-pulse);
+    animation-timing-function: ease-in-out;
+  }
+
+  .skeleton-line {
+    animation-name: reduced-pulse;
   }
 }

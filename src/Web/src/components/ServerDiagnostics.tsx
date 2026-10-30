@@ -6,6 +6,8 @@ import {
   type CapabilityStatus,
 } from '../api/diagnostics';
 import { useConnection } from '../state/connections';
+import { CapabilityCardSkeleton } from './CapabilityCardSkeleton';
+import { LoadingState } from './LoadingState';
 import {
   MONITORING_INTERVALS_SECONDS,
   setMonitoringInterval,
@@ -98,18 +100,21 @@ function DiagnosticsView({ serverId }: { serverId: string }) {
           </select>
         </label>
         <button type="button" className="btn btn-sm btn-filled" disabled={state.isLoading} onClick={refresh}>
-          <RefreshArcIcon size={14} />
+          <span className={state.isLoading ? 'refresh-icon refresh-icon-spinning' : 'refresh-icon'}>
+            <RefreshArcIcon size={14} />
+          </span>
           Run checks again
         </button>
       </div>
       <ServerMetricsSection serverId={serverId} />
-      {state.isLoading ? <p className="text-secondary">Checking server…</p> : null}
+      {state.isLoading ? <LoadingState message="Checking server…" /> : null}
       {state.error !== null ? (
         <p role="alert" className="notice notice-danger">
           {state.error}
         </p>
       ) : null}
       {state.report !== null ? <ReportView report={state.report} /> : null}
+      {state.report === null && state.isLoading ? <CapabilityCardSkeleton /> : null}
     </section>
   );
 }

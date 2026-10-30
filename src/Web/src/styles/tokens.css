@@ -112,4 +112,6 @@
   --duration-press: 160ms;
   --duration-notice: 200ms;
   --duration-modal: 250ms;
+  --duration-spin: 800ms;
+  --duration-pulse: 1400ms;
 }
