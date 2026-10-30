@@ -48,7 +48,7 @@ The launch link works once. If the browser loses the session, start TermForge ag
 
 ### Servers
 
-Add a server with the Add server button in the sidebar, or import hosts from `~/.ssh/config`. A server has a host, port, user and either a private key path, an SSH agent or a password. Passwords go to the credential store, never to the database. Test on a server row opens a session and reports the result. Servers can carry a group label and can be marked read-only. See [docs/saved-connections.md](docs/saved-connections.md).
+Add a server with the Add server button in the sidebar, or import hosts from `~/.ssh/config`. A server has a host, port, user and either a private key path, an SSH agent or a password. Passwords go to the credential store, never to the database. Test on a server row opens a session and reports the result. Servers can carry a group label and can be marked read-only. The filter above the list (⌘K or Ctrl+K) matches names, hosts, users and groups; the collapsed sidebar keeps a rail of server initials with their status. See [docs/saved-connections.md](docs/saved-connections.md).
 
 On the first connection TermForge shows the server's `SHA256:` host key fingerprint and asks you to accept it once, accept and save it, or reject it. Keys already in `~/.ssh/known_hosts` are trusted without a prompt; TermForge reads that file and never writes to it. A changed key blocks the connection until you confirm the new one separately. See [docs/decisions/host-key-verification.md](docs/decisions/host-key-verification.md).
 
@@ -78,7 +78,7 @@ The Docker tab lists the containers of the selected server with state, ports and
 
 ### Diagnostics and monitoring
 
-The Diagnostics tab checks the selected server for command execution, SFTP, Docker, sudo and common utilities, and explains what is missing. The sidebar and the Diagnostics tab also show uptime, CPU, memory and free disk space, refreshed every 10, 30 or 60 seconds while visible. See [docs/diagnostics.md](docs/diagnostics.md) and [docs/decisions/server-monitoring.md](docs/decisions/server-monitoring.md).
+The Diagnostics tab checks the selected server for command execution, SFTP, Docker, sudo and common utilities, and explains what is missing. The sidebar and the Diagnostics tab also show connection latency, uptime, load average, CPU with a 15-minute chart, memory and free disk space, refreshed every 10, 30 or 60 seconds while visible. See [docs/diagnostics.md](docs/diagnostics.md) and [docs/decisions/server-monitoring.md](docs/decisions/server-monitoring.md).
 
 ### Journal
 

@@ -1,11 +1,9 @@
 import { useState } from 'react';
-import type { ConnectionTestResult, ConnectionTestState, SavedConnection } from '../api/connections';
+import type { SavedConnection } from '../api/connections';
 import { AiAccessBadge } from './AiAccessBadge';
 import { ReadOnlyBadge } from './ReadOnlyBadge';
-import { statusDotClass, type StatusTone } from './statusTone';
-import { formatRelativeTime } from './timeFormat';
-
-export type ServerStatus = ConnectionTestResult | 'testing';
+import { describeServerStatus, type ServerStatus } from './serverStatus';
+import { statusDotClass } from './statusTone';
 
 export interface ServerRowProps {
   connection: SavedConnection;
@@ -18,43 +16,6 @@ export interface ServerRowProps {
   onRemove: () => void;
 }
 
-interface StatusDescription {
-  tone: StatusTone;
-  label: string;
-  inline: boolean;
-}
-
-const FAILURE_LABELS: Record<Exclude<ConnectionTestState, 'Connected' | 'Unreachable' | 'Timeout'>, string> = {
-  AuthenticationFailed: 'Authentication failed',
-  HostKeyRejected: 'Host key rejected · blocked',
-  CredentialsUnavailable: 'Credentials unavailable',
-  Failed: 'Connection failed',
-};
-
-function describeOffline(connection: SavedConnection): string {
-  if (connection.lastConnectedAt === null) {
-    return 'Offline';
-  }
-  return `Offline · last seen ${formatRelativeTime(connection.lastConnectedAt)}`;
-}
-
-function describeStatus(connection: SavedConnection, status: ServerStatus | null): StatusDescription {
-  if (status === null) {
-    return { tone: 'idle', label: 'Not tested', inline: true };
-  }
-  if (status === 'testing') {
-    return { tone: 'active', label: 'Testing…', inline: false };
-  }
-  if (status.state === 'Connected') {
-    const latency = status.latencyMilliseconds === null ? '' : ` · ${status.latencyMilliseconds} ms`;
-    return { tone: 'ok', label: `Connected${latency}`, inline: true };
-  }
-  if (status.state === 'Unreachable' || status.state === 'Timeout') {
-    return { tone: 'idle', label: describeOffline(connection), inline: false };
-  }
-  return { tone: 'danger', label: FAILURE_LABELS[status.state], inline: false };
-}
-
 function formatAddress(connection: SavedConnection): string {
   const port = connection.port === 22 ? '' : `:${connection.port}`;
   return `${connection.userName}@${connection.host}${port}`;
@@ -62,7 +23,7 @@ function formatAddress(connection: SavedConnection): string {
 
 export function ServerRow({ connection, status, sessionCount, selected, onSelect, onTest, onEdit, onRemove }: ServerRowProps) {
   const [confirming, setConfirming] = useState(false);
-  const { tone, label, inline } = describeStatus(connection, status);
+  const { tone, label, inline } = describeServerStatus(connection, status);
   const detail = status !== null && status !== 'testing' && status.state !== 'Connected' ? status.message : null;
   const latency = status !== null && status !== 'testing' && status.state === 'Connected' ? status.latencyMilliseconds : null;
 

@@ -264,6 +264,118 @@
   gap: 2px;
 }
 
+.server-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--surface-track);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+}
+
+.server-filter:focus-within {
+  border-color: var(--border-control);
+}
+
+.server-filter-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--text-dense);
+}
+
+.server-filter-input::placeholder {
+  color: var(--text-muted);
+}
+
+.server-filter-shortcut {
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.server-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-height: 100%;
+  padding: 12px 0;
+}
+
+.server-rail .region-toggle {
+  width: 40px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+}
+
+.server-rail-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.server-rail-separator {
+  width: 24px;
+  height: 1px;
+  margin: 4px 0;
+  background: var(--border-subtle);
+}
+
+.server-rail-button {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-panel);
+  background: var(--surface-raised);
+  color: var(--text-soft);
+  font-size: var(--text-label);
+}
+
+.server-rail-button:hover {
+  border-color: var(--border-default);
+}
+
+.server-rail-button-selected,
+.server-rail-button-selected:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-selected);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.server-rail-button code {
+  font-size: inherit;
+}
+
+.server-rail-status {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 9px;
+  height: 9px;
+  box-sizing: content-box;
+  border: 2px solid var(--surface-chrome);
+}
+
+.server-rail-status.status-dot-idle {
+  width: 6px;
+  height: 6px;
+  border: 1.5px solid var(--text-idle);
+  outline: 2px solid var(--surface-chrome);
+  background: var(--surface-chrome);
+}
+
 .server-import {
   display: flex;
   flex-direction: column;

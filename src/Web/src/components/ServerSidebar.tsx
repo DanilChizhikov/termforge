@@ -1,4 +1,4 @@
-import { useCallback, useState, useSyncExternalStore, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from 'react';
 import {
   createConnection,
   describeError,
@@ -18,17 +18,21 @@ import {
 import { reloadConnections, useConnections } from '../state/connections';
 import { selectServer, useSelectedServerId } from '../state/selectedServer';
 import { getTerminalTabsSnapshot, subscribeTerminalTabs } from '../state/workspaceTerminals';
-import { RegionToggle } from './CollapsibleRegion';
+import { RegionToggle, useRegionToggleState, type RegionToggleState } from './CollapsibleRegion';
 import { EmptyState } from './EmptyState';
-import { ChevronDownIcon, ChevronRightIcon, ImportIcon, PlusIcon } from './icons/Icons';
+import { ChevronDownIcon, ChevronRightIcon, ImportIcon, PlusIcon, SearchIcon } from './icons/Icons';
 import { ImportReport } from './ImportReport';
 import { ServerForm } from './ServerForm';
-import { ServerRow, type ServerStatus } from './ServerRow';
+import { ServerRail } from './ServerRail';
+import { ServerRow } from './ServerRow';
+import type { ServerStatus } from './serverStatus';
 import { formatClock } from './timeFormat';
 
 type DialogState = { mode: 'add' } | { mode: 'edit'; connection: SavedConnection } | null;
 
 const UNGROUPED = '';
+
+const SHORTCUT_IGNORED_AREAS = '.xterm, .monaco-editor';
 
 interface ImportSummary {
   hosts: number;
@@ -51,6 +55,62 @@ function groupConnections(connections: readonly SavedConnection[]): Map<string, 
   return new Map([...groups.entries()].sort(([left], [right]) => left.localeCompare(right)));
 }
 
+function matchesFilter(connection: SavedConnection, query: string): boolean {
+  const fields = [connection.name, connection.host, connection.userName, connection.groupName ?? ''];
+  return fields.some((field) => field.toLowerCase().includes(query));
+}
+
+function filterConnections(connections: readonly SavedConnection[], filter: string): readonly SavedConnection[] {
+  const query = filter.trim().toLowerCase();
+  if (query === '') {
+    return connections;
+  }
+  return connections.filter((connection) => matchesFilter(connection, query));
+}
+
+function isFilterShortcut(event: KeyboardEvent): boolean {
+  if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'k') {
+    return false;
+  }
+  const target = event.target;
+  return !(target instanceof Element && target.closest(SHORTCUT_IGNORED_AREAS) !== null);
+}
+
+function useFilterShortcut(region: RegionToggleState | null, collapsed: boolean) {
+  const filterInputRef = useRef<HTMLInputElement>(null);
+  const regionRef = useRef(region);
+  const [focusRequest, setFocusRequest] = useState(0);
+
+  useEffect(() => {
+    regionRef.current = region;
+  }, [region]);
+
+  useEffect(() => {
+    const focusFilter = (event: KeyboardEvent) => {
+      if (!isFilterShortcut(event)) {
+        return;
+      }
+      event.preventDefault();
+      const currentRegion = regionRef.current;
+      if (currentRegion?.collapsed === true) {
+        currentRegion.toggle();
+      }
+      setFocusRequest((request) => request + 1);
+    };
+    window.addEventListener('keydown', focusFilter);
+    return () => window.removeEventListener('keydown', focusFilter);
+  }, []);
+
+  useEffect(() => {
+    if (focusRequest > 0 && !collapsed) {
+      filterInputRef.current?.focus();
+      filterInputRef.current?.select();
+    }
+  }, [focusRequest, collapsed]);
+
+  return filterInputRef;
+}
+
 export function ServerSidebar() {
   const selectedId = useSelectedServerId();
   const connections = useConnections();
@@ -61,7 +121,11 @@ export function ServerSidebar() {
   const [lastImport, setLastImport] = useState<ImportSummary | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
   const [renamingGroup, setRenamingGroup] = useState<string | null>(null);
+  const [filter, setFilter] = useState('');
   const sessionCounts = useSessionCounts();
+  const region = useRegionToggleState();
+  const collapsed = region?.collapsed ?? false;
+  const filterInputRef = useFilterShortcut(region, collapsed);
 
   const reload = useCallback(async () => {
     const list = await reloadConnections();
@@ -154,24 +218,61 @@ export function ServerSidebar() {
     void rename(name, typeof value === 'string' ? value : name);
   };
 
-  const groups = groupConnections(connections);
+  if (collapsed) {
+    const allGroups = groupConnections(connections);
+    return <ServerRail groups={allGroups} statuses={statuses} selectedId={selectedId} onSelect={selectServer} />;
+  }
+
+  const visibleConnections = filterConnections(connections, filter);
+  const groups = groupConnections(visibleConnections);
+  const hasNoMatches = connections.length > 0 && visibleConnections.length === 0;
 
   return (
     <div className="server-sidebar">
       <div className="sidebar-header">
         <span className="section-label">Servers</span>
         <span className="sidebar-header-actions">
-          <button type="button" className="icon-btn" aria-label="Add server" onClick={() => setDialog({ mode: 'add' })}>
-            <PlusIcon size={16} />
+          <button
+            type="button"
+            className="icon-btn icon-btn-bordered"
+            aria-label="Add server"
+            onClick={() => setDialog({ mode: 'add' })}
+          >
+            <PlusIcon size={15} />
           </button>
           <RegionToggle />
         </span>
       </div>
+      {connections.length === 0 ? null : (
+        <label className="server-filter">
+          <SearchIcon size={14} />
+          <input
+            ref={filterInputRef}
+            type="search"
+            className="server-filter-input"
+            placeholder="Filter servers"
+            aria-label="Filter servers"
+            aria-keyshortcuts="Meta+K Control+K"
+            value={filter}
+            onChange={(event) => setFilter(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && filter !== '') {
+                event.stopPropagation();
+                setFilter('');
+              }
+            }}
+          />
+          <kbd className="kbd server-filter-shortcut" aria-hidden="true">
+            ⌘K
+          </kbd>
+        </label>
+      )}
       {message === null ? null : <p className="form-error">{message}</p>}
       {importResult === null ? null : (
         <ImportReport result={importResult} onDismiss={() => setImportResult(null)} />
       )}
       {connections.length === 0 ? <EmptyState message="No servers yet." /> : null}
+      {hasNoMatches ? <EmptyState message="No servers match the filter." /> : null}
       {[...groups.entries()].map(([group, items]) => {
         const groupCollapsed = collapsedGroups.has(group);
         return (
