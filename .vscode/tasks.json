@@ -1,0 +1,57 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "install: frontend",
+      "type": "process",
+      "command": "npm",
+      "windows": {
+        "command": "npm.cmd"
+      },
+      "args": ["ci"],
+      "options": {
+        "cwd": "${workspaceFolder}/src/Web"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "build: frontend",
+      "type": "process",
+      "command": "npm",
+      "windows": {
+        "command": "npm.cmd"
+      },
+      "args": ["run", "build"],
+      "options": {
+        "cwd": "${workspaceFolder}/src/Web"
+      },
+      "dependsOn": "install: frontend",
+      "problemMatcher": []
+    },
+    {
+      "label": "build: backend",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/src/Api/Entrypoint/Entrypoint.csproj",
+        "--configuration",
+        "Debug"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build: app",
+      "dependsOn": ["build: frontend", "build: backend"],
+      "dependsOrder": "sequence",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    }
+  ]
+}

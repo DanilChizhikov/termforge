@@ -1,0 +1,44 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "TermForge",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build: app",
+      "program": "${workspaceFolder}/src/Api/Entrypoint/bin/Debug/net10.0/TermForge.dll",
+      "cwd": "${workspaceFolder}/src/Api/Entrypoint",
+      "console": "integratedTerminal",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    {
+      "name": "TermForge: backend",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build: backend",
+      "program": "${workspaceFolder}/src/Api/Entrypoint/bin/Debug/net10.0/TermForge.dll",
+      "cwd": "${workspaceFolder}/src/Api/Entrypoint",
+      "console": "integratedTerminal",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    {
+      "name": "TermForge: Vite",
+      "type": "node-terminal",
+      "request": "launch",
+      "preLaunchTask": "install: frontend",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/src/Web"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "TermForge: dev (backend + Vite)",
+      "configurations": ["TermForge: backend", "TermForge: Vite"],
+      "stopAll": true
+    }
+  ]
+}

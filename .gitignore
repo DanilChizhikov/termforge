@@ -440,6 +440,13 @@ scripts/postgres-data/18
 *.db-shm
 *.db-wal
 
+# Visual Studio Code launch configurations
+!/.vscode/
+/.vscode/*
+!/.vscode/launch.json
+!/.vscode/tasks.json
+!/.vscode/extensions.json
+
 # Frontend
 src/Api/Entrypoint/wwwroot/
 src/Web/node_modules/
