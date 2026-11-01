@@ -3,7 +3,7 @@ using DTech.Core.SettingsTransfer.Secrets;
 
 namespace DTech.Core.SettingsTransfer.Import;
 
-public sealed class ConnectionImportApplier(ISavedConnectionRepository repository, ConnectionSecretWriter secretWriter, TimeProvider timeProvider)
+public sealed class ConnectionImportApplier(ISavedConnectionRepository repository, ConnectionSecretWriter secretWriter, ConnectionSecretCleaner secretCleaner, TimeProvider timeProvider)
 {
     public async Task<ConnectionImportOutcome> ApplyAsync(SettingsImportPlan plan, SecretsArchiveContent? secrets, CancellationToken cancellationToken)
     {
@@ -33,7 +33,10 @@ public sealed class ConnectionImportApplier(ISavedConnectionRepository repositor
         var removals = ConnectionWriteOrder.DependentsFirst(plan.Removals);
         for (var i = 0; i < removals.Count; i++)
         {
-            await RemoveAsync(removals[i], context, cancellationToken);
+            if (!await RemoveAsync(removals[i], context, cancellationToken))
+            {
+                break;
+            }
         }
 
         return outcome;
@@ -139,14 +142,18 @@ public sealed class ConnectionImportApplier(ISavedConnectionRepository repositor
         }
     }
 
-    private async Task RemoveAsync(SavedConnection connection, ConnectionImportContext context, CancellationToken cancellationToken)
+    private async Task<bool> RemoveAsync(SavedConnection connection, ConnectionImportContext context, CancellationToken cancellationToken)
     {
-        var passwordError = await secretWriter.RemoveAsync(connection.Id, ArchivedSecretKind.Password, cancellationToken);
-        var sudoError = await secretWriter.RemoveAsync(connection.Id, ArchivedSecretKind.SudoPassword, cancellationToken);
-        var failure = passwordError ?? sudoError;
-        AddWarningIf(context, failure is not null, $"'{connection.Details.Name}': its saved passwords could not be removed: {failure?.Message}");
+        var failure = await secretCleaner.RemoveAsync(connection.Id, cancellationToken);
+        if (failure is not null)
+        {
+            context.Outcome.Warnings.Add($"'{connection.Details.Name}': its saved passwords could not be removed ({failure.Message}). This server and the remaining servers were kept.");
+            return false;
+        }
+
         await repository.DeleteAsync(connection.Id, cancellationToken);
         context.Outcome.Removed++;
+        return true;
     }
 
     private static void AddWarningIf(ConnectionImportContext context, bool condition, string warning)

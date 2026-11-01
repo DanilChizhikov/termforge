@@ -4,12 +4,14 @@ public sealed class SavedConnectionService
 {
     private readonly ISavedConnectionRepository _repository;
     private readonly ConnectionPasswordStore _passwordStore;
+    private readonly ConnectionSecretCleaner _secretCleaner;
     private readonly TimeProvider _timeProvider;
 
-    public SavedConnectionService(ISavedConnectionRepository repository, ConnectionPasswordStore passwordStore, TimeProvider timeProvider)
+    public SavedConnectionService(ISavedConnectionRepository repository, ConnectionPasswordStore passwordStore, ConnectionSecretCleaner secretCleaner, TimeProvider timeProvider)
     {
         _repository = repository;
         _passwordStore = passwordStore;
+        _secretCleaner = secretCleaner;
         _timeProvider = timeProvider;
     }
 
@@ -126,13 +128,10 @@ public sealed class SavedConnectionService
             return SavedConnectionResult.Failure(inUse);
         }
 
-        if (existing.HasPassword)
+        var removalError = await _secretCleaner.RemoveAsync(id, cancellationToken);
+        if (removalError is not null)
         {
-            var removed = await _passwordStore.RemoveAsync(id, cancellationToken);
-            if (!removed.IsSuccess)
-            {
-                return removed;
-            }
+            return SavedConnectionResult.Failure(SavedConnectionError.FromCredential(removalError));
         }
 
         await _repository.DeleteAsync(id, cancellationToken);

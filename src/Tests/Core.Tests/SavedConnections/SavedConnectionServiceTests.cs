@@ -1,4 +1,5 @@
 using DTech.Core.Credentials;
+using DTech.Core.Editor.Sudo;
 using DTech.Core.SavedConnections;
 using DTech.Core.Tests.SavedConnections.Support;
 using FluentAssertions;
@@ -22,7 +23,7 @@ public sealed class SavedConnectionServiceTests
         _repository = new InMemorySavedConnectionRepository();
         _credentials = new InMemoryCredentialStore();
         var passwordStore = new ConnectionPasswordStore(_credentials);
-        _service = new SavedConnectionService(_repository, passwordStore, TimeProvider.System);
+        _service = new SavedConnectionService(_repository, passwordStore, new ConnectionSecretCleaner(_credentials), TimeProvider.System);
     }
 
     [TestMethod]
@@ -196,15 +197,57 @@ public sealed class SavedConnectionServiceTests
     }
 
     [TestMethod]
-    public async Task Delete_RemovesConnectionAndItsPassword()
+    public async Task Delete_RemovesConnectionAndAllItsPasswords()
     {
         var created = await CreateAsync(CreateDraft("db") with { AuthMethod = ConnectionAuthMethod.Password }, Password);
+        using var sudoPassword = Secret.FromString("sudo-secret");
+        await _credentials.Store(SudoPasswordStore.KeyFor(created.Id), sudoPassword, TestContext.CancellationToken);
 
         var result = await _service.DeleteAsync(created.Id, TestContext.CancellationToken);
 
         result.IsSuccess.Should().BeTrue();
         _repository.Snapshot.Should().BeEmpty();
         _credentials.Secrets.Should().BeEmpty();
+    }
+
+    [TestMethod]
+    public async Task Delete_WithoutHasPassword_RemovesStaleLoginAndSudoPasswords()
+    {
+        var created = await CreateAsync(CreateDraft("db"));
+        using var password = Secret.FromString(Password);
+        await _credentials.Store(PasswordCredentialKey.For(created.Id), password, TestContext.CancellationToken);
+        await _credentials.Store(SudoPasswordStore.KeyFor(created.Id), password, TestContext.CancellationToken);
+
+        var result = await _service.DeleteAsync(created.Id, TestContext.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue();
+        _repository.Snapshot.Should().BeEmpty();
+        _credentials.Secrets.Should().BeEmpty();
+    }
+
+    [TestMethod]
+    public async Task Delete_WithOnlySudoPassword_RemovesItDespiteMissingLoginPassword()
+    {
+        var created = await CreateAsync(CreateDraft("db"));
+        using var password = Secret.FromString(Password);
+        await _credentials.Store(SudoPasswordStore.KeyFor(created.Id), password, TestContext.CancellationToken);
+
+        var result = await _service.DeleteAsync(created.Id, TestContext.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue();
+        _repository.Snapshot.Should().BeEmpty();
+        _credentials.Secrets.Should().BeEmpty();
+    }
+
+    [TestMethod]
+    public async Task Delete_WithoutSavedPasswords_SucceedsWhenBothKeysAreMissing()
+    {
+        var created = await CreateAsync(CreateDraft("db"));
+
+        var result = await _service.DeleteAsync(created.Id, TestContext.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue();
+        _repository.Snapshot.Should().BeEmpty();
     }
 
     [TestMethod]
