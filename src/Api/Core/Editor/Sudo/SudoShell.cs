@@ -1,4 +1,5 @@
 using DTech.Core.Connections;
+using DTech.Core.Diagnostics;
 
 namespace DTech.Core.Editor.Sudo;
 
@@ -52,7 +53,8 @@ public sealed class SudoShell : IAsyncDisposable
 
     private Task<SshResult<RemoteShellCommandResult>> RunAsync(string text, ReadOnlyMemory<byte> standardInput, CancellationToken cancellationToken)
     {
-        var command = new RemoteShellCommand(text, CommandTimeout, _maxOutputBytes)
+        var script = ShellScript.Wrap(text);
+        var command = new RemoteShellCommand(script, CommandTimeout, _maxOutputBytes)
         {
             StandardInput = standardInput,
         };

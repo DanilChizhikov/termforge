@@ -70,7 +70,7 @@ public sealed class RemoteFileSearchServiceTests
         events.OfType<FileSearchMatch>().Should().HaveCount(2);
         Summary(events).Method.Should().Be(FileSearchMethod.RemoteFind);
         await _connectionOpener.DidNotReceive().OpenAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
-        await _runner.Received(1).RunAsync(Arg.Is<RemoteCommandRequest>(sent => sent.Command.Contains("-iname '\\''*x'\\''\\'\\'''\\''; rm -rf ~; '\\''\\'\\'''\\''*'\\''", StringComparison.Ordinal)), Arg.Any<CancellationToken>());
+        await _runner.Received(1).RunAsync(Arg.Is<RemoteCommandRequest>(sent => sent.Command.Contains("-iname '\"'\"'*x'\"'\"'\"'\"'\"'\"'\"'\"'; rm -rf ~; '\"'\"'\"'\"'\"'\"'\"'\"'*'\"'\"'", StringComparison.Ordinal)), Arg.Any<CancellationToken>());
         await _runner.Received(1).DisposeAsync();
     }
 

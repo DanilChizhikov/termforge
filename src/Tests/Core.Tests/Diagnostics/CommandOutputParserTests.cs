@@ -116,7 +116,7 @@ public sealed class CommandOutputParserTests
     {
         var wrapped = ShellScript.Wrap("echo 'a'");
 
-        wrapped.Should().Be("sh -c 'echo '\\''a'\\'''");
+        wrapped.Should().Be("sh -c 'echo '\"'\"'a'\"'\"''");
     }
 
     [TestMethod]

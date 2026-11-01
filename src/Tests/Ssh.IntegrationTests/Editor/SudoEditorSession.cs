@@ -1,5 +1,6 @@
 using System.Text;
 using DTech.Core.Credentials;
+using DTech.Core.Diagnostics;
 using DTech.Core.Editor;
 using DTech.Core.Editor.Sudo;
 using DTech.Core.Files.Remote;
@@ -129,7 +130,7 @@ internal sealed class SudoEditorSession : IAsyncDisposable
         var path = $"{file.Directory}/{file.Name}";
         var bytes = Encoding.UTF8.GetBytes(file.Text);
         var encoded = Convert.ToBase64String(bytes);
-        var quotedPath = ShellQuoting.Quote(path);
+        var quotedPath = ShellArgument.Quote(path);
         await ExecuteAsync($"printf '%s' '{encoded}' | base64 -d > {quotedPath} && chown {file.Owner} {quotedPath} && chmod {file.Mode} {quotedPath}");
         return path;
     }
@@ -141,7 +142,7 @@ internal sealed class SudoEditorSession : IAsyncDisposable
 
     public async Task<string> ReadAsRootAsync(string path)
     {
-        var quotedPath = ShellQuoting.Quote(path);
+        var quotedPath = ShellArgument.Quote(path);
         var encoded = await ExecuteAsync($"base64 {quotedPath} | tr -d '\\n'");
         var bytes = Convert.FromBase64String(encoded);
         return Encoding.UTF8.GetString(bytes);
@@ -149,7 +150,7 @@ internal sealed class SudoEditorSession : IAsyncDisposable
 
     public Task<string> DescribeAsync(string path)
     {
-        var quotedPath = ShellQuoting.Quote(path);
+        var quotedPath = ShellArgument.Quote(path);
         return ExecuteAsync($"stat -c '%u %g %a' {quotedPath}");
     }
 
