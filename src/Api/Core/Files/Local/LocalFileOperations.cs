@@ -49,13 +49,22 @@ public sealed class LocalFileOperations(LocalPathResolver pathResolver)
         }
 
         var target = Path.Combine(parentPath, request.NewName);
-        if (LocalFileInfo.Open(target) is not null)
+        try
         {
-            var exists = FileError.AlreadyExists(target);
-            return FileResult.Failure(exists);
-        }
+            if (LocalFileInfo.Open(target) is not null && !IsCaseOnlyRename(info.Name, target))
+            {
+                var exists = FileError.AlreadyExists(target);
+                return FileResult.Failure(exists);
+            }
 
-        return Execute(() => Move(info, target), info.FullName);
+            Move(info, target);
+            return FileResult.Success();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            var error = LocalIoErrors.Map(exception, info.FullName);
+            return FileResult.Failure(error);
+        }
     }
 
     public FileResult Delete(DeleteRequest request)
@@ -147,6 +156,28 @@ public sealed class LocalFileOperations(LocalPathResolver pathResolver)
         }
 
         File.Move(info.FullName, target);
+    }
+
+    private static bool IsCaseOnlyRename(string sourceName, string targetPath)
+    {
+        var targetName = Path.GetFileName(targetPath);
+        if (string.Equals(sourceName, targetName, StringComparison.Ordinal)
+            || !string.Equals(sourceName, targetName, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var parentPath = Path.GetDirectoryName(targetPath)!;
+        foreach (var entryPath in Directory.EnumerateFileSystemEntries(parentPath))
+        {
+            var entryName = Path.GetFileName(entryPath);
+            if (string.Equals(entryName, targetName, StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static FileResult Execute(Action action, string path)
