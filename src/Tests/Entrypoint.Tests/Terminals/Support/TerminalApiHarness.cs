@@ -1,7 +1,9 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using DTech.Core.Credentials;
 using DTech.Core.Terminal;
 using DTech.Entrypoint.Tests.Infrastructure;
+using DTech.Entrypoint.Tests.SettingsTransfer.Support;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
@@ -103,6 +105,8 @@ internal sealed class TerminalApiHarness : IAsyncDisposable
 
     private void ReplaceServices(IServiceCollection services)
     {
+        services.RemoveAll<ICredentialStore>();
+        services.AddSingleton<ICredentialStore, InMemoryCredentialStore>();
         services.RemoveAll<ITerminalSessionFactory>();
         services.AddSingleton<ITerminalSessionFactory>(SessionFactory);
     }
