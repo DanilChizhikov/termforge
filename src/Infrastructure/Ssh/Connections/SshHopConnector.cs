@@ -17,6 +17,17 @@ internal sealed class SshHopConnector(SshAuthenticationFactory authenticationFac
 
         var ownedResources = authentication.Value.OwnedResources;
         var connectionInfo = new ConnectionInfo(hop.DialEndpoint.Host, hop.DialEndpoint.Port, target.UserName, authentication.Value.Method);
+        try
+        {
+            var knownKeys = approvedHostKey is null ? hostKeyVerifier.GetKnownHostKeys(target.Endpoint) : [approvedHostKey];
+            HostKeyAlgorithmPreference.Apply(connectionInfo, knownKeys);
+        }
+        catch (Exception exception)
+        {
+            DisposeAll(ownedResources);
+            return SshHopAttempt<TClient>.Failed(HostKeyErrors.VerifierFailed(target.Endpoint, approvedHostKey, exception.Message));
+        }
+
         var client = hop.CreateClient(connectionInfo);
         var hostKeyGate = new HostKeyGate(hostKeyVerifier, target.Endpoint, approvedHostKey);
         client.HostKeyReceived += hostKeyGate.OnHostKeyReceived;

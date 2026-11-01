@@ -20,11 +20,21 @@ public sealed class HostKeyDecisionHandler(HostKeyDecisionBroker broker, ITruste
             return validation;
         }
 
-        await PersistAsync(challenge.Request, command.Decision, cancellationToken);
-        var outcome = command.Decision == HostKeyUserDecision.Reject ? HostKeyPromptOutcome.Rejected : HostKeyPromptOutcome.Accepted;
-        if (!broker.TryResolve(pendingDecision.Id, outcome))
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!broker.TryTake(pendingDecision.Id, out _))
         {
             return NotFound(command.PendingDecisionId);
+        }
+
+        var outcome = HostKeyPromptOutcome.Rejected;
+        try
+        {
+            await PersistAsync(challenge.Request, command.Decision, CancellationToken.None);
+            outcome = command.Decision == HostKeyUserDecision.Reject ? HostKeyPromptOutcome.Rejected : HostKeyPromptOutcome.Accepted;
+        }
+        finally
+        {
+            pendingDecision.TryComplete(outcome);
         }
 
         var request = challenge.Request;

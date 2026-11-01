@@ -27,17 +27,20 @@ public sealed class HostKeyDecisionBroker : IHostKeyTrustPrompt
         var expiresAt = _timeProvider.GetUtcNow() + timeout;
         var pendingDecision = new PendingHostKeyDecision(Guid.NewGuid(), challenge, expiresAt);
         _pendingDecisions[pendingDecision.Id] = pendingDecision;
+        using var timer = _timeProvider.CreateTimer(_ => pendingDecision.Expire(), null, timeout, Timeout.InfiniteTimeSpan);
+        using var registration = cancellationToken.Register(() => pendingDecision.Cancel(cancellationToken));
         var request = challenge.Request;
         _logger.LogInformation($"Waiting for a decision on {challenge.Verification.Status} host key {request.HostKey} of {request.Endpoint}");
         try
         {
             await NotifyAsync();
-            return await pendingDecision.Completion.WaitAsync(timeout, _timeProvider, cancellationToken);
-        }
-        catch (TimeoutException)
-        {
-            _logger.LogWarning($"No decision on host key {request.HostKey} of {request.Endpoint} within {timeout}; the connection fails closed");
-            return HostKeyPromptOutcome.TimedOut;
+            var outcome = await pendingDecision.Completion;
+            if (outcome == HostKeyPromptOutcome.TimedOut)
+            {
+                _logger.LogWarning($"No decision on host key {request.HostKey} of {request.Endpoint} within {timeout}; the connection fails closed");
+            }
+
+            return outcome;
         }
         finally
         {
@@ -58,7 +61,12 @@ public sealed class HostKeyDecisionBroker : IHostKeyTrustPrompt
 
     public bool TryResolve(Guid id, HostKeyPromptOutcome outcome)
     {
-        return _pendingDecisions.TryGetValue(id, out var pendingDecision) && pendingDecision.TryComplete(outcome);
+        return TryTake(id, out var pendingDecision) && pendingDecision!.TryComplete(outcome);
+    }
+
+    internal bool TryTake(Guid id, out PendingHostKeyDecision? pendingDecision)
+    {
+        return _pendingDecisions.TryRemove(id, out pendingDecision) && pendingDecision.TryClaim(_timeProvider.GetUtcNow());
     }
 
     private async Task NotifyAsync()
