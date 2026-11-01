@@ -8,6 +8,7 @@ namespace DTech.Core.Tests.CommandHistory;
 [TestClass]
 public sealed class ShellIntegrationSnippetsTests
 {
+    private const string Nonce = "0123456789abcdef";
     private static readonly TimeSpan ShellTimeout = TimeSpan.FromSeconds(20);
 
     public TestContext TestContext { get; set; } = null!;
@@ -15,8 +16,8 @@ public sealed class ShellIntegrationSnippetsTests
     [TestMethod]
     public void For_BothShells_StartWithSpaceSoTheSnippetItselfIsNeverStoredAndEmitTheMarkers()
     {
-        var bash = ShellIntegrationSnippets.For(ShellKind.Bash);
-        var zsh = ShellIntegrationSnippets.For(ShellKind.Zsh);
+        var bash = ShellIntegrationSnippets.For(ShellKind.Bash, Nonce);
+        var zsh = ShellIntegrationSnippets.For(ShellKind.Zsh, Nonce);
 
         bash.Should().StartWith(" ").And.Contain("633;E").And.Contain("133;D").And.Contain("PROMPT_COMMAND");
         zsh.Should().StartWith(" ").And.Contain("633;E").And.Contain("133;D").And.Contain("add-zsh-hook preexec");
@@ -34,7 +35,7 @@ public sealed class ShellIntegrationSnippetsTests
         }
 
         var script = new StringBuilder();
-        script.Append(ShellIntegrationSnippets.For(ShellKind.Bash)).Append('\n');
+        script.Append(ShellIntegrationSnippets.For(ShellKind.Bash, Nonce)).Append('\n');
         script.Append("echo \"a;b\"\n");
         script.Append(" echo hidden-from-history\n");
         script.Append("false\n");
@@ -42,7 +43,7 @@ public sealed class ShellIntegrationSnippetsTests
         script.Append("exit\n");
 
         var output = await RunInteractiveAsync(bashPath!, ["--norc", "--noprofile", "-i"], script.ToString());
-        var parser = new ShellIntegrationParser();
+        var parser = new ShellIntegrationParser(Nonce);
         var events = parser.Feed(Encoding.UTF8.GetBytes(output));
         var commands = CollectCommands(events);
 
@@ -62,18 +63,28 @@ public sealed class ShellIntegrationSnippetsTests
         }
 
         var script = new StringBuilder();
-        script.Append(ShellIntegrationSnippets.For(ShellKind.Zsh)).Append('\n');
+        script.Append(ShellIntegrationSnippets.For(ShellKind.Zsh, Nonce)).Append('\n');
         script.Append("echo hello; echo again\n");
         script.Append("false\n");
         script.Append("exit\n");
 
         var output = await RunInteractiveAsync(zshPath!, ["-f", "-i"], script.ToString());
-        var parser = new ShellIntegrationParser();
+        var parser = new ShellIntegrationParser(Nonce);
         var events = parser.Feed(Encoding.UTF8.GetBytes(output));
         var commands = CollectCommands(events);
 
         commands.Select(command => command.Text).Should().Contain(["echo hello; echo again", "false"]);
         commands.Single(command => command.Text == "false").ExitCode.Should().Be(1);
+    }
+
+    [TestMethod]
+    [DataRow("not-a-nonce")]
+    [DataRow("'; touch /tmp/injected; '")]
+    public void For_NonceThatCannotBeSafelyInsertedIntoTheShell_IsRejected(string nonce)
+    {
+        var create = () => ShellIntegrationSnippets.For(ShellKind.Bash, nonce);
+
+        create.Should().Throw<ArgumentException>();
     }
 
     private static List<CapturedCommand> CollectCommands(IReadOnlyList<ShellIntegrationEvent> events)

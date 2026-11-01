@@ -41,8 +41,8 @@ export function clearCommandHistory(connectionId: string, client: ApiClient = ap
   return client.delete<void>(`${CONNECTIONS_PATH}/${connectionId}/history`);
 }
 
-export function getShellIntegration(shell: ShellName, client: ApiClient = apiClient): Promise<ShellIntegration> {
-  return client.get<ShellIntegration>(`${HISTORY_PATH}/integration/${shell}`);
+export function getShellIntegration(shell: ShellName, terminalId: string, client: ApiClient = apiClient): Promise<ShellIntegration> {
+  return client.get<ShellIntegration>(`${HISTORY_PATH}/integration/${shell}?terminalId=${encodeURIComponent(terminalId)}`);
 }
 
 export function isInsertable(entry: CommandHistoryEntry): boolean {

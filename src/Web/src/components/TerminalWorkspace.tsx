@@ -278,6 +278,7 @@ export function TerminalWorkspace() {
         <CommandHistoryPanel
           connectionId={visibleTab.connectionId}
           connectionName={visibleTab.session?.connectionName ?? 'server'}
+          terminalId={visibleTab.state === 'connected' ? visibleTab.session?.id ?? null : null}
           version={historyVersion}
           onInsert={insertIntoActiveTerminal}
           onCollapse={() => setHistoryOpen(false)}

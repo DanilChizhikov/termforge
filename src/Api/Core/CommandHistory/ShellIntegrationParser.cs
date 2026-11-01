@@ -12,8 +12,15 @@ public sealed class ShellIntegrationParser
     private const byte StringTerminator = (byte)'\\';
 
     private readonly List<byte> _payload = [];
+    private readonly string _nonce;
     private ParserState _state = ParserState.Ground;
     private bool _overflowed;
+
+    public ShellIntegrationParser(string nonce)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nonce);
+        _nonce = nonce;
+    }
 
     private enum ParserState
     {
@@ -112,6 +119,6 @@ public sealed class ShellIntegrationParser
         }
 
         var payload = Encoding.UTF8.GetString(_payload.ToArray());
-        return ShellIntegrationPayload.Parse(payload);
+        return ShellIntegrationPayload.Parse(payload, _nonce);
     }
 }
