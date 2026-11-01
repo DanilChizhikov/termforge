@@ -57,7 +57,11 @@ public static class DockerEndpoints
         return Results.Ok(response);
     }
 
-    private static async Task<IResult> RunComposeAction([AsParameters] ComposeActionCall call, ComposeActionService service, CancellationToken cancellationToken)
+    private static async Task<IResult> RunComposeAction(
+        [AsParameters] ComposeActionCall call,
+        ComposeActionService service,
+        IHostApplicationLifetime lifetime,
+        CancellationToken cancellationToken)
     {
         if (!TryParseName<ComposeAction>(call.Action, out var parsedAction))
         {
@@ -66,7 +70,7 @@ public static class DockerEndpoints
         }
 
         var request = new ComposeActionRequest(call.Id, call.Project, parsedAction) { ConfirmationToken = call.Body?.ConfirmationToken };
-        var result = await service.RunAsync(request, cancellationToken);
+        var result = await service.RunAsync(request, cancellationToken, lifetime.ApplicationStopping);
         if (!result.IsSuccess)
         {
             return DockerErrorResults.ToProblem(result.Error);
