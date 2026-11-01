@@ -107,6 +107,63 @@ public sealed class LoginAttemptLimiterTests
         newClientDecision.IsAllowed.Should().BeFalse();
     }
 
+    [TestMethod]
+    public void Full_client_table_rejects_new_clients_and_preserves_existing_lockouts()
+    {
+        var limiter = CreateLimiter(1, 10000);
+        for (var i = 0; i < 1024; i++)
+        {
+            limiter.TryBegin($"client-{i}").IsAllowed.Should().BeTrue();
+        }
+
+        var newClient = limiter.TryBegin("new-client");
+        var existingClient = limiter.TryBegin("client-0");
+
+        newClient.IsAllowed.Should().BeFalse();
+        newClient.RetryAfter.Should().Be(TimeSpan.FromMinutes(15));
+        existingClient.IsAllowed.Should().BeFalse();
+    }
+
+    [TestMethod]
+    public void Full_client_table_removes_expired_entries_before_admitting_new_clients()
+    {
+        var limiter = CreateLimiter(1, 10000);
+        for (var i = 0; i < 1024; i++)
+        {
+            limiter.TryBegin($"client-{i}");
+        }
+
+        _time.Advance(TimeSpan.FromMinutes(15));
+
+        limiter.TryBegin("new-client").IsAllowed.Should().BeTrue();
+    }
+
+    [TestMethod]
+    public void Parallel_clients_cannot_exceed_the_table_capacity()
+    {
+        var limiter = CreateLimiter(2, 10000);
+        var decisions = new bool[2048];
+
+        Parallel.For(0, decisions.Length, i => decisions[i] = limiter.TryBegin($"client-{i}").IsAllowed);
+
+        decisions.Count(allowed => allowed).Should().Be(1024);
+    }
+
+    [TestMethod]
+    public void Globally_blocked_clients_do_not_fill_the_client_table()
+    {
+        var limiter = CreateLimiter(10, 1);
+        limiter.TryBegin(FirstClient);
+        for (var i = 0; i < 1024; i++)
+        {
+            limiter.TryBegin($"blocked-client-{i}").IsAllowed.Should().BeFalse();
+        }
+
+        limiter.RecordSuccess(FirstClient);
+
+        limiter.TryBegin(SecondClient).IsAllowed.Should().BeTrue();
+    }
+
     private LoginAttemptLimiter CreateLimiter(int maxAttempts, int globalMaxAttempts)
     {
         var networkAccess = new NetworkAccessOptions
