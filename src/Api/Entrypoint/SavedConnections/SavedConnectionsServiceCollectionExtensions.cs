@@ -22,6 +22,7 @@ public static class SavedConnectionsServiceCollectionExtensions
         services.AddSingleton(ConnectionTestOptions.Default);
         services.AddScoped<ISavedConnectionRepository, SavedConnectionRepository>();
         services.AddScoped<ConnectionPasswordStore>();
+        services.AddScoped<ConnectionSecretCleaner>();
         services.AddScoped<ConnectionTargetFactory>();
         services.AddScoped<SavedConnectionService>();
         services.AddScoped<ConnectionTester>();

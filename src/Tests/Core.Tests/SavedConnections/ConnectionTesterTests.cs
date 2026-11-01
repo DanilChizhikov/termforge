@@ -26,7 +26,7 @@ public sealed class ConnectionTesterTests
         _repository = new InMemorySavedConnectionRepository();
         _credentials = new InMemoryCredentialStore();
         _sessionFactory = Substitute.For<ITerminalSessionFactory>();
-        _service = new SavedConnectionService(_repository, new ConnectionPasswordStore(_credentials), TimeProvider.System);
+        _service = new SavedConnectionService(_repository, new ConnectionPasswordStore(_credentials), new ConnectionSecretCleaner(_credentials), TimeProvider.System);
     }
 
     [TestMethod]
