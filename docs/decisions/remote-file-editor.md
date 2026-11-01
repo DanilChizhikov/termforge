@@ -13,7 +13,7 @@ Remote files open in the Editor workspace tab. Each open file is an inner tab; o
 
 `GET /api/editor/remote/{id}/file?path=` returns the text, a byte order mark flag, permissions and the version: UTC mtime, size and SHA-256 of the content.
 
-- Only regular files open. Symbolic links, directories and other kinds are rejected (`NotAFile`); the user opens the target instead, so the editor never writes through a link.
+- Only regular files open. Symbolic links, including broken links, directories and other kinds are rejected with `NotAFile`; the symbolic-link message asks the user to open the target instead. SFTP reads the entry type from a fresh parent listing instead of resolving the final link.
 - Size limit `Editor:MaxFileBytes` (default 2 MiB) is checked on the attributes and again while reading (`TooLarge`).
 - Binary detection: a NUL byte or invalid UTF-8 rejects the file (`Binary`). A UTF-8 BOM is kept and written back.
 
@@ -39,6 +39,7 @@ A conflict pauses saving and shows the server change with three choices: Compare
 - `GET /api/editor/remote/{id}/backups?path=` lists backups of a file, newest first.
 - `GET /api/editor/remote/{id}/backups/content?path=&name=` reads one backup for comparison.
 - `POST /api/editor/remote/{id}/rollback` with `{ path, backupName, expectedVersion }` restores a backup through the same save pipeline, so the replaced content is backed up too and conflicts are detected. Backup names are validated against the file name, so a request cannot point at another file.
+- Only regular files appear in the backup catalog; links and directories with backup-like names are ignored. SFTP pruning deletes the directory entry returned by the listing without canonicalizing its final component, so replacing a listed backup with a link does not delete the link target.
 
 ## Journal
 
@@ -49,6 +50,7 @@ Every save and rollback is an operation (`file.save`, `file.rollback`) with serv
 - Only UTF-8 text; other encodings are rejected as binary.
 - The version uses the SFTP mtime, which has one second resolution; the content hash covers changes within the same second.
 - There is no lock on the remote file: a change between the version check and the rename is not detected.
+- Entry type checks are snapshots. Concurrent replacement of ancestor directories, or replacement of a file with a link between the type check and reading, is outside the protection provided by path-based SFTP operations.
 - Backups live next to the file and need write access to its directory; read-only directories cannot be saved without sudo (see [privileged-sudo-editing.md](privileged-sudo-editing.md)).
 - Ownership can be preserved only when the session user may `chown`; otherwise the file is written in place after a backup.
 - Merging the server change into the user's version is manual through the diff view.
