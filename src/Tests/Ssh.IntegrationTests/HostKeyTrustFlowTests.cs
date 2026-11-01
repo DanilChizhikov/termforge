@@ -168,6 +168,28 @@ public sealed class HostKeyTrustFlowTests
     }
 
     [TestMethod]
+    public async Task ConnectSftp_WithKnownKeyOfDifferentAlgorithm_RequiresChangedKeyConfirmation()
+    {
+        var cluster = await SshTestEnvironment.RequireClusterAsync();
+        await using var context = HostKeyTrustContext.Create(LongDecisionTimeout);
+        var target = cluster.Target.CreateKeyTarget();
+        var knownKey = new HostKey("ssh-rsa", "SHA256:previous-key");
+        await context.TrustedStore.AddAsync(new HostKeyVerificationRequest(target.Endpoint, knownKey), CancellationToken.None);
+
+        var connectTask = ConnectSftpAsync(context, target);
+        var pending = await context.WaitForPendingAsync(target.Endpoint);
+        var accepted = await context.DecideAsync(pending, HostKeyUserDecision.AcceptAndSave);
+        await context.DecideAsync(pending, HostKeyUserDecision.Reject);
+        var result = await connectTask;
+
+        pending.Challenge.Verification.Status.Should().Be(HostKeyStatus.Changed);
+        pending.Challenge.Verification.KnownHostKeys.Should().Equal(knownKey);
+        accepted.ErrorCode.Should().Be(HostKeyDecisionErrorCode.NotAllowed);
+        result.Error!.Kind.Should().Be(SshErrorKind.HostKeyChanged);
+        context.TrustedStore.GetTrustedHostKeys(target.Endpoint).Should().Equal(knownKey);
+    }
+
+    [TestMethod]
     public async Task OpenTerminal_WithChangedKeyReplacedAfterConfirmation_Connects()
     {
         var cluster = await SshTestEnvironment.RequireClusterAsync();

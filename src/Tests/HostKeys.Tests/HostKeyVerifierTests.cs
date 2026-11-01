@@ -101,7 +101,7 @@ public sealed class HostKeyVerifierTests
     }
 
     [TestMethod]
-    public void Verify_OnlyKeysOfOtherAlgorithmsKnown_IsUnknownAndReportsThem()
+    public void Verify_OnlyKeysOfOtherAlgorithmsKnown_IsChangedAndReportsThem()
     {
         var knownRsaKey = TestPublicKey.CreateRsa();
         WriteKnownHosts(knownRsaKey.ToKnownHostsLine("[server.example]:2222"));
@@ -109,8 +109,35 @@ public sealed class HostKeyVerifierTests
 
         var verification = Verify(presentedKey.HostKey);
 
-        verification.Status.Should().Be(HostKeyStatus.Unknown);
+        verification.Status.Should().Be(HostKeyStatus.Changed);
         verification.KnownHostKeys.Should().Equal(knownRsaKey.HostKey);
+    }
+
+    [TestMethod]
+    public void Verify_AppStoreKeyOfDifferentAlgorithm_IsChanged()
+    {
+        var knownKey = TestPublicKey.CreateRsa().HostKey;
+        _trustedStore.GetTrustedHostKeys(Endpoint).Returns([knownKey]);
+
+        var verification = Verify(TestPublicKey.CreateEd25519().HostKey);
+
+        verification.Status.Should().Be(HostKeyStatus.Changed);
+        verification.KnownHostKeys.Should().Equal(knownKey);
+    }
+
+    [TestMethod]
+    public void GetKnownHostKeys_CombinesMatchingKeysAndIgnoresRevokedAndAuthorityKeys()
+    {
+        var known = TestPublicKey.CreateRsa();
+        var saved = TestPublicKey.CreateEd25519().HostKey;
+        var ignored = TestPublicKey.CreateEd25519();
+        WriteKnownHosts(known.ToKnownHostsLine("[server.example]:2222"),
+            $"@revoked {ignored.ToKnownHostsLine("[server.example]:2222")}",
+            $"@cert-authority {ignored.ToKnownHostsLine("[server.example]:2222")}",
+            ignored.ToKnownHostsLine("other.example"));
+        _trustedStore.GetTrustedHostKeys(Endpoint).Returns([saved, known.HostKey]);
+
+        _verifier.GetKnownHostKeys(Endpoint).Should().Equal(known.HostKey, saved);
     }
 
     [TestMethod]
