@@ -112,7 +112,7 @@ public sealed class DockerCommandsTests
 
         var command = DockerCommands.Compose(ComposeAction.Recreate, project, labels);
 
-        const string compose = "docker compose -p 'shop' --project-directory '/srv/my shop' -f '/srv/my shop/compose.yml' -f '/srv/my shop/o'\\''verride.yml'";
+        const string compose = "docker compose -p 'shop' --project-directory '/srv/my shop' -f '/srv/my shop/compose.yml' -f '/srv/my shop/o'\"'\"'verride.yml'";
         command.Should().Be($"{compose} down && {compose} up -d");
     }
 
