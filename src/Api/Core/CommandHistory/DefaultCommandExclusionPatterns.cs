@@ -10,5 +10,10 @@ public static class DefaultCommandExclusionPatterns
         @"(?i)authorization:\s*(bearer|basic)\s",
         @"(?i)://[^/\s:@]+:[^/\s@]+@",
         @"(?i)^(mysql|mysqldump|mysqladmin|mariadb)\b.*\s-p\S",
+        @"\bsshpass\b.*\s['""]?-p",
+        @"\bdocker\s+login\b.*\s['""]?(?:-p|--password(?:[=\s'""]|$))",
+        @"\bcurl\b.*\s['""]?(?:-u|--user(?:[=\s'""]|$))",
+        @"\bhtpasswd\b.*\s['""]?-[A-Za-z]*b",
+        @"\bsudo\b.*\s['""]?-[A-Za-z]*S",
     ];
 }

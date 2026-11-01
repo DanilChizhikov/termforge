@@ -1,7 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CommandHistoryEntry } from '../api/commandHistory';
+import type { CommandHistoryEntry, ShellIntegration } from '../api/commandHistory';
 import { CommandHistoryPanel } from './CommandHistoryPanel';
 
 const mocks = vi.hoisted(() => ({
@@ -29,11 +29,12 @@ function entry(overrides: Partial<CommandHistoryEntry>): CommandHistoryEntry {
   };
 }
 
-function renderPanel(onInsert = vi.fn()) {
+function renderPanel(onInsert = vi.fn(), terminalId: string | null = 't1') {
   render(
     <CommandHistoryPanel
       connectionId="c1"
       connectionName="web-01"
+      terminalId={terminalId}
       version={0}
       onInsert={onInsert}
       onCollapse={vi.fn()}
@@ -124,7 +125,31 @@ describe('CommandHistoryPanel', () => {
     await userEvent.click(screen.getByRole('button', { name: 'bash' }));
 
     await waitFor(() => expect(onInsert).toHaveBeenCalledWith(' __tf_e(){ :; }'));
-    expect(mocks.getShellIntegration).toHaveBeenCalledWith('bash');
+    expect(mocks.getShellIntegration).toHaveBeenCalledWith('bash', 't1');
+  });
+
+  it('disables shell integration when there is no connected terminal', async () => {
+    renderPanel(vi.fn(), null);
+    await screen.findByLabelText('Search history');
+
+    expect(screen.getByRole('button', { name: 'bash' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'zsh' })).toBeDisabled();
+    expect(mocks.getShellIntegration).not.toHaveBeenCalled();
+  });
+
+  it('does not insert a pending snippet after switching terminals', async () => {
+    let complete!: (integration: ShellIntegration) => void;
+    mocks.getShellIntegration.mockReturnValue(new Promise<ShellIntegration>((resolve) => { complete = resolve; }));
+    const onInsert = vi.fn();
+    const props = { connectionId: 'c1', connectionName: 'web-01', version: 0, onInsert, onCollapse: vi.fn() };
+    const panel = render(<CommandHistoryPanel {...props} terminalId="t1" />);
+    await screen.findByLabelText('Search history');
+    await userEvent.click(screen.getByRole('button', { name: 'bash' }));
+
+    panel.rerender(<CommandHistoryPanel {...props} terminalId="t2" />);
+    await act(async () => { complete({ shell: 'bash', snippet: ' old-session-snippet' }); });
+
+    expect(onInsert).not.toHaveBeenCalled();
   });
 
   it('explains why history is empty and shows load failures', async () => {

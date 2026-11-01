@@ -12,7 +12,7 @@ internal sealed class TerminalWebSocketBridge(TerminalSessionManager sessionMana
     {
         using var writer = new TerminalSocketWriter(webSocket);
         using var relayStop = CancellationTokenSource.CreateLinkedTokenSource(requestAborted);
-        var capture = captureFactory.Create(session.Descriptor.ConnectionId);
+        var capture = captureFactory.Create(session);
         var context = new TerminalRelayContext(webSocket, session, writer, capture);
         var connected = TerminalServerMessage.Connected();
         await TrySendAsync(writer, connected, relayStop.Token);
