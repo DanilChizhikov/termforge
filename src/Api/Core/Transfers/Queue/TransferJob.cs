@@ -6,6 +6,9 @@ public sealed class TransferJob
 {
     private readonly Lock _gate = new();
     private readonly CancellationTokenSource _cancellation = new();
+    private readonly CancellationToken _cancellationToken;
+    private bool _processingFinished;
+    private int _cancelCalls;
     private OperationStatus _status = OperationStatus.Queued;
     private long _completedBytes;
     private long _currentFileBytes;
@@ -25,6 +28,7 @@ public sealed class TransferJob
         Id = id;
         Request = request;
         TargetPath = targetPath;
+        _cancellationToken = _cancellation.Token;
     }
 
     public Guid Id { get; }
@@ -37,7 +41,33 @@ public sealed class TransferJob
 
     public long Sequence { get; internal set; }
 
-    public CancellationToken CancellationToken => _cancellation.Token;
+    public CancellationToken CancellationToken => _cancellationToken;
+
+    public bool ProcessingFinished
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _processingFinished;
+            }
+        }
+    }
+
+    public void FinishProcessing()
+    {
+        lock (_gate)
+        {
+            if (!_processingFinished)
+            {
+                _processingFinished = true;
+                if (_cancelCalls == 0)
+                {
+                    _cancellation.Dispose();
+                }
+            }
+        }
+    }
 
     public int Version
     {
@@ -113,6 +143,11 @@ public sealed class TransferJob
     {
         lock (_gate)
         {
+            if (_processingFinished)
+            {
+                return TransferCancelOutcome.AlreadyFinished;
+            }
+
             if (_status == OperationStatus.Queued)
             {
                 _status = OperationStatus.Cancelled;
@@ -124,10 +159,26 @@ public sealed class TransferJob
             {
                 return TransferCancelOutcome.AlreadyFinished;
             }
+
+            _cancelCalls++;
         }
 
-        _cancellation.Cancel();
-        return TransferCancelOutcome.CancellationRequested;
+        try
+        {
+            _cancellation.Cancel();
+            return TransferCancelOutcome.CancellationRequested;
+        }
+        finally
+        {
+            lock (_gate)
+            {
+                _cancelCalls--;
+                if (_processingFinished && _cancelCalls == 0)
+                {
+                    _cancellation.Dispose();
+                }
+            }
+        }
     }
 
     public void Plan(long totalBytes, int totalFiles)

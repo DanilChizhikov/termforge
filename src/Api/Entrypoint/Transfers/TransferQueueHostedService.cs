@@ -88,6 +88,10 @@ internal sealed class TransferQueueHostedService : BackgroundService
             _logger.LogError(exception, $"Transfer {job.Id} stopped unexpectedly: {exception.GetType().Name}");
             await FailSafelyAsync(job, exception);
         }
+        finally
+        {
+            await _control.FinishAsync(job);
+        }
     }
 
     private async Task FailSafelyAsync(TransferJob job, Exception exception)

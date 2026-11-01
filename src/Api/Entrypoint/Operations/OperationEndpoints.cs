@@ -62,15 +62,30 @@ public static class OperationEndpoints
         return Results.Ok(response);
     }
 
-    private static async Task<IResult> Retry(Guid id, IOperationJournal journal, CancellationToken cancellationToken)
+    private static async Task<IResult> Retry(Guid id, IOperationJournal journal, HttpContext context)
     {
         try
         {
-            await journal.Retry(id, cancellationToken);
+            var options = context.Request.HasJsonContentType() && context.Request.ContentLength != 0
+                ? await context.Request.ReadFromJsonAsync<OperationRetryOptions>(context.RequestAborted)
+                : null;
+            if (options is null)
+            {
+                await journal.Retry(id, context.RequestAborted);
+            }
+            else
+            {
+                await journal.Retry(id, options, context.RequestAborted);
+            }
         }
         catch (OperationException exception)
         {
             return OperationErrorResults.ToProblem(exception);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            var invalid = new OperationException(OperationFailure.InvalidRequest, "The retry request must contain valid JSON.");
+            return OperationErrorResults.ToProblem(invalid);
         }
 
         return Results.Accepted();
