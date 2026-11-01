@@ -127,7 +127,7 @@ A dev server (e.g. Vite) works without backend changes:
 4. Origin and `Sec-Fetch-Site` validation → `403`.
 5. Browser session: required for `/api/*` (except the bootstrap exchange and `/api/session/login`) and every WebSocket → `401`.
 6. CSRF: required for every `POST`/`PUT`/`PATCH`/`DELETE` (except the bootstrap exchange, the password sign-in and `/mcp`) → `403`.
-7. AI bridge token for `/mcp`: non-loopback client → `403`, bridge turned off → `404`, missing or wrong bearer token → `401`.
+7. AI bridge token for `/mcp`: non-loopback client or `Host` → `403`, bridge turned off → `404`, missing or wrong bearer token → `401`.
 8. Bootstrap, session and sign-in endpoints.
 
 New endpoints are protected automatically when they are mapped under `/api`. Endpoints that read the session can use `context.Features.Get<BrowserSession>()`.
@@ -229,6 +229,7 @@ With `NetworkAccess:AllowInsecureHttp=true` it starts, logs a `Critical` "INSECU
 - Single user and a single password; no accounts, roles or two-factor authentication.
 - Terminal sessions belong to the browser session that opened them. Signing out or session expiry makes them unreachable but does not close them; they are closed on application exit.
 - Attempt counters and sessions live in memory: a restart resets lockouts and signs everybody out.
+- At most 1024 password sign-in clients are tracked. When all entries are still active, new clients receive `429` until an entry expires or a successful sign-in releases it. Requests rejected by the global lockout do not allocate client entries.
 - A global lockout caused by an attacker also blocks the owner's password sign-in from other devices until it expires; the local launch link still works.
 - Behind a reverse proxy the client address is the proxy, so all clients share one per-client counter; forwarded headers are not trusted. The proxy must keep the original `Host` and `Origin`.
 - TermForge does not create certificates. Use a certificate trusted by the client devices (for example from a private CA); a self-signed certificate makes browsers warn on every visit.
