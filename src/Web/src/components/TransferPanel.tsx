@@ -10,7 +10,6 @@ import {
   isActive,
   parentDirectoryOf,
   percentOf,
-  retryTransfer,
   type TransferRecord,
 } from '../api/transfers';
 import {
@@ -18,6 +17,7 @@ import {
   dismissConflict,
   dismissTransferError,
   reportTransferError,
+  requestTransferRetry,
   useTransfersState,
 } from '../state/transfers';
 import { activateWorkspaceTab } from '../state/workspaceTab';
@@ -89,7 +89,13 @@ function TransferCard({ transfer }: { transfer: TransferRecord }) {
           </button>
         )}
         {resumable && (
-          <button type="button" className="btn btn-xs btn-safe" onClick={() => run(() => retryTransfer(transfer.id))}>
+          <button type="button" className="btn btn-xs btn-safe" onClick={() => run(() => requestTransferRetry(transfer.id, {
+            connectionId: transfer.connectionId,
+            direction: transfer.direction,
+            sourcePaths: [transfer.sourcePath],
+            targetDirectory: transfer.targetDirectory ?? parentDirectoryOf(transfer.targetPath),
+            overwrite: false,
+          }))}>
             {transfer.partialBytes > 0 ? 'Resume' : 'Retry'}
           </button>
         )}

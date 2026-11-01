@@ -12,7 +12,7 @@ public sealed class ConfirmationIssuer(ISavedConnectionRepository repository, IC
             return new ConfirmationIssueResult(ConfirmationIssueStatus.ConnectionNotFound, null, null);
         }
 
-        if (connection.Details.ReadOnly)
+        if (connection.Details.ReadOnly && scope.Operation != DangerousOperation.LocalTransferOverwrite)
         {
             return new ConfirmationIssueResult(ConfirmationIssueStatus.ReadOnlyServer, null, connection.Details.Name);
         }

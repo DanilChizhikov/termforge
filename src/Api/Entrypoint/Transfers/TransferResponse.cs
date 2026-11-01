@@ -16,6 +16,8 @@ public sealed record TransferResponse
 
     public required string TargetPath { get; init; }
 
+    public required string TargetDirectory { get; init; }
+
     public required string Status { get; init; }
 
     public required long TransferredBytes { get; init; }
@@ -47,6 +49,7 @@ public sealed record TransferResponse
             Direction = snapshot.Request.Direction.ToString().ToLowerInvariant(),
             SourcePath = snapshot.Request.SourcePath,
             TargetPath = snapshot.TargetPath,
+            TargetDirectory = snapshot.Request.TargetDirectory,
             Status = snapshot.Status.ToString().ToLowerInvariant(),
             TransferredBytes = progress.TransferredBytes,
             TotalBytes = progress.TotalBytes,

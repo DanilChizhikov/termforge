@@ -11,4 +11,5 @@ public enum DangerousOperation
     ComposeRecreate,
     FileRollback,
     TransferOverwrite,
+    LocalTransferOverwrite,
 }

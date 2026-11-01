@@ -1,10 +1,13 @@
 import { useSyncExternalStore } from 'react';
 import { describeFileError } from '../api/files';
-import { startTransfers, type TransferRecord, type TransferStartRequest } from '../api/transfers';
+import { apiClient } from '../api/client';
+import { requestConfirmationToken } from '../api/confirmations';
+import { readConflicts, retryTransfer, startTransfers, type TransferRecord, type TransferStartRequest } from '../api/transfers';
 
 export interface PendingConflict {
   request: TransferStartRequest;
   conflicts: string[];
+  retryId?: string;
 }
 
 export interface TransfersState {
@@ -82,7 +85,31 @@ export async function confirmOverwrite(): Promise<void> {
     return;
   }
   update({ pendingConflict: null });
+  if (pending.retryId !== undefined) {
+    await requestTransferRetry(pending.retryId, { ...pending.request, overwrite: true });
+    return;
+  }
   await requestTransfers({ ...pending.request, overwrite: true });
+}
+
+export async function requestTransferRetry(id: string, request: TransferStartRequest): Promise<void> {
+  update({ error: null });
+  try {
+    const options: { overwrite: boolean; confirmationToken?: string } = { overwrite: request.overwrite };
+    if (request.overwrite) {
+      const operation = request.direction === 'upload' ? 'TransferOverwrite' : 'LocalTransferOverwrite';
+      const scope = { operation, connectionId: request.connectionId, target: request.targetDirectory } as const;
+      options.confirmationToken = await requestConfirmationToken(scope);
+    }
+    await retryTransfer(id, apiClient, options);
+  } catch (error) {
+    const conflicts = readConflicts(error);
+    if (conflicts !== null) {
+      update({ pendingConflict: { request, conflicts, retryId: id } });
+      return;
+    }
+    reportTransferError(error);
+  }
 }
 
 export function dismissConflict(): void {

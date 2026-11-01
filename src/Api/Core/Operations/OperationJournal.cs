@@ -99,7 +99,13 @@ public sealed class OperationJournal : IOperationJournal
         return _repository.Query(normalized, cancellationToken);
     }
 
-    public async Task Retry(Guid id, CancellationToken cancellationToken)
+    public Task Retry(Guid id, CancellationToken cancellationToken)
+    {
+        var options = new OperationRetryOptions();
+        return Retry(id, options, cancellationToken);
+    }
+
+    public async Task Retry(Guid id, OperationRetryOptions options, CancellationToken cancellationToken)
     {
         var operation = await Load(id, cancellationToken);
         var isRetryableState = operation.Status is OperationStatus.Failed or OperationStatus.Cancelled;
@@ -113,7 +119,14 @@ public sealed class OperationJournal : IOperationJournal
             throw new OperationException(OperationFailure.NoRetryHandler, $"no retry handler is registered for operations of kind '{operation.Kind}'.");
         }
 
-        await handler.Retry(operation, cancellationToken);
+        if (options.Overwrite)
+        {
+            await handler.Retry(operation, options, cancellationToken);
+        }
+        else
+        {
+            await handler.Retry(operation, cancellationToken);
+        }
     }
 
     private static Dictionary<string, IOperationRetryHandler> IndexHandlers(IEnumerable<IOperationRetryHandler> handlers)

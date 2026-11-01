@@ -168,6 +168,48 @@ public sealed class OperationEndpointsTests
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
+    [TestMethod]
+    public async Task Retry_with_overwrite_passes_fresh_confirmation_to_handler()
+    {
+        var session = await Authenticate();
+        var created = await CreateOperation("transfer", "web-1", true);
+        await FailOperation(created.Id);
+        var body = new OperationRetryOptions(true, "fresh-confirmation");
+        var request = TestRequest.Post($"{ListPath}/{created.Id}/retry")
+            .WithSession(session)
+            .WithOrigin(TermForgeApplicationFactory.ApplicationOrigin)
+            .WithCsrfToken(session.CsrfToken)
+            .WithJson(body);
+
+        using var response = await request.SendAsync(_client, TestContext.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        await _retryHandler.Received(1).Retry(
+            Arg.Is<Operation>(operation => operation.Id == created.Id),
+            Arg.Is<OperationRetryOptions>(options => options.Overwrite && options.ConfirmationToken == "fresh-confirmation"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [TestMethod]
+    public async Task Retry_conflict_returns_target_paths_in_problem_response()
+    {
+        var session = await Authenticate();
+        var created = await CreateOperation("transfer", "web-1", true);
+        await FailOperation(created.Id);
+        var conflict = new OperationException(OperationFailure.TransferConflict, "Target exists.")
+        {
+            Conflicts = ["/srv/a.txt"],
+        };
+        _retryHandler.Retry(Arg.Any<Operation>(), Arg.Any<CancellationToken>()).Returns(_ => throw conflict);
+
+        using var response = await SendRetry(session, created.Id);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.CancellationToken);
+        body.GetProperty("code").GetString().Should().Be("TransferConflict");
+        body.GetProperty("conflicts")[0].GetString().Should().Be("/srv/a.txt");
+    }
+
     private async Task<AuthenticatedSession> Authenticate()
     {
         return await SessionBootstrapper.AuthenticateAsync(_factory, _client, TestContext.CancellationToken);

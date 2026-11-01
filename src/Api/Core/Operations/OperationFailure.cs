@@ -7,4 +7,7 @@ public enum OperationFailure
     InvalidRequest,
     NotRetryable,
     NoRetryHandler,
+    TransferConflict,
+    ConfirmationRequired,
+    ReadOnlyServer,
 }

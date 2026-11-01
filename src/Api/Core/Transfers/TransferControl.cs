@@ -35,6 +35,15 @@ public sealed class TransferControl
         return snapshots;
     }
 
+    public async Task FinishAsync(TransferJob job)
+    {
+        var removed = _queue.Finish(job);
+        for (var i = 0; i < removed.Count; i++)
+        {
+            await _notifier.TransferRemoved(removed[i], CancellationToken.None);
+        }
+    }
+
     public async Task<TransferCancelOutcome> CancelAsync(Guid id)
     {
         var job = _queue.Find(id);

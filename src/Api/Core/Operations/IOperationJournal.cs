@@ -19,4 +19,6 @@ public interface IOperationJournal
     Task<OperationPage> List(OperationQuery query, CancellationToken cancellationToken);
 
     Task Retry(Guid id, CancellationToken cancellationToken);
+
+    Task Retry(Guid id, OperationRetryOptions options, CancellationToken cancellationToken);
 }
