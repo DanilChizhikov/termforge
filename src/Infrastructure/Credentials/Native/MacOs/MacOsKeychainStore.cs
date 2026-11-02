@@ -15,28 +15,32 @@ public sealed unsafe class MacOsKeychainStore : IOperatingSystemCredentialStore
 
     public CredentialStoreAvailability CheckPrerequisites()
     {
-        if (!NativeLibrary.TryLoad(SecurityFramework.LibraryPath, out _))
+        if (!NativeLibrary.TryLoad(SecurityFramework.LibraryPath, out var handle))
         {
             return CredentialStoreAvailability.Unavailable(Name, $"Security.framework could not be loaded from {SecurityFramework.LibraryPath}.");
         }
 
+        NativeLibrary.Free(handle);
         return CredentialStoreAvailability.Available(Name);
     }
 
     public Task<CredentialResult> Store(CredentialKey key, Secret secret, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var result = StoreItem(key, secret);
         return Task.FromResult(result);
     }
 
     public Task<CredentialResult<Secret>> Read(CredentialKey key, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var result = ReadItem(key);
         return Task.FromResult(result);
     }
 
     public Task<CredentialResult> Delete(CredentialKey key, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var result = DeleteItem(key);
         return Task.FromResult(result);
     }
@@ -82,7 +86,6 @@ public sealed unsafe class MacOsKeychainStore : IOperatingSystemCredentialStore
         using var query = CreateItemQuery(key);
         query.Add(constants.ReturnData, constants.BooleanTrue);
         query.Add(constants.MatchLimit, constants.MatchLimitOne);
-        query.Add(constants.UseAuthenticationUi, constants.UseAuthenticationUiFail);
         var queryDictionary = query.Build();
         var status = SecurityFramework.SecItemCopyMatching(queryDictionary, out var data);
         if (status != SecurityFramework.StatusSuccess)
@@ -119,13 +122,14 @@ public sealed unsafe class MacOsKeychainStore : IOperatingSystemCredentialStore
         return CredentialResult.Failure(error);
     }
 
-    private CoreFoundationDictionaryBuilder CreateItemQuery(CredentialKey key)
+    internal CoreFoundationDictionaryBuilder CreateItemQuery(CredentialKey key)
     {
         var constants = _constants.Value;
         var builder = new CoreFoundationDictionaryBuilder(constants);
         builder.Add(constants.Class, constants.ClassGenericPassword);
         builder.AddString(constants.AttributeService, ServiceName);
         builder.AddString(constants.AttributeAccount, key.Value);
+        builder.Add(constants.UseAuthenticationUi, constants.UseAuthenticationUiFail);
         return builder;
     }
 
