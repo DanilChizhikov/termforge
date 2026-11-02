@@ -118,10 +118,8 @@ internal sealed class SettingsTransferApiHarness : IAsyncDisposable
 
     private void ReplaceServices(IServiceCollection services)
     {
-        services.RemoveAll<ICredentialStore>();
         services.RemoveAll<IUncoordinatedCredentialStore>();
         services.AddSingleton<IUncoordinatedCredentialStore>(CredentialStore);
-        services.AddSingleton<ICredentialStore, CoordinatedCredentialStore>();
         _configureServices?.Invoke(services);
     }
 }

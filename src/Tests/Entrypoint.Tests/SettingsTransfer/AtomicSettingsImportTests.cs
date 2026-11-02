@@ -162,7 +162,8 @@ public sealed class AtomicSettingsImportTests
         var package = Convert.FromBase64String(export.GetProperty("file").GetProperty("contentBase64").GetString()!);
         var key = export.GetProperty("key").GetString()!;
         var sections = new DTech.Core.SettingsTransfer.SettingsSections(true, true, true, true);
-        var options = new SettingsImportOptions(ImportMode.Merge, sections, []);
+        var resolutions = new Dictionary<Guid, ConnectionConflictResolution>();
+        var options = new SettingsImportOptions(ImportMode.Merge, sections, resolutions);
         var request = new SettingsImportRequest(package, key, options);
         using var cancellation = new CancellationTokenSource();
         target.CredentialStore.OnStore = token =>

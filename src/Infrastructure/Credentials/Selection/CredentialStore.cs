@@ -2,31 +2,40 @@ using DTech.Core.Credentials;
 
 namespace DTech.Credentials.Selection;
 
-public sealed class CredentialStore(CredentialBackendSelector selector) : IUncoordinatedCredentialStore
+public sealed class CredentialStore : ICredentialStore, IDisposable
 {
-    public async Task<CredentialResult> Store(CredentialKey key, Secret secret, CancellationToken cancellationToken)
+    private readonly CoordinatedCredentialStore _store;
+    private readonly CredentialMutationCoordinator? _ownedCoordinator;
+
+    public CredentialStore(CoordinatedCredentialStore store)
     {
-        var selection = await selector.Select(cancellationToken);
-        return await selection.Store.Store(key, secret, cancellationToken);
+        _store = store;
     }
 
-    public async Task<CredentialResult<Secret>> Read(CredentialKey key, CancellationToken cancellationToken)
+    public CredentialStore(CredentialBackendSelector selector)
     {
-        var selection = await selector.Select(cancellationToken);
-        var result = await selection.Store.Read(key, cancellationToken);
-        if (!result.IsSuccess && result.Error.Code == CredentialErrorCode.NotFound &&
-            selection.Backend == CredentialBackend.EncryptedVault && !selection.OperatingSystemStore.IsAvailable)
-        {
-            var error = CredentialErrors.StoreUnavailable($"The credential is absent from the selected vault, while the operating system credential store is unavailable. {selection.Reason}");
-            return CredentialResult<Secret>.Failure(error);
-        }
-
-        return result;
+        var backend = new CredentialBackendStore(selector);
+        _ownedCoordinator = new CredentialMutationCoordinator();
+        _store = new CoordinatedCredentialStore(backend, _ownedCoordinator);
     }
 
-    public async Task<CredentialResult> Delete(CredentialKey key, CancellationToken cancellationToken)
+    public Task<CredentialResult> Store(CredentialKey key, Secret secret, CancellationToken cancellationToken)
     {
-        var selection = await selector.Select(cancellationToken);
-        return await selection.Store.Delete(key, cancellationToken);
+        return _store.Store(key, secret, cancellationToken);
+    }
+
+    public Task<CredentialResult<Secret>> Read(CredentialKey key, CancellationToken cancellationToken)
+    {
+        return _store.Read(key, cancellationToken);
+    }
+
+    public Task<CredentialResult> Delete(CredentialKey key, CancellationToken cancellationToken)
+    {
+        return _store.Delete(key, cancellationToken);
+    }
+
+    public void Dispose()
+    {
+        _ownedCoordinator?.Dispose();
     }
 }

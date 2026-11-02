@@ -45,8 +45,8 @@ public sealed class PinnedCommandImportTests
         added.Should().Be(1201);
         repeated.Should().Be(0);
         saves.Should().Be(1);
-        var rows = database.Query("SELECT Command, IsPinned FROM command_history");
+        var rows = database.Query("SELECT command, is_pinned FROM command_history");
         rows.Should().HaveCount(1201);
-        rows.Should().OnlyContain(row => Convert.ToInt64(row["IsPinned"]) == 1);
+        rows.Should().OnlyContain(row => Convert.ToInt64(row["is_pinned"]) == 1);
     }
 }
