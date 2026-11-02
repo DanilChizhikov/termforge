@@ -6,6 +6,7 @@ namespace DTech.Entrypoint.Terminals;
 
 internal sealed class TerminalSocketWriter(WebSocket webSocket) : IDisposable
 {
+    private static readonly TimeSpan SendTimeout = TimeSpan.FromSeconds(10);
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -47,13 +48,20 @@ internal sealed class TerminalSocketWriter(WebSocket webSocket) : IDisposable
 
     private async Task SendAsync(ReadOnlyMemory<byte> payload, WebSocketMessageType messageType, CancellationToken cancellationToken)
     {
-        await _sendLock.WaitAsync(cancellationToken);
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(SendTimeout);
+        await _sendLock.WaitAsync(deadline.Token);
         try
         {
             if (webSocket.State is WebSocketState.Open or WebSocketState.CloseReceived)
             {
-                await webSocket.SendAsync(payload, messageType, true, cancellationToken);
+                await webSocket.SendAsync(payload, messageType, true, deadline.Token);
             }
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            webSocket.Abort();
+            throw;
         }
         finally
         {
