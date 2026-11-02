@@ -35,6 +35,7 @@ public sealed class OperationRealtimeTests
         using var client = factory.CreateClientWithoutCookies();
         var session = await SessionBootstrapper.AuthenticateAsync(factory, client, TestContext.CancellationToken);
         var webSocketClient = CreateWebSocketClient(factory, "http://attacker.example", session.CookieHeader);
+        webSocketClient.SubProtocols.Add($"termforge.{session.CsrfToken}");
 
         var connect = () => webSocketClient.ConnectAsync(ChannelUri, TestContext.CancellationToken);
 
@@ -48,6 +49,7 @@ public sealed class OperationRealtimeTests
         using var client = factory.CreateClientWithoutCookies();
         var session = await SessionBootstrapper.AuthenticateAsync(factory, client, TestContext.CancellationToken);
         var webSocketClient = CreateWebSocketClient(factory, TermForgeApplicationFactory.ApplicationOrigin, session.CookieHeader);
+        webSocketClient.SubProtocols.Add($"termforge.{session.CsrfToken}");
         using var webSocket = await webSocketClient.ConnectAsync(ChannelUri, TestContext.CancellationToken);
 
         using var scope = factory.Services.CreateScope();

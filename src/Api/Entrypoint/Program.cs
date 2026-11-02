@@ -3,6 +3,12 @@ using DTech.Entrypoint.Security;
 using DTech.Entrypoint.Security.Network;
 using DTech.Entrypoint.SpaHosting;
 using DTech.Persistence;
+using DTech.Credentials.Native.Processes;
+
+if (await CredentialHelperCommand.TryRunAsync(args))
+{
+    return;
+}
 
 if (PasswordHashCommand.TryRun(args))
 {
@@ -38,6 +44,7 @@ builder.Services.AddAiBridge(builder.Configuration);
 
 var app = builder.Build();
 await app.MigrateDatabaseAsync();
+await app.RecoverOperationsAsync();
 app.UseLocalHostSecurity();
 app.UseApplicationLifecycle();
 app.MapApplicationLifecycle();

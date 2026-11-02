@@ -1,6 +1,7 @@
 using System.Text;
 using DTech.Core.Connections;
 using DTech.Core.Credentials;
+using DTech.Core.Diagnostics;
 using DTech.Core.Editor;
 using DTech.Core.Editor.Sudo;
 using DTech.Core.Files;
@@ -42,7 +43,8 @@ public sealed class SudoRemoteEditorFileClientTests
         attributes.IsSuccess.Should().BeTrue(attributes.Error?.Message);
         attributes.Value.Mode.Should().Be(0b110_100_100);
         var command = _runner.Commands.Should().ContainSingle().Subject;
-        command.Text.Should().StartWith("LC_ALL=C sudo -S -p '' stat -c");
+        var expected = ShellScript.Wrap("LC_ALL=C sudo -S -p '' stat -c '%f %s %Y %u %g' -- '/etc/nginx/site.conf'");
+        command.Text.Should().Be(expected);
         command.Text.Should().NotContain(Password);
         command.InputText.Should().Be($"{Password}\n");
     }
@@ -66,7 +68,8 @@ public sealed class SudoRemoteEditorFileClientTests
         var read = await _client.ReadAsync(request, TestContext.CancellationToken);
 
         Encoding.UTF8.GetString(read.Value).Should().Be("listen 80;\n");
-        _runner.Commands[0].Text.Should().Contain("head -c 1025 -- '/etc/nginx/site.conf'");
+        var expected = ShellScript.Wrap("LC_ALL=C sudo -S -p '' head -c 1025 -- '/etc/nginx/site.conf'");
+        _runner.Commands[0].Text.Should().Be(expected);
     }
 
     [TestMethod]
@@ -89,8 +92,11 @@ public sealed class SudoRemoteEditorFileClientTests
         stage.Text.Should().NotContain("sudo");
         stage.InputText.Should().Be("new=1\n");
         var install = _runner.Commands[1];
-        install.Text.Should().StartWith("LC_ALL=C sudo -S -p '' sh -c ");
-        install.Text.Should().Contain($"termforge-install '{StagedPath}' '{TargetPath}' 640 33 4; status=$?; rm -f -- '{StagedPath}'; exit $status");
+        var quotedPrefix = ShellArgument.Quote("LC_ALL=C sudo -S -p '' sh -c ");
+        var expectedPrefix = $"sh -c {quotedPrefix[..^1]}";
+        var quotedSuffix = ShellArgument.Quote($"termforge-install '{StagedPath}' '{TargetPath}' 640 33 4; status=$?; rm -f -- '{StagedPath}'; exit $status");
+        install.Text.Should().StartWith(expectedPrefix);
+        install.Text.Should().EndWith(quotedSuffix[1..]);
         install.InputText.Should().Be($"{Password}\n");
         _runner.Commands.Should().OnlyContain(command => !command.Text.Contains(Password));
     }
@@ -144,7 +150,8 @@ public sealed class SudoRemoteEditorFileClientTests
         var replaced = await _client.ReplaceAtomicallyAsync(request, TestContext.CancellationToken);
 
         replaced.Value.Should().Be(AtomicReplaceOutcome.Replaced);
-        _runner.Commands[0].Text.Should().Contain("termforge-move '/etc/nginx/.site.conf.termforge-1.tmp' '/etc/nginx/site.conf'");
+        var quotedArguments = ShellArgument.Quote("termforge-move '/etc/nginx/.site.conf.termforge-1.tmp' '/etc/nginx/site.conf'");
+        _runner.Commands[0].Text.Should().EndWith(quotedArguments[1..]);
     }
 
     [TestMethod]

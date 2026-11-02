@@ -34,4 +34,7 @@ internal static unsafe partial class CoreFoundation
 
     [LibraryImport(LibraryPath)]
     public static partial IntPtr CFDictionaryCreate(IntPtr allocator, IntPtr* keys, IntPtr* values, nint count, IntPtr keyCallBacks, IntPtr valueCallBacks);
+
+    [LibraryImport(LibraryPath)]
+    public static partial IntPtr CFDictionaryGetValue(IntPtr dictionary, IntPtr key);
 }

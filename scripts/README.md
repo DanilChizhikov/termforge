@@ -3,10 +3,10 @@
 ---
 script: run.sh
 
-description: Builds the frontend and the backend and starts TermForge on `http://127.0.0.1:5023`; the backend opens the browser with a one-time launch link. Dev mode runs the backend in the background and the Vite dev server with hot reload on `http://127.0.0.1:5173`.
+description: Builds the frontend and the backend and starts TermForge on `http://127.0.0.1:5023`; the backend opens a private launch file in the browser. Dev mode starts Vite first, then bootstraps the browser directly on `http://127.0.0.1:5173` with hot reload.
 
 Options:
-- `-d` dev mode: backend in background + Vite dev server; open `http://127.0.0.1:5173` in the browser the backend opened
+- `-d` dev mode: backend in background + Vite dev server; the browser opens and authenticates directly on `http://127.0.0.1:5173`
 - `-s` skip the frontend build and serve the existing `src/Api/Entrypoint/wwwroot`
 - `-c` force `npm ci` even if `node_modules` is up to date
 - `-h` show usage
@@ -50,7 +50,7 @@ ___
 ---
 script: smoke-test.sh
 
-description: Starts a published TermForge with a temporary database, captures the one-time launch link through a fake browser command, creates a browser session, checks `GET /api/session` and the bundled frontend, prints the active credential store, requests exit through `POST /api/lifecycle/exit` and expects exit code 0.
+description: Starts a published TermForge with a temporary database, captures the private launch file through a fake browser command, exchanges its token and checks that the file is deleted. Checks authenticated and cookie-only `GET /api/session`, the bundled frontend and credential status, then requests exit through `POST /api/lifecycle/exit` and expects exit code 0.
 
 Options:
 - `-p` port on `127.0.0.1` (default: `5099`)

@@ -25,7 +25,7 @@ internal sealed class WebSocketProbeStartupFilter : IStartupFilter
 
     private static async Task AcceptAndCloseAsync(HttpContext context)
     {
-        using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
+        using var webSocket = await context.AcceptBrowserWebSocketAsync();
         await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "probe", context.RequestAborted);
     }
 }

@@ -24,11 +24,7 @@ internal static class SessionBootstrapper
         exchangeResponse.EnsureSuccessStatusCode();
         var sessionToken = ReadSessionToken(exchangeResponse);
 
-        using var sessionResponse = await TestRequest.Get(SessionPath)
-            .WithCookie($"{SessionCookiePrefix}{sessionToken}")
-            .SendAsync(client, cancellationToken);
-        sessionResponse.EnsureSuccessStatusCode();
-        var sessionBody = await sessionResponse.Content.ReadFromJsonAsync<SessionBody>(cancellationToken);
+        var sessionBody = await exchangeResponse.Content.ReadFromJsonAsync<SessionBody>(cancellationToken);
         return new AuthenticatedSession(sessionToken, sessionBody!.CsrfToken);
     }
 

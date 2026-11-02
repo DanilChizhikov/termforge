@@ -1,4 +1,5 @@
 using DTech.Core.Credentials;
+using DTech.Core.Diagnostics;
 using DTech.Core.Editor;
 using DTech.Core.Editor.Sudo;
 using FluentAssertions;
@@ -33,7 +34,8 @@ public sealed class SudoEditorSessionOpenerTests
         opened.IsSuccess.Should().BeTrue(opened.Error?.Message);
         opened.Value.ServerName.Should().Be(SudoEditorTestGraph.ServerName);
         var authentication = _graph.Runner.Commands.Should().ContainSingle().Subject;
-        authentication.Text.Should().Be("LC_ALL=C sudo -S -p '' true");
+        var expected = ShellScript.Wrap("LC_ALL=C sudo -S -p '' true");
+        authentication.Text.Should().Be(expected);
         authentication.InputText.Should().Be($"{Password}\n");
         _graph.Credentials.Secrets.Should().BeEmpty();
         await opened.Value.DisposeAsync();
@@ -62,7 +64,8 @@ public sealed class SudoEditorSessionOpenerTests
 
         opened.Error!.Code.Should().Be(EditorErrorCode.SudoPasswordRequired);
         var authentication = _graph.Runner.Commands.Should().ContainSingle().Subject;
-        authentication.Text.Should().Be("LC_ALL=C sudo -n true");
+        var expected = ShellScript.Wrap("LC_ALL=C sudo -n true");
+        authentication.Text.Should().Be(expected);
         authentication.StandardInput.Should().BeEmpty();
     }
 

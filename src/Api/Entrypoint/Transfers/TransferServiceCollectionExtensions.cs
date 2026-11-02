@@ -34,6 +34,7 @@ public static class TransferServiceCollectionExtensions
         services.AddSingleton<TransferRunner>();
         services.AddSingleton<TransferEnqueuer>();
         services.AddSingleton<TransferControl>();
+        services.AddScoped<TransferRetryConfirmationIssuer>();
         services.AddSingleton<IOperationRetryHandler>(CreateUploadRetryHandler);
         services.AddSingleton<IOperationRetryHandler>(CreateDownloadRetryHandler);
         services.AddSingleton<TransferQueueHostedService>();

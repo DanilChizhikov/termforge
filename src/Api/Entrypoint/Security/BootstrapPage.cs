@@ -24,8 +24,11 @@ internal static class BootstrapPage
           const token = new URLSearchParams(window.location.hash.slice(1)).get('token');
           window.history.replaceState(null, '', window.location.pathname);
           if (!token) {
-            const sessionResponse = await fetch('/api/session', { credentials: 'same-origin' });
-            if (sessionResponse.ok) {
+            const proof = sessionStorage.getItem('termforge.origin-proof');
+            const sessionResponse = proof ? await fetch('/api/session', {
+              credentials: 'same-origin', headers: { 'X-CSRF-Token': proof },
+            }) : null;
+            if (sessionResponse?.ok) {
               window.location.replace('/');
               return;
             }
@@ -39,6 +42,8 @@ internal static class BootstrapPage
             body: JSON.stringify({ token }),
           });
           if (exchangeResponse.ok) {
+            const session = await exchangeResponse.json();
+            sessionStorage.setItem('termforge.origin-proof', session.csrfToken);
             window.location.replace('/');
             return;
           }

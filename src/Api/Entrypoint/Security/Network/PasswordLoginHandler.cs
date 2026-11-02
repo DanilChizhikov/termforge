@@ -62,7 +62,8 @@ internal sealed class PasswordLoginHandler
         var session = _sessionStore.Create(BrowserSessionKind.Password, sessionLifetime);
         SessionCookie.Append(context, session.SessionToken);
         _logger.LogInformation($"Password sign-in succeeded from {clientKey}");
-        return Results.NoContent();
+        var response = new BrowserSessionResponse(session.CsrfToken);
+        return Results.Ok(response);
     }
 
     private IResult RejectLockedOut(HttpContext context, string clientKey, LoginAttemptDecision decision)

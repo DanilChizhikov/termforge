@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { buildWebSocketUrl } from './webSocket';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { buildWebSocketUrl, openWebSocket } from './webSocket';
+import { saveOriginProof } from './originProof';
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe('buildWebSocketUrl', () => {
   it('uses ws on http origins and the current host', () => {
@@ -26,5 +29,20 @@ describe('buildWebSocketUrl', () => {
 
   it('rejects paths outside /api', () => {
     expect(() => buildWebSocketUrl('/ws', {}, { protocol: 'http:', host: 'x' })).toThrow('/api/');
+  });
+
+  it('sends the stored proof in a protocol and keeps it out of the URL', () => {
+    saveOriginProof('socket-proof');
+    const construct = vi.fn();
+    class Socket {
+      constructor(url: string, protocols: string[]) {
+        construct(url, protocols);
+      }
+    }
+    vi.stubGlobal('WebSocket', Socket);
+
+    openWebSocket('/api/ws');
+
+    expect(construct).toHaveBeenCalledWith(expect.not.stringContaining('socket-proof'), ['termforge.socket-proof']);
   });
 });

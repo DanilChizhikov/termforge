@@ -9,4 +9,6 @@ public sealed class OperationException : Exception
     }
 
     public OperationFailure Failure { get; }
+
+    public IReadOnlyList<string>? Conflicts { get; init; }
 }

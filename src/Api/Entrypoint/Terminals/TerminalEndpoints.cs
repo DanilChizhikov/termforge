@@ -107,7 +107,7 @@ public static class TerminalEndpoints
 
         try
         {
-            using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
+            using var webSocket = await context.AcceptBrowserWebSocketAsync();
             await bridge.RunAsync(webSocket, session, context.RequestAborted);
             return Results.Empty;
         }

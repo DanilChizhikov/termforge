@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using DTech.Core.Operations;
 using DTech.Core.Transfers;
+using DTech.Core.Transfers.Queue;
 
 namespace DTech.Entrypoint.Tests.Lifecycle.Support;
 
@@ -18,6 +19,16 @@ internal sealed class RecordingTransferJournal(ITransferJournal inner) : ITransf
     public Task StartAsync(Guid id, CancellationToken cancellationToken)
     {
         return inner.StartAsync(id, cancellationToken);
+    }
+
+    public Task CheckpointAsync(TransferJob job, CancellationToken cancellationToken)
+    {
+        return inner.CheckpointAsync(job, cancellationToken);
+    }
+
+    public Task ForgetRecoveryAsync(Guid id, CancellationToken cancellationToken)
+    {
+        return inner.ForgetRecoveryAsync(id, cancellationToken);
     }
 
     public async Task SucceedAsync(Guid id, TransferProgress progress, CancellationToken cancellationToken)

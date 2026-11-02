@@ -32,6 +32,7 @@ public sealed class TerminalEndpointsTests
     [TestInitialize]
     public async Task Initialize()
     {
+        _failAccept = TestContext.TestName == nameof(WebSocket_AcceptFails_ReleasesTheAttachedSession);
         _sessionFactory = new ScriptedTerminalSessionFactory();
         _factory = new TermForgeApplicationFactory { ConfigureServices = ReplaceServices };
         _client = _factory.CreateClientWithoutCookies();
@@ -278,18 +279,16 @@ public sealed class TerminalEndpointsTests
     [TestMethod]
     public async Task WebSocket_AcceptFails_ReleasesTheAttachedSession()
     {
-        _failAccept = true;
-        _client.Dispose();
-        await _factory.DisposeAsync();
-        _factory = new TermForgeApplicationFactory { ConfigureServices = ReplaceServices };
-        _client = _factory.CreateClientWithoutCookies();
-        _session = await SessionBootstrapper.AuthenticateAsync(_factory, _client, TestContext.CancellationToken);
         var connectionId = await CreateConnectionAsync("web");
         var opened = await OpenTerminalAsync(connectionId, 80, 24);
         var id = opened.GetProperty("id").GetString()!;
         var path = $"{TerminalsPath}/{id}/ws";
 
-        using var response = await Send(HttpMethod.Get, path, null);
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        request.Headers.Add("Origin", TermForgeApplicationFactory.ApplicationOrigin);
+        request.Headers.Add("Cookie", _session.CookieHeader);
+        request.Headers.Add("Sec-WebSocket-Protocol", $"termforge.{_session.CsrfToken}");
+        using var response = await _client.SendAsync(request, TestContext.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
 
         var manager = _factory.Services.GetRequiredService<TerminalSessionManager>();
@@ -348,6 +347,7 @@ public sealed class TerminalEndpointsTests
     private WebSocketClient CreateWebSocketClient(string origin, string? cookieHeader)
     {
         var webSocketClient = _factory.Server.CreateWebSocketClient();
+        webSocketClient.SubProtocols.Add($"termforge.{_session.CsrfToken}");
         webSocketClient.ConfigureRequest = request => ApplyHeaders(request, origin, cookieHeader);
         return webSocketClient;
     }

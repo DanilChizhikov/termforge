@@ -11,9 +11,10 @@ import { formatClockWithSeconds } from './timeFormat';
 interface OperationTableProps {
   operations: readonly OperationRecord[];
   onRetry: (operation: OperationRecord) => void;
+  onDiscard?: (operation: OperationRecord) => void;
 }
 
-export function OperationTable({ operations, onRetry }: OperationTableProps) {
+export function OperationTable({ operations, onRetry, onDiscard }: OperationTableProps) {
   return (
     <table className="data-table operation-table">
       <thead>
@@ -53,6 +54,11 @@ export function OperationTable({ operations, onRetry }: OperationTableProps) {
                 {canRetry(operation) ? (
                   <button type="button" className="btn btn-xs" onClick={() => onRetry(operation)}>
                     Retry
+                  </button>
+                ) : null}
+                {operation.hasPartial && operation.status !== 'queued' && operation.status !== 'running' && onDiscard !== undefined ? (
+                  <button type="button" className="btn btn-xs" onClick={() => onDiscard(operation)}>
+                    Discard partial
                   </button>
                 ) : null}
               </td>

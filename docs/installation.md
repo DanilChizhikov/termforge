@@ -52,11 +52,11 @@ Unpack the `.zip` and run `TermForge.exe`. The x64 build passed the smoke test o
 
 ## First start
 
-TermForge starts a local server on `http://127.0.0.1:5023` and opens your default browser with a one-time launch link. Keep the terminal window open: the server runs there and prints its log. Closing the browser tab does not stop it.
+TermForge starts a local server on `http://127.0.0.1:5023` and opens a private launch file in your default browser. The file redirects to a one-time link that expires after 60 seconds; its token is never passed to the browser in process arguments. Keep the terminal window open: the server runs there and prints its log. Closing the browser tab does not stop it.
 
 Stop TermForge with Exit app in the header, or press `Ctrl+C` in its terminal. If work is still running, the exit dialog lists active transfers, unsaved files and open terminals first.
 
-The launch link works once. If the browser lost the session (for example all browser windows were closed), stop TermForge and start it again.
+The launch link works once. Reloading the authenticated tab preserves access. A new tab without its origin proof needs password sign-in in network mode or a restart of TermForge. If the browser lost the session, stop TermForge and start it again.
 
 ## Where data lives
 

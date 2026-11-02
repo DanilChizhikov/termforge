@@ -6,6 +6,10 @@ public sealed class TransferJob
 {
     private readonly Lock _gate = new();
     private readonly CancellationTokenSource _cancellation = new();
+    private readonly CancellationToken _cancellationToken;
+    private readonly List<string> _partialPaths = [];
+    private bool _processingFinished;
+    private int _cancelCalls;
     private OperationStatus _status = OperationStatus.Queued;
     private long _completedBytes;
     private long _currentFileBytes;
@@ -25,6 +29,7 @@ public sealed class TransferJob
         Id = id;
         Request = request;
         TargetPath = targetPath;
+        _cancellationToken = _cancellation.Token;
     }
 
     public Guid Id { get; }
@@ -37,7 +42,33 @@ public sealed class TransferJob
 
     public long Sequence { get; internal set; }
 
-    public CancellationToken CancellationToken => _cancellation.Token;
+    public CancellationToken CancellationToken => _cancellationToken;
+
+    public bool ProcessingFinished
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _processingFinished;
+            }
+        }
+    }
+
+    public void FinishProcessing()
+    {
+        lock (_gate)
+        {
+            if (!_processingFinished)
+            {
+                _processingFinished = true;
+                if (_cancelCalls == 0)
+                {
+                    _cancellation.Dispose();
+                }
+            }
+        }
+    }
 
     public int Version
     {
@@ -68,6 +99,37 @@ public sealed class TransferJob
             lock (_gate)
             {
                 return _partialPath;
+            }
+        }
+    }
+
+    public bool HasPartial
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _partialPaths.Count > 0;
+            }
+        }
+    }
+
+    public TransferRecoveryState CaptureRecovery()
+    {
+        lock (_gate)
+        {
+            var paths = _partialPaths.ToArray();
+            return new TransferRecoveryState(Request, TargetPath, paths) { PartialBytes = _partialBytes };
+        }
+    }
+
+    public void RestorePartials(IReadOnlyList<string> paths)
+    {
+        lock (_gate)
+        {
+            for (var i = 0; i < paths.Count; i++)
+            {
+                AddPartialPath(paths[i]);
             }
         }
     }
@@ -113,6 +175,11 @@ public sealed class TransferJob
     {
         lock (_gate)
         {
+            if (_processingFinished)
+            {
+                return TransferCancelOutcome.AlreadyFinished;
+            }
+
             if (_status == OperationStatus.Queued)
             {
                 _status = OperationStatus.Cancelled;
@@ -124,10 +191,26 @@ public sealed class TransferJob
             {
                 return TransferCancelOutcome.AlreadyFinished;
             }
+
+            _cancelCalls++;
         }
 
-        _cancellation.Cancel();
-        return TransferCancelOutcome.CancellationRequested;
+        try
+        {
+            _cancellation.Cancel();
+            return TransferCancelOutcome.CancellationRequested;
+        }
+        finally
+        {
+            lock (_gate)
+            {
+                _cancelCalls--;
+                if (_processingFinished && _cancelCalls == 0)
+                {
+                    _cancellation.Dispose();
+                }
+            }
+        }
     }
 
     public void Plan(long totalBytes, int totalFiles)
@@ -144,6 +227,7 @@ public sealed class TransferJob
     {
         lock (_gate)
         {
+            AddPartialPath(partialPath);
             _partialPath = partialPath;
             _currentFileBytes = offset;
             _version++;
@@ -166,6 +250,11 @@ public sealed class TransferJob
             _completedBytes += size;
             _currentFileBytes = 0;
             _completedFiles++;
+            if (_partialPath is not null)
+            {
+                _partialPaths.Remove(_partialPath);
+            }
+
             _partialPath = null;
             _version++;
         }
@@ -202,6 +291,11 @@ public sealed class TransferJob
             _retryable = failure.Retryable;
             _partialBytes = failure.PartialBytes;
             _partialPath = partialPath;
+            if (partialPath is not null)
+            {
+                AddPartialPath(partialPath);
+            }
+
             _bytesPerSecond = 0;
             _remainingSeconds = null;
             _version++;
@@ -226,7 +320,23 @@ public sealed class TransferJob
         lock (_gate)
         {
             _partialPath = null;
+            _partialPaths.Clear();
             _partialBytes = 0;
+            _version++;
+        }
+    }
+
+    public void ForgetPartialPath(string path)
+    {
+        lock (_gate)
+        {
+            _partialPaths.Remove(path);
+            if (_partialPath == path)
+            {
+                _partialPath = null;
+                _partialBytes = 0;
+            }
+
             _version++;
         }
     }
@@ -253,6 +363,7 @@ public sealed class TransferJob
                 Error = _error,
                 Retryable = _retryable || _status == OperationStatus.Cancelled,
                 PartialBytes = _partialBytes,
+                HasPartial = _partialPaths.Count > 0,
             };
         }
     }
@@ -261,5 +372,13 @@ public sealed class TransferJob
     {
         var transferred = _completedBytes + _currentFileBytes;
         return new TransferProgress(transferred, _totalBytes, _completedFiles, _totalFiles, _bytesPerSecond, _remainingSeconds);
+    }
+
+    private void AddPartialPath(string path)
+    {
+        if (!_partialPaths.Contains(path))
+        {
+            _partialPaths.Add(path);
+        }
     }
 }

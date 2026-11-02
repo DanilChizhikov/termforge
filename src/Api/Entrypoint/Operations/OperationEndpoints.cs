@@ -1,5 +1,6 @@
 using DTech.Core.Operations;
 using DTech.Entrypoint.Operations;
+using DTech.Entrypoint.Transfers;
 
 namespace Microsoft.AspNetCore.Builder;
 
@@ -13,6 +14,7 @@ public static class OperationEndpoints
         group.MapGet("/", List);
         group.MapGet("/{id:guid}", Get);
         group.MapPost("/{id:guid}/retry", Retry);
+        group.MapPost("/{id:guid}/retry-confirmation", IssueRetryConfirmation);
         return endpoints;
     }
 
@@ -62,15 +64,43 @@ public static class OperationEndpoints
         return Results.Ok(response);
     }
 
-    private static async Task<IResult> Retry(Guid id, IOperationJournal journal, CancellationToken cancellationToken)
+    private static async Task<IResult> IssueRetryConfirmation(Guid id, TransferRetryConfirmationIssuer issuer, CancellationToken cancellationToken)
     {
         try
         {
-            await journal.Retry(id, cancellationToken);
+            var grant = await issuer.IssueAsync(id, cancellationToken);
+            return Results.Ok(grant);
         }
         catch (OperationException exception)
         {
             return OperationErrorResults.ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> Retry(Guid id, IOperationJournal journal, HttpContext context)
+    {
+        try
+        {
+            var options = context.Request.HasJsonContentType() && context.Request.ContentLength != 0
+                ? await context.Request.ReadFromJsonAsync<OperationRetryOptions>(context.RequestAborted)
+                : null;
+            if (options is null)
+            {
+                await journal.Retry(id, context.RequestAborted);
+            }
+            else
+            {
+                await journal.Retry(id, options, context.RequestAborted);
+            }
+        }
+        catch (OperationException exception)
+        {
+            return OperationErrorResults.ToProblem(exception);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            var invalid = new OperationException(OperationFailure.InvalidRequest, "The retry request must contain valid JSON.");
+            return OperationErrorResults.ToProblem(invalid);
         }
 
         return Results.Accepted();

@@ -18,7 +18,7 @@ the browser with a one-time launch link. Stop with Ctrl+C.
 
 Options:
   -d  dev mode: backend in background + Vite dev server with hot reload
-      (open $DEV_SERVER_URL in the browser the backend opened)
+      (browser opens and authenticates directly on $DEV_SERVER_URL)
   -s  skip the frontend build (use the existing src/Api/Entrypoint/wwwroot)
   -c  force a clean frontend install (npm ci) even if node_modules is up to date
   -h  show this help
@@ -73,6 +73,7 @@ build_backend() {
 }
 
 backend_pid=""
+frontend_pid=""
 
 stop_backend() {
   if [[ -n "$backend_pid" ]] && kill -0 "$backend_pid" 2>/dev/null; then
@@ -80,17 +81,22 @@ stop_backend() {
     kill -TERM "$backend_pid" 2>/dev/null || true
     wait "$backend_pid" 2>/dev/null || true
   fi
+  if [[ -n "$frontend_pid" ]] && kill -0 "$frontend_pid" 2>/dev/null; then
+    kill -TERM "$frontend_pid" 2>/dev/null || true
+    wait "$frontend_pid" 2>/dev/null || true
+  fi
 }
 
-wait_for_backend() {
+wait_for_server() {
+  local server_url="$1" server_pid="$2"
   local elapsed=0
-  until curl -s -o /dev/null "$BACKEND_URL/"; do
-    if ! kill -0 "$backend_pid" 2>/dev/null; then
-      echo "error: backend exited during startup" >&2
+  until curl -s -o /dev/null "$server_url/"; do
+    if ! kill -0 "$server_pid" 2>/dev/null; then
+      echo "error: server exited during startup on $server_url" >&2
       exit 1
     fi
     if [[ $elapsed -ge $BACKEND_START_TIMEOUT_SECONDS ]]; then
-      echo "error: backend did not answer on $BACKEND_URL within ${BACKEND_START_TIMEOUT_SECONDS}s" >&2
+      echo "error: server did not answer on $server_url within ${BACKEND_START_TIMEOUT_SECONDS}s" >&2
       exit 1
     fi
     sleep 1
@@ -117,14 +123,21 @@ if [[ $dev_mode -eq 0 ]]; then
 fi
 
 require_command curl
+require_command node
 trap stop_backend EXIT
 trap 'exit 130' INT TERM
 
-echo "==> Starting backend on $BACKEND_URL"
-dotnet "$ENTRYPOINT_DLL" "$@" &
-backend_pid=$!
-wait_for_backend
-
-echo "==> Backend is up. Open $DEV_SERVER_URL in the browser the backend opened (use 127.0.0.1, not localhost)"
+echo "==> Starting Vite on $DEV_SERVER_URL"
 cd "$WEB_DIR"
-npm run dev
+node "$WEB_DIR/node_modules/vite/bin/vite.js" &
+frontend_pid=$!
+wait_for_server "$DEV_SERVER_URL" "$frontend_pid"
+
+echo "==> Starting backend on $BACKEND_URL"
+cd "$ENTRYPOINT_DIR"
+dotnet "$ENTRYPOINT_DLL" "$@" "--Lifecycle:BrowserOrigin=$DEV_SERVER_URL" &
+backend_pid=$!
+wait_for_server "$BACKEND_URL" "$backend_pid"
+
+echo "==> TermForge is ready on $DEV_SERVER_URL"
+wait "$frontend_pid"

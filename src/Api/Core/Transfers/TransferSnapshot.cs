@@ -19,4 +19,6 @@ public sealed record TransferSnapshot
     public bool Retryable { get; init; }
 
     public long PartialBytes { get; init; }
+
+    public bool HasPartial { get; init; }
 }

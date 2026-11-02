@@ -8,7 +8,7 @@ public sealed class SftpFileTreeReader(IRemoteFileClient client) : IFileTreeRead
 
     public async Task<FileResult<IReadOnlyList<FileEntry>>> ListAsync(string directoryPath, CancellationToken cancellationToken)
     {
-        var listed = await client.ListAsync(directoryPath, cancellationToken);
+        var listed = await client.ListAsync(directoryPath, resolveLinkTargets: false, cancellationToken);
         if (!listed.IsSuccess)
         {
             var error = FileErrorMapper.FromSsh(listed.Error!, directoryPath);

@@ -15,7 +15,7 @@ internal sealed class SettingsTransferApiHarness : IAsyncDisposable
 {
     private static readonly Dictionary<string, string?> FastKeyDerivation = new()
     {
-        ["Credentials:VaultKdfIterations"] = "1000",
+        ["Credentials:VaultKdfIterations"] = "600000",
     };
 
     private readonly TestContext _testContext;

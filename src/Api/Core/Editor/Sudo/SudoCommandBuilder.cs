@@ -1,4 +1,5 @@
 using System.Globalization;
+using DTech.Core.Diagnostics;
 
 namespace DTech.Core.Editor.Sudo;
 
@@ -24,7 +25,7 @@ public sealed class SudoCommandBuilder
         "exec </dev/null; if [ -d \"$2\" ] && [ ! -h \"$2\" ]; then echo \"$2: Is a directory\" >&2; exit 1; fi; mv -f -- \"$1\" \"$2\"";
 
     private const string ListScript =
-        "exec </dev/null; if [ ! -d \"$1\" ]; then echo \"$1: No such file or directory\" >&2; exit 1; fi; cd \"$1\" || exit 1; for name in .* *; do case $name in .|..) continue ;; esac; if [ -e \"$name\" ] || [ -h \"$name\" ]; then printf '%s\\0' \"$name\"; fi; done";
+        "exec </dev/null; if [ ! -d \"$1\" ]; then echo \"$1: No such file or directory\" >&2; exit 1; fi; cd \"$1\" || exit 1; for name in .* *; do case $name in .|..) continue ;; esac; if [ -f \"$name\" ] && [ ! -h \"$name\" ]; then printf '%s\\0' \"$name\"; fi; done";
 
     public string Probe()
     {
@@ -39,7 +40,8 @@ public sealed class SudoCommandBuilder
 
     public string WithCleanup(string command, string stagedPath)
     {
-        return $"{command}; status=$?; rm -f -- {ShellQuoting.Quote(stagedPath)}; exit $status";
+        var quotedPath = ShellArgument.Quote(stagedPath);
+        return $"{command}; status=$?; rm -f -- {quotedPath}; exit $status";
     }
 
     public string StageUpload()
@@ -49,13 +51,16 @@ public sealed class SudoCommandBuilder
 
     public string Stat(string path)
     {
-        return $"stat -c {ShellQuoting.Quote(StatFormat)} -- {ShellQuoting.Quote(path)}";
+        var quotedFormat = ShellArgument.Quote(StatFormat);
+        var quotedPath = ShellArgument.Quote(path);
+        return $"stat -c {quotedFormat} -- {quotedPath}";
     }
 
     public string ReadHead(string path, long byteCount)
     {
         var count = byteCount.ToString(CultureInfo.InvariantCulture);
-        return $"head -c {count} -- {ShellQuoting.Quote(path)}";
+        var quotedPath = ShellArgument.Quote(path);
+        return $"head -c {count} -- {quotedPath}";
     }
 
     public string Install(StagedInstall install)
@@ -63,34 +68,47 @@ public sealed class SudoCommandBuilder
         var mode = FormatMode(install.Mode);
         var userId = install.Owner.UserId.ToString(CultureInfo.InvariantCulture);
         var groupId = install.Owner.GroupId.ToString(CultureInfo.InvariantCulture);
-        return $"sh -c {ShellQuoting.Quote(InstallScript)} termforge-install {ShellQuoting.Quote(install.StagedPath)} {ShellQuoting.Quote(install.TargetPath)} {mode} {userId} {groupId}";
+        var quotedScript = ShellArgument.Quote(InstallScript);
+        var quotedStagedPath = ShellArgument.Quote(install.StagedPath);
+        var quotedTargetPath = ShellArgument.Quote(install.TargetPath);
+        return $"sh -c {quotedScript} termforge-install {quotedStagedPath} {quotedTargetPath} {mode} {userId} {groupId}";
     }
 
     public string Overwrite(string stagedPath, string targetPath)
     {
-        return $"sh -c {ShellQuoting.Quote(OverwriteScript)} termforge-overwrite {ShellQuoting.Quote(stagedPath)} {ShellQuoting.Quote(targetPath)}";
+        var quotedScript = ShellArgument.Quote(OverwriteScript);
+        var quotedStagedPath = ShellArgument.Quote(stagedPath);
+        var quotedTargetPath = ShellArgument.Quote(targetPath);
+        return $"sh -c {quotedScript} termforge-overwrite {quotedStagedPath} {quotedTargetPath}";
     }
 
     public string Move(string fromPath, string toPath)
     {
-        return $"sh -c {ShellQuoting.Quote(MoveScript)} termforge-move {ShellQuoting.Quote(fromPath)} {ShellQuoting.Quote(toPath)}";
+        var quotedScript = ShellArgument.Quote(MoveScript);
+        var quotedFromPath = ShellArgument.Quote(fromPath);
+        var quotedToPath = ShellArgument.Quote(toPath);
+        return $"sh -c {quotedScript} termforge-move {quotedFromPath} {quotedToPath}";
     }
 
     public string ChangeOwner(RemoteOwnership ownership)
     {
         var userId = ownership.UserId.ToString(CultureInfo.InvariantCulture);
         var groupId = ownership.GroupId.ToString(CultureInfo.InvariantCulture);
-        return $"chown -- {userId}:{groupId} {ShellQuoting.Quote(ownership.Path)}";
+        var quotedPath = ShellArgument.Quote(ownership.Path);
+        return $"chown -- {userId}:{groupId} {quotedPath}";
     }
 
     public string Delete(string path)
     {
-        return $"rm -f -- {ShellQuoting.Quote(path)}";
+        var quotedPath = ShellArgument.Quote(path);
+        return $"rm -f -- {quotedPath}";
     }
 
     public string ListNames(string directory)
     {
-        return $"sh -c {ShellQuoting.Quote(ListScript)} termforge-list {ShellQuoting.Quote(directory)}";
+        var quotedScript = ShellArgument.Quote(ListScript);
+        var quotedDirectory = ShellArgument.Quote(directory);
+        return $"sh -c {quotedScript} termforge-list {quotedDirectory}";
     }
 
     private static string FormatMode(int mode)

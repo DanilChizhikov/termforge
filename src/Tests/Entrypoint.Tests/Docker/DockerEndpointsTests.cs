@@ -553,6 +553,7 @@ public sealed class DockerEndpointsTests
     private async Task<TerminalSocket> ConnectLogsAsync(string path)
     {
         var client = _factory.Server.CreateWebSocketClient();
+        client.SubProtocols.Add($"termforge.{_session.CsrfToken}");
         client.ConfigureRequest = ApplyHeaders;
         var uri = new Uri($"ws://localhost{path}");
         var webSocket = await client.ConnectAsync(uri, TestContext.CancellationToken);
