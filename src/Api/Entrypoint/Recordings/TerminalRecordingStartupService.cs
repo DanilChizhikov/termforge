@@ -9,6 +9,13 @@ internal sealed class TerminalRecordingStartupService(IServiceScopeFactory scope
         try
         {
             await using var scope = scopeFactory.CreateAsyncScope();
+            var storage = scope.ServiceProvider.GetRequiredService<TerminalRecordingStorage>();
+            var orphaned = storage.DeleteOrphanFiles(cancellationToken);
+            if (orphaned > 0)
+            {
+                logger.LogInformation($"Deleted {orphaned} orphan terminal recording artifacts");
+            }
+
             var settingsService = scope.ServiceProvider.GetRequiredService<TerminalRecordingSettingsService>();
             var retention = scope.ServiceProvider.GetRequiredService<TerminalRecordingRetention>();
             var settings = await settingsService.GetAsync(cancellationToken);

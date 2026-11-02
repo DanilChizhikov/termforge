@@ -42,21 +42,39 @@ public sealed class TerminalRecordingService
 
         var metadata = CreateMetadata(session);
         var setup = new TerminalRecorderSetup(metadata, settings.MaxRecordingBytes);
-        var started = await _recorderFactory.StartAsync(setup, cancellationToken);
-        if (!started.IsSuccess)
+        using var starting = _registry.ProtectStart(metadata.Id);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, session.Closing);
+        TerminalRecorder? recorder = null;
+        var succeeded = false;
+        try
         {
-            return started;
-        }
+            var started = await _recorderFactory.StartAsync(setup, linked.Token);
+            if (!started.IsSuccess)
+            {
+                return started;
+            }
 
-        var recorder = started.Value;
-        var attached = await AttachAsync(session, recorder);
-        if (!attached.IsSuccess)
+            recorder = started.Value;
+            if (!TryAttach(session, recorder))
+            {
+                var unavailable = TerminalRecordingError.AlreadyRecording();
+                return TerminalRecordingResult<TerminalRecorder>.Failure(unavailable);
+            }
+
+            await _retention.PruneAsync(settings, linked.Token);
+            linked.Token.ThrowIfCancellationRequested();
+            succeeded = true;
+            return TerminalRecordingResult<TerminalRecorder>.Success(recorder);
+        }
+        finally
         {
-            return attached;
+            if (!succeeded && recorder is not null)
+            {
+                session.DetachOutputObserver(recorder);
+                _registry.Forget(sessionId, recorder);
+                await _recorderFactory.DiscardAsync(recorder);
+            }
         }
-
-        await _retention.PruneAsync(settings, cancellationToken);
-        return attached;
     }
 
     public async Task<TerminalRecordingResult<TerminalRecorder>> StopAsync(ManagedTerminalSession session)
@@ -68,41 +86,38 @@ public sealed class TerminalRecordingService
             return TerminalRecordingResult<TerminalRecorder>.Failure(notRecording);
         }
 
-        await recorder.StopAsync(TerminalRecordingEndReason.Stopped);
+        try
+        {
+            await recorder.StopAsync(TerminalRecordingEndReason.Stopped);
+        }
+        finally
+        {
+            session.DetachOutputObserver(recorder);
+        }
+
         return TerminalRecordingResult<TerminalRecorder>.Success(recorder);
     }
 
-    private async Task<TerminalRecordingResult<TerminalRecorder>> AttachAsync(ManagedTerminalSession session, TerminalRecorder recorder)
+    private bool TryAttach(ManagedTerminalSession session, TerminalRecorder recorder)
     {
-        var sessionId = session.Descriptor.Id;
-        if (!_registry.TryRegister(sessionId, recorder))
+        if (!_registry.TryRegister(session, recorder) || !session.TryAttachOutputObserver(recorder))
         {
-            await _recorderFactory.DiscardAsync(recorder);
-            var alreadyRecording = TerminalRecordingError.AlreadyRecording();
-            return TerminalRecordingResult<TerminalRecorder>.Failure(alreadyRecording);
+            return false;
         }
 
-        if (!session.TryAttachOutputObserver(recorder))
-        {
-            _registry.Forget(sessionId, recorder);
-            await _recorderFactory.DiscardAsync(recorder);
-            var unavailable = TerminalRecordingError.AlreadyRecording();
-            return TerminalRecordingResult<TerminalRecorder>.Failure(unavailable);
-        }
-
-        var closingRegistration = session.Closing.Register(() => recorder.RequestStop(TerminalRecordingEndReason.SessionClosed));
-        _ = DetachWhenFinishedAsync(session, recorder, closingRegistration);
-        return TerminalRecordingResult<TerminalRecorder>.Success(recorder);
+        _ = DetachWhenFinishedAsync(session, recorder);
+        return true;
     }
 
-    private async Task DetachWhenFinishedAsync(ManagedTerminalSession session, TerminalRecorder recorder, CancellationTokenRegistration closingRegistration)
+    private static async Task DetachWhenFinishedAsync(ManagedTerminalSession session, TerminalRecorder recorder)
     {
-        await recorder.Completion;
-        session.DetachOutputObserver(recorder);
-        await closingRegistration.DisposeAsync();
-        if (session.IsClosed)
+        try
         {
-            _registry.Forget(session.Descriptor.Id, recorder);
+            await recorder.Completion;
+        }
+        finally
+        {
+            session.DetachOutputObserver(recorder);
         }
     }
 

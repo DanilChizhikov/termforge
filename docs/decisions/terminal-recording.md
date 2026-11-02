@@ -11,6 +11,9 @@ Terminal output recording is opt-in twice: the global setting "Record terminal o
 - Ids: 32 random lowercase hex characters (`TerminalRecordingId`). Anything else is rejected with 400 before a path is built, and the resolved path must stay inside the recordings directory.
 - Limits: maximum size per recording (1–100 MB, default 10), maximum number of recordings (1–500, default 50) and retention in days (1–365, default 30). A recording that reaches its size limit stops (the terminal keeps running) and is marked truncated. Retention runs at startup, when a recording starts and when settings change; recordings in progress are never deleted.
 - Lifecycle: a recording ends when the user stops it, the terminal session closes, the global setting is turned off, the size limit is reached, the writer falls behind or the disk write fails. Settings are stored as JSON in `app_settings` (`terminal_recording.settings`); no migration is needed.
+- Failed starts: the factory owns the cast stream until startup succeeds. Every unsuccessful start, including cancellation during metadata writes or retention, disposes the stream, detaches the observer and removes only its own cast/metadata/temporary files. A CreateNew collision preserves the existing recording.
+- Session ownership: one closing registration tracks the latest recorder for a terminal session. It survives Stop recording and is reused by subsequent starts; closing the session requests stop and removes the latest registry entry. Active writers remain tracked until Completion, including metadata finalization, so retention and shutdown still account for them after the session closes. Recordings being started are protected from retention and deletion until handoff completes.
+- Startup cleanup: before HTTP accepts requests, known `<id>.cast` files without metadata and leftover `<id>.json.tmp` files are removed. Runtime retention does not scan for orphans, so it cannot mistake a newly created cast for a crashed recording. Unknown filenames and complete cast/metadata pairs are preserved.
 
 ## API
 
@@ -32,6 +35,7 @@ All endpoints are protected like every `/api/` endpoint (browser session, CSRF f
 ## Tests
 
 - `Core.Tests/Terminal/Recording`: default off, start only per session and only when enabled, input not recorded, file format (header, events, escapes, split UTF-8), size limit truncation, writer overflow, session close, turning the setting off, retention by age and count, active recordings kept, deletion, invalid and traversal ids.
+- Cleanup regressions: cancellation before handoff and during retention, metadata replacement cancellation, CreateNew collision, starting-recording protection, repeated Start/Stop, concurrent start/register/forget/close, and orphan cleanup before the first HTTP request.
 - `Entrypoint.Tests/Recordings`: settings defaults and validation, start rejected while off, record → list → replay → delete over HTTP with a scripted terminal, invalid ids, session required.
 - `Persistence.Tests/Settings`: settings round trip.
 - Frontend: cast parsing, playback timing, settings warning and limits, recordings list and delete, terminal recording status line.
