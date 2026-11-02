@@ -13,7 +13,7 @@ public static class RealtimeEndpoints
         return endpoints;
     }
 
-    private static async Task AcceptConnection(HttpContext context, RealtimeChannel channel)
+    private static async Task AcceptConnection(HttpContext context, RealtimeChannel channel, IHostApplicationLifetime lifetime)
     {
         if (!context.WebSockets.IsWebSocketRequest)
         {
@@ -22,20 +22,14 @@ public static class RealtimeEndpoints
         }
 
         using var webSocket = await context.AcceptBrowserWebSocketAsync();
-        using var connection = new RealtimeConnection(webSocket);
-        channel.Add(connection);
-        try
-        {
-            await DrainUntilClosed(webSocket, context.RequestAborted);
-        }
-        finally
-        {
-            channel.Remove(connection);
-        }
+        using var stopping = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted, lifetime.ApplicationStopping);
+        await using var connection = channel.Connect(webSocket, stopping.Token);
+        await DrainUntilClosed(webSocket, connection);
     }
 
-    private static async Task DrainUntilClosed(WebSocket webSocket, CancellationToken cancellationToken)
+    private static async Task DrainUntilClosed(WebSocket webSocket, RealtimeConnection connection)
     {
+        var cancellationToken = connection.Stopping;
         var buffer = new byte[256];
         try
         {
@@ -44,11 +38,12 @@ public static class RealtimeEndpoints
                 var result = await webSocket.ReceiveAsync(buffer, cancellationToken);
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    await webSocket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "closed", CancellationToken.None);
+                    connection.RequestClose();
+                    return;
                 }
             }
         }
-        catch (Exception exception) when (exception is WebSocketException or OperationCanceledException)
+        catch (Exception exception) when (exception is WebSocketException or OperationCanceledException or ObjectDisposedException)
         {
         }
     }

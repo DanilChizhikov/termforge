@@ -112,6 +112,7 @@ The SPA cannot and must not read it. `fetch` sends it automatically for same-ori
 - Connect to a same-origin URL built from `window.location`, with `termforge.<origin-proof>` as the requested subprotocol. The server selects that same protocol. Never include the proof in the URL.
 - Browsers send `Origin` and the session cookie on the handshake automatically. Missing or foreign `Origin` → `403`, missing or invalid session → `401`, missing or invalid proof protocol → `403`.
 - Terminal sockets `/api/terminals/{id}/ws` additionally require that the terminal id (256 random bits) was created by the same browser session (`404` otherwise) and is not already attached (`409`). A leaked id alone is useless without the session cookie and a same-origin handshake.
+- Browser WebSockets use a 30-second ping interval and a 10-second pong deadline. Each realtime `/api/ws` connection has one sender and a queue of at most 64 messages; a slow client is aborted on overflow or a 10-second send deadline. Publishing never waits for socket I/O. Request cancellation and application stopping close the socket and remove it from browser-presence tracking.
 
 ### Exit
 
