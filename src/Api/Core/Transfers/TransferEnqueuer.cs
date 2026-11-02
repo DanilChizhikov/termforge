@@ -97,7 +97,8 @@ public sealed class TransferEnqueuer
             return TransferEnqueueResult.Failed(inspected.Error);
         }
 
-        var candidate = inspected.Value[0] with { ResumeExisting = true };
+        var recovery = TransferRecoveryState.TryRead(operation);
+        var candidate = inspected.Value[0] with { ResumeExisting = true, PartialPaths = recovery?.PartialPaths ?? [] };
         TransferCandidate[] candidates = [candidate];
         var conflicts = FindConflicts(candidates, request.Overwrite);
         if (conflicts.Count > 0)
@@ -106,6 +107,11 @@ public sealed class TransferEnqueuer
         }
 
         var admitted = await AdmitAsync(candidates, batch, cancellationToken);
+        if (admitted.IsSuccess)
+        {
+            await _journal.ForgetRecoveryAsync(operation.Id, CancellationToken.None);
+        }
+
         if (admitted.IsSuccess && _queue.Remove(operation.Id))
         {
             await _notifier.TransferRemoved(operation.Id, CancellationToken.None);
@@ -269,6 +275,8 @@ public sealed class TransferEnqueuer
                 var id = await _journal.CreateAsync(candidate.Request, targetPath, cancellationToken);
                 var job = new TransferJob(id, candidate.Request, targetPath) { ResumeExisting = candidate.ResumeExisting };
                 jobs.Add(job);
+                job.RestorePartials(candidate.PartialPaths);
+                await _journal.CheckpointAsync(job, cancellationToken);
             }
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -287,6 +295,7 @@ public sealed class TransferEnqueuer
                 for (var i = 0; i < jobs.Count; i++)
                 {
                     jobs[i].FinishProcessing();
+                    await _journal.ForgetRecoveryAsync(jobs[i].Id, CancellationToken.None);
                     await _journal.CancelAsync(jobs[i].Id, CancellationToken.None);
                 }
             }
@@ -315,5 +324,7 @@ public sealed class TransferEnqueuer
     private sealed record TransferCandidate(TransferRequest Request, TransferInspection Inspection)
     {
         public bool ResumeExisting { get; init; }
+
+        public IReadOnlyList<string> PartialPaths { get; init; } = [];
     }
 }

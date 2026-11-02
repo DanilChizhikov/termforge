@@ -1,5 +1,7 @@
 using DTech.Core.Operations;
 using DTech.Core.Transfers;
+using DTech.Core.Transfers.Queue;
+using System.Text.Json;
 
 namespace DTech.Entrypoint.Transfers;
 
@@ -45,5 +47,34 @@ internal sealed class ScopedTransferJournal(IServiceScopeFactory scopeFactory) :
         await using var scope = scopeFactory.CreateAsyncScope();
         var journal = scope.ServiceProvider.GetRequiredService<IOperationJournal>();
         await journal.Cancel(id, cancellationToken);
+    }
+
+    public async Task CheckpointAsync(TransferJob job, CancellationToken cancellationToken)
+    {
+        var state = job.CaptureRecovery();
+        var data = JsonSerializer.Serialize(state);
+        var checkpoint = new OperationCheckpoint(job.Id, data, state.PartialPaths.Count > 0);
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var maintenance = scope.ServiceProvider.GetRequiredService<IOperationMaintenance>();
+        await maintenance.CheckpointAsync(checkpoint, cancellationToken);
+    }
+
+    public async Task ForgetRecoveryAsync(Guid id, CancellationToken cancellationToken)
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IOperationRepository>();
+        var operation = await repository.Find(id, cancellationToken);
+        var state = operation is null ? null : TransferRecoveryState.TryRead(operation);
+        var cleared = state is null ? null : state with { PartialPaths = [], PartialBytes = 0 };
+        var data = cleared is null ? operation?.RecoveryData : JsonSerializer.Serialize(cleared);
+        var checkpoint = new OperationCheckpoint(id, data, false);
+        var maintenance = scope.ServiceProvider.GetRequiredService<IOperationMaintenance>();
+        await maintenance.CheckpointAsync(checkpoint, cancellationToken);
+        if (operation is not null)
+        {
+            var updated = operation with { RecoveryData = data, HasPendingCleanup = false };
+            var notifier = scope.ServiceProvider.GetRequiredService<IOperationNotifier>();
+            await notifier.OperationChanged(updated, cancellationToken);
+        }
     }
 }

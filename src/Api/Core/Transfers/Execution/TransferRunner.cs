@@ -61,15 +61,18 @@ public sealed class TransferRunner
         {
             case OperationStatus.Succeeded:
                 job.Succeed();
+                await _journal.CheckpointAsync(job, CancellationToken.None);
                 var progress = job.Progress();
                 await _journal.SucceedAsync(job.Id, progress, CancellationToken.None);
                 break;
             case OperationStatus.Failed:
                 job.Fail(outcome.Failure!, outcome.PartialPath);
+                await _journal.CheckpointAsync(job, CancellationToken.None);
                 await _journal.FailAsync(job.Id, outcome.Failure!, CancellationToken.None);
                 break;
             default:
                 job.MarkCancelled();
+                await _journal.CheckpointAsync(job, CancellationToken.None);
                 await _journal.CancelAsync(job.Id, CancellationToken.None);
                 break;
         }

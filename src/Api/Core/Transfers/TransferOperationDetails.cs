@@ -48,6 +48,11 @@ public static class TransferOperationDetails
 
     public static TransferRequest? TryRead(Operation operation)
     {
+        if (operation.RecoveryData is not null)
+        {
+            return TransferRecoveryState.TryRead(operation)?.Request;
+        }
+
         var details = operation.Details;
         var hasValues = details.TryGetValue(ConnectionIdKey, out var connectionText)
             & details.TryGetValue(DirectionKey, out var directionText)

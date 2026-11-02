@@ -1,5 +1,6 @@
 using DTech.Core.Operations;
 using DTech.Entrypoint.Operations;
+using DTech.Entrypoint.Transfers;
 
 namespace Microsoft.AspNetCore.Builder;
 
@@ -13,6 +14,7 @@ public static class OperationEndpoints
         group.MapGet("/", List);
         group.MapGet("/{id:guid}", Get);
         group.MapPost("/{id:guid}/retry", Retry);
+        group.MapPost("/{id:guid}/retry-confirmation", IssueRetryConfirmation);
         return endpoints;
     }
 
@@ -60,6 +62,19 @@ public static class OperationEndpoints
 
         var response = OperationResponse.From(operation);
         return Results.Ok(response);
+    }
+
+    private static async Task<IResult> IssueRetryConfirmation(Guid id, TransferRetryConfirmationIssuer issuer, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var grant = await issuer.IssueAsync(id, cancellationToken);
+            return Results.Ok(grant);
+        }
+        catch (OperationException exception)
+        {
+            return OperationErrorResults.ToProblem(exception);
+        }
     }
 
     private static async Task<IResult> Retry(Guid id, IOperationJournal journal, HttpContext context)

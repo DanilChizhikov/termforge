@@ -150,7 +150,7 @@ public sealed class TransferQueue
         job.FinishProcessing();
         lock (_admission)
         {
-            var finished = _jobs.Values.Where(item => item.ProcessingFinished && item.PartialPath is null).ToList();
+            var finished = _jobs.Values.Where(item => item.ProcessingFinished && !item.HasPartial).ToList();
             finished.Sort(CompareBySequence);
             var removed = new List<Guid>();
             for (var i = 0; i < finished.Count - MaximumFinishedJobs; i++)
@@ -168,6 +168,26 @@ public sealed class TransferQueue
     public TransferJob? Find(Guid id)
     {
         return _jobs.TryGetValue(id, out var job) ? job : null;
+    }
+
+    public void RestoreFinished(TransferJob job)
+    {
+        if (!OperationStateMachine.IsTerminal(job.Status))
+        {
+            throw new ArgumentException("Only finished transfers can be restored.", nameof(job));
+        }
+
+        job.FinishProcessing();
+        lock (_admission)
+        {
+            if (_isClosed)
+            {
+                throw new InvalidOperationException("The transfer queue is closed.");
+            }
+
+            job.Sequence = ++_sequence;
+            _jobs.TryAdd(job.Id, job);
+        }
     }
 
     public IReadOnlyList<TransferJob> List()

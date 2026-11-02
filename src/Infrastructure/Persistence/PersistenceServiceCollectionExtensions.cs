@@ -22,6 +22,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddDbContext<TermForgeDbContext>(ConfigureContext);
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<IOperationRepository, OperationRepository>();
+        services.AddScoped<IOperationMaintenance, OperationMaintenance>();
         services.AddScoped<ICommandHistoryRepository, CommandHistoryRepository>();
         services.AddScoped<ICommandExclusionPatternStore, CommandExclusionPatternStore>();
         return services;

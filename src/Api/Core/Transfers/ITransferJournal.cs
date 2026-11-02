@@ -1,3 +1,5 @@
+using DTech.Core.Transfers.Queue;
+
 namespace DTech.Core.Transfers;
 
 public interface ITransferJournal
@@ -11,4 +13,8 @@ public interface ITransferJournal
     Task FailAsync(Guid id, TransferFailure failure, CancellationToken cancellationToken);
 
     Task CancelAsync(Guid id, CancellationToken cancellationToken);
+
+    Task CheckpointAsync(TransferJob job, CancellationToken cancellationToken);
+
+    Task ForgetRecoveryAsync(Guid id, CancellationToken cancellationToken);
 }
