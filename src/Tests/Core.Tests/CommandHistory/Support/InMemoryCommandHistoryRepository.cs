@@ -14,6 +14,28 @@ internal sealed class InMemoryCommandHistoryRepository : ICommandHistoryReposito
         return Task.CompletedTask;
     }
 
+    public Task<int> ImportPinnedAsync(IReadOnlyList<CommandHistoryEntry> entries, CancellationToken cancellationToken)
+    {
+        var changed = 0;
+        for (var i = 0; i < entries.Count; i++)
+        {
+            var entry = entries[i];
+            var index = _entries.FindIndex(current => current.ConnectionId == entry.ConnectionId && current.Command == entry.Command);
+            if (index < 0)
+            {
+                _entries.Add(entry with { IsPinned = true });
+                changed++;
+            }
+            else if (!_entries[index].IsPinned)
+            {
+                _entries[index] = _entries[index] with { IsPinned = true };
+                changed++;
+            }
+        }
+
+        return Task.FromResult(changed);
+    }
+
     public Task<IReadOnlyList<CommandHistoryEntry>> ListAsync(CommandHistoryQuery query, CancellationToken cancellationToken)
     {
         IReadOnlyList<CommandHistoryEntry> result = _entries
