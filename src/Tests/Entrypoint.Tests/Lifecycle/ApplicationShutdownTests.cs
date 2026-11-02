@@ -163,6 +163,9 @@ public sealed class ApplicationShutdownTests
 
         lifetime.StopApplication();
 
+        var host = _harness.Factory.Services.GetRequiredService<IHost>();
+        await host.StopAsync(TestContext.CancellationToken);
+
         _harness.JournaledTransferOutcomes.Should().ContainSingle().Which.Should().Be(OperationStatus.Cancelled);
         _harness.TerminalSessions.Sessions.Should().ContainSingle().Which.IsDisposed.Should().BeTrue();
     }

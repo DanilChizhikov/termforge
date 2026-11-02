@@ -8,13 +8,13 @@ internal sealed class ApplicationExitHandler(ApplicationExitCoordinator coordina
     public IResult RequestExit(HttpContext context, ExitRequest? request)
     {
         var policy = request?.Policy ?? ExitTransferPolicy.CancelTransfers;
-        if (!coordinator.TryBegin(policy))
+        if (!coordinator.TryBegin(policy, out var requestVersion))
         {
             return Conflict(ExitInProgressCode, "TermForge is already exiting.");
         }
 
         logger.LogInformation($"Application exit requested from the browser with policy {policy}");
-        context.Response.OnCompleted(StartExit);
+        context.Response.OnCompleted(() => StartExit(requestVersion));
         var state = coordinator.State;
         var response = ExitStateResponse.From(state);
         return Results.Json(response, statusCode: StatusCodes.Status202Accepted);
@@ -30,9 +30,9 @@ internal sealed class ApplicationExitHandler(ApplicationExitCoordinator coordina
         return Results.NoContent();
     }
 
-    private Task StartExit()
+    private Task StartExit(long requestVersion)
     {
-        coordinator.Start();
+        coordinator.Start(requestVersion);
         return Task.CompletedTask;
     }
 
