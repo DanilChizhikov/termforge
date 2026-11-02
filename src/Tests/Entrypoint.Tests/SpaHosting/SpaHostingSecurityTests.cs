@@ -109,6 +109,55 @@ public sealed class SpaHostingSecurityTests
         session.CsrfToken.Should().NotBeNullOrEmpty();
     }
 
+    [TestMethod]
+    [DataRow("/")]
+    [DataRow("/servers/1/terminal")]
+    [DataRow("/assets/app.js")]
+    public async Task Shell_and_static_assets_enforce_same_origin_scripts_connections_and_workers(string path)
+    {
+        await using var factory = CreateFactory();
+        using var client = factory.CreateClientWithoutCookies();
+
+        using var response = await TestRequest.Get(path).SendAsync(client, TestContext.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var policy = response.Headers.GetValues("Content-Security-Policy").Should().ContainSingle().Subject;
+        policy.Should().Be("default-src 'self'; script-src 'self'; connect-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+        policy.Should().NotContain("unsafe-eval").And.NotContain("blob:");
+    }
+
+    [TestMethod]
+    [DataRow("/bootstrap")]
+    [DataRow("/bootstrap.js")]
+    public async Task Bootstrap_keeps_its_stricter_policy(string path)
+    {
+        await using var factory = CreateFactory();
+        using var client = factory.CreateClientWithoutCookies();
+
+        using var response = await TestRequest.Get(path).SendAsync(client, TestContext.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var policy = response.Headers.GetValues("Content-Security-Policy").Should().ContainSingle().Subject;
+        policy.Should().Contain("default-src 'none'").And.Contain("script-src 'self'").And.Contain("form-action 'none'");
+        policy.Should().NotContain("unsafe-inline").And.NotContain("unsafe-eval");
+    }
+
+    [TestMethod]
+    public async Task Api_session_responses_keep_no_store_without_the_document_policy()
+    {
+        await using var factory = CreateFactory();
+        using var client = factory.CreateClientWithoutCookies();
+        var session = await SessionBootstrapper.AuthenticateAsync(factory, client, TestContext.CancellationToken);
+
+        using var response = await TestRequest.Get(SessionBootstrapper.SessionPath)
+            .WithSession(session)
+            .SendAsync(client, TestContext.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Headers.CacheControl!.NoStore.Should().BeTrue();
+        response.Headers.Contains("Content-Security-Policy").Should().BeFalse();
+    }
+
     private TermForgeApplicationFactory CreateFactory()
     {
         return new TermForgeApplicationFactory { WebRootPath = _webRoot };
