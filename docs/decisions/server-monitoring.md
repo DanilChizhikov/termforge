@@ -7,6 +7,7 @@ Basic metrics (connection state and latency, uptime, load average, CPU and CPU c
 - One script (`MetricsScript`) prints `@@name` sections. It picks the strategy from `uname -s` in the same run, so collection does not depend on a cached capability report.
 - Parsing is pure (`Core/Monitoring/Parsing`) and covered by recorded outputs.
 - Every metric is a `MetricReading<T>`: either a value or an unavailable reason. The API returns `{ available, value, reason }`; there is no default value, so a missing tool never shows a misleading number.
+- Integer parsing, byte/page conversions, counter sums and uptime conversions reject values outside their supported ranges. Non-finite floating-point values are unavailable. A malformed metric does not discard the other readings or turn the request into an error.
 
 ## Collection by OS
 

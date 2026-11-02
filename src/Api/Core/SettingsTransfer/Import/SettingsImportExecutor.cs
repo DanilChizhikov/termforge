@@ -1,3 +1,5 @@
+using DTech.Core.Diagnostics;
+
 namespace DTech.Core.SettingsTransfer.Import;
 
 public sealed class SettingsImportExecutor
@@ -6,17 +8,20 @@ public sealed class SettingsImportExecutor
     private readonly PreferencesImportApplier _preferences;
     private readonly WorkspaceImportApplier _workspace;
     private readonly PinnedCommandImportApplier _pinnedCommands;
+    private readonly CapabilityReportCache? _capabilityCache;
 
     public SettingsImportExecutor(
         ConnectionImportApplier connections,
         PreferencesImportApplier preferences,
         WorkspaceImportApplier workspace,
-        PinnedCommandImportApplier pinnedCommands)
+        PinnedCommandImportApplier pinnedCommands,
+        CapabilityReportCache? capabilityCache = null)
     {
         _connections = connections;
         _preferences = preferences;
         _workspace = workspace;
         _pinnedCommands = pinnedCommands;
+        _capabilityCache = capabilityCache;
     }
 
     public async Task<SettingsImportResult> ExecuteAsync(PreparedSettingsImport prepared, CancellationToken cancellationToken)
@@ -71,6 +76,11 @@ public sealed class SettingsImportExecutor
 
     public async Task<SettingsImportResult> AfterCommitAsync(PreparedSettingsImport prepared, SettingsImportResult result, CancellationToken cancellationToken)
     {
+        if (prepared.Sections.Connections)
+        {
+            _capabilityCache?.Clear();
+        }
+
         if (prepared.Preferences is null)
         {
             return result;
