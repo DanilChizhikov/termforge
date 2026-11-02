@@ -25,7 +25,7 @@ public sealed class SudoCommandBuilder
         "exec </dev/null; if [ -d \"$2\" ] && [ ! -h \"$2\" ]; then echo \"$2: Is a directory\" >&2; exit 1; fi; mv -f -- \"$1\" \"$2\"";
 
     private const string ListScript =
-        "exec </dev/null; if [ ! -d \"$1\" ]; then echo \"$1: No such file or directory\" >&2; exit 1; fi; cd \"$1\" || exit 1; for name in .* *; do case $name in .|..) continue ;; esac; if [ -e \"$name\" ] || [ -h \"$name\" ]; then printf '%s\\0' \"$name\"; fi; done";
+        "exec </dev/null; if [ ! -d \"$1\" ]; then echo \"$1: No such file or directory\" >&2; exit 1; fi; cd \"$1\" || exit 1; for name in .* *; do case $name in .|..) continue ;; esac; if [ -f \"$name\" ] && [ ! -h \"$name\" ]; then printf '%s\\0' \"$name\"; fi; done";
 
     public string Probe()
     {

@@ -17,6 +17,8 @@ All endpoints require the browser session; the POST endpoints also require the C
 
 Entries carry name, full path, kind (`File`, `Directory`, `SymbolicLink`, `Other`), size, UTC modification time, permissions (`rwxr-xr-x`, absent on Windows) and, for symbolic links, the kind of the target or a broken-link flag.
 
+Remote browsing resolves link targets with at most eight concurrent requests and preserves the directory listing order. SFTP filename search uses the same raw entries without requesting attributes of link targets.
+
 Errors are problem details with a `code`:
 
 | Code | HTTP | Meaning |
