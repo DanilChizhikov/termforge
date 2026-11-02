@@ -28,7 +28,9 @@ internal sealed class SshNetTerminalSessionFactory(SshClientConnector connector)
         {
             var columns = (uint)request.InitialSize.Columns;
             var rows = (uint)request.InitialSize.Rows;
-            shellStream = connection.Value.Client.CreateShellStream(request.TerminalType, columns, rows, 0, 0, ShellBufferSize);
+            var createShell = () => connection.Value.Client.CreateShellStream(request.TerminalType, columns, rows, 0, 0, ShellBufferSize);
+            var opening = Task.Factory.StartNew(createShell, cancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            shellStream = await opening;
         }
         catch (Exception exception)
         {

@@ -7,6 +7,7 @@ using DTech.Entrypoint.Tests.Infrastructure;
 using DTech.Entrypoint.Tests.Terminals.Support;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -24,12 +25,14 @@ public sealed class TerminalEndpointsTests
     private TermForgeApplicationFactory _factory = null!;
     private HttpClient _client = null!;
     private AuthenticatedSession _session = null!;
+    private bool _failAccept;
 
     public TestContext TestContext { get; set; } = null!;
 
     [TestInitialize]
     public async Task Initialize()
     {
+        _failAccept = TestContext.TestName == nameof(WebSocket_AcceptFails_ReleasesTheAttachedSession);
         _sessionFactory = new ScriptedTerminalSessionFactory();
         _factory = new TermForgeApplicationFactory { ConfigureServices = ReplaceServices };
         _client = _factory.CreateClientWithoutCookies();
@@ -273,10 +276,34 @@ public sealed class TerminalEndpointsTests
         await connect.Should().ThrowAsync<InvalidOperationException>().WithMessage("*409*");
     }
 
+    [TestMethod]
+    public async Task WebSocket_AcceptFails_ReleasesTheAttachedSession()
+    {
+        var connectionId = await CreateConnectionAsync("web");
+        var opened = await OpenTerminalAsync(connectionId, 80, 24);
+        var id = opened.GetProperty("id").GetString()!;
+        var path = $"{TerminalsPath}/{id}/ws";
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        request.Headers.Add("Origin", TermForgeApplicationFactory.ApplicationOrigin);
+        request.Headers.Add("Cookie", _session.CookieHeader);
+        request.Headers.Add("Sec-WebSocket-Protocol", $"termforge.{_session.CsrfToken}");
+        using var response = await _client.SendAsync(request, TestContext.CancellationToken);
+        response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+
+        var manager = _factory.Services.GetRequiredService<TerminalSessionManager>();
+        manager.Count.Should().Be(0);
+        _sessionFactory.Sessions.Single().IsDisposed.Should().BeTrue();
+    }
+
     private void ReplaceServices(IServiceCollection services)
     {
         services.RemoveAll<ITerminalSessionFactory>();
         services.AddSingleton<ITerminalSessionFactory>(_sessionFactory);
+        if (_failAccept)
+        {
+            services.AddTransient<IStartupFilter, FailingTerminalAcceptStartupFilter>();
+        }
     }
 
     private async Task<Guid> CreateConnectionAsync(string name)

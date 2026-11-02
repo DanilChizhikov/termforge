@@ -14,7 +14,7 @@ The workspace needs multiple independent interactive SSH terminals (PROJECT_SPEC
 
 - `Core/Terminal/Sessions/TerminalSessionManager` is a singleton registry of open sessions. `TerminalLauncher` (scoped) resolves a saved connection into an `SshConnectionTarget` through `ConnectionTargetFactory`, so terminals use the same connect path, credentials, ProxyJump and host key verification (including the interactive host key dialog) as the connection test.
 - Session ids are 32 bytes from `RandomNumberGenerator`, hex encoded. Every session stores its owner key, which is the browser session token; lookups, listing and closing compare it in constant time. A session created by one browser session is invisible (`404`) to any other.
-- A session is attached to at most one WebSocket (`409` for a second one). A session that is not attached within 30 seconds after `POST /api/terminals` is closed, so an abandoned open never leaks an SSH connection.
+- A session is attached to at most one WebSocket (`409` for a second one). Attachment releases the session in `finally`, including a failed WebSocket handshake or an unexpected relay exception. A session that is not attached within 30 seconds after `POST /api/terminals` is closed, so an abandoned open never leaks an SSH connection.
 - At most 32 sessions per browser session.
 - Disposal is deterministic and idempotent. A session is closed and its SSH connection disposed when:
   - the user closes the tab (`DELETE /api/terminals/{id}`),
@@ -34,8 +34,10 @@ The workspace needs multiple independent interactive SSH terminals (PROJECT_SPEC
 
 ### Backpressure
 
-- Output: `ShellOutputPump` reads the shell stream into a bounded channel (64 chunks of up to 16 KiB). The relay awaits every WebSocket send before reading the next chunk, so a slow browser stops the pump once the channel is full instead of buffering without limit in TermForge.
-- Input: the relay awaits each write to the shell before it receives the next WebSocket frame.
+- Output: `ShellOutputPump` reads the shell stream into a bounded channel (64 chunks of up to 16 KiB). If the queue fills or the library's unread source backlog exceeds 1 MiB, the pump closes the SSH connection and reports an explicit backlog failure. It never waits for queue capacity while SSH.NET continues buffering incoming data.
+- Input: one gate covers each complete write and flush, including browser and remote-control writers. Cancellation while waiting for the gate does not send any bytes.
+- A terminal WebSocket send has a 10-second deadline. A stalled browser is aborted so it cannot retain the attached session indefinitely after the SSH source closes.
+- Streaming commands drain stderr continuously without retaining its content. A stderr backlog above 1 MiB closes the connection with an explicit failure. Command disposal closes the source and waits for execution and both reader workers.
 
 ### Frontend
 
@@ -47,5 +49,5 @@ The workspace needs multiple independent interactive SSH terminals (PROJECT_SPEC
 - No automatic reconnect and no command replay: a lost session stays in the `disconnected` state. Reconnect policy and command history belong to the task "Reconnect Policy and Command History".
 - Sessions do not survive a page reload; the old sessions close when their WebSockets drop.
 - Each terminal opens its own SSH connection. A shared connection pool is a follow-up.
-- SSH.NET adjusts the SSH channel window on its own, so output a remote process produces while the browser is stalled can still be buffered inside the library. TermForge's own buffers are bounded.
+- SSH.NET adjusts the channel window before the application consumes data. The application checks its unread source backlog and closes on overflow; in-flight SSH packets and scheduling can temporarily exceed the application queue limit.
 - tmux/screen attach is not implemented. Follow-up: an optional "attach to tmux session" command that starts the shell with `tmux new -A -s <name>` when `command -v tmux` succeeds.

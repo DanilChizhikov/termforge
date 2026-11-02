@@ -254,6 +254,31 @@ public sealed class DockerEndpointsTests
     }
 
     [TestMethod]
+    public async Task Logs_OutputBacklogFailure_SendsErrorAndDisposesTheRemoteStream()
+    {
+        var stream = Substitute.For<IRemoteCommandStream>();
+        var overflow = new IOException("The SSH output backlog exceeded its limit.");
+        var failure = new IOException("The SSH command output stream failed.", overflow);
+        stream.ReadAsync(default, default).ReturnsForAnyArgs(_ => ValueTask.FromException<int>(failure));
+        var disposed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        stream.DisposeAsync().Returns(_ =>
+        {
+            disposed.TrySetResult();
+            return ValueTask.CompletedTask;
+        });
+        var started = SshResult<IRemoteCommandStream>.Success(stream);
+        _streamFactory.StartAsync(default!, default!, default).ReturnsForAnyArgs(started);
+        var id = await CreateConnectionAsync();
+        var path = $"/api/connections/{id}/docker/containers/web/logs/ws?follow=true";
+        using var socket = await ConnectLogsAsync(path);
+
+        var error = await socket.ExpectMessageAsync("error");
+
+        error.GetProperty("message").GetString().Should().Contain("output backlog");
+        await disposed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.CancellationToken);
+    }
+
+    [TestMethod]
     public async Task Logs_WhenViewerCloses_StopsRemoteCommand()
     {
         var stream = new ChannelCommandStream();
