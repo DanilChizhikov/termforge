@@ -11,6 +11,8 @@ SFTP uploads and downloads are explicit operations executed by an in-process que
 - Resume: retry (`POST /api/operations/{id}/retry`) replaces the failed job with a new one that appends to an existing partial if it is not larger than the source; files already committed by the previous attempt are skipped. Historical overwrite permission is never reused. A retry inspects targets again and returns 409 `TransferConflict` if they exist; retrying with `{ overwrite: true, confirmationToken }` requires a fresh one-time `TransferOverwrite` grant for uploads or `LocalTransferOverwrite` grant for downloads. Local overwrite grants also work for read-only servers because they do not change the server.
 - Failures: connection loss, generic I/O failures and cancellation are retryable and keep the partial; permission and validation errors are permanent and delete the partial.
 - Cancellation: cancelling a queued job removes it immediately; cancelling a running job signals its token and deletes the partial. `POST /api/transfers/{id}/discard` deletes a kept partial.
+- Recovery: admission persists exact request metadata before publishing jobs, and each file checkpoints its partial path before any bytes are written. After restart interrupted operations become failed and their known partial paths appear in the panel and journal without starting a worker. Retry transfers cleanup ownership to the new operation; a changed source may leave an older partial, which remains tracked until explicitly discarded. A checkpoint failure prevents that file copy from starting.
+- Cleanup: `hasPartial` identifies tracked partials even when their byte count is unknown or zero. Discard reserves the target against concurrent retry and deletes only recorded paths. Local download partials can be discarded while the SSH server is offline; remote cleanup requires a writable reachable server. Finished entries with pending cleanup are excluded from journal retention and panel clearing.
 - Conflicts: `POST /api/transfers` inspects targets first and returns 409 `TransferConflict` with the existing paths; nothing is queued until the request is repeated with `overwrite: true`.
 - Progress: snapshots (bytes, files, rate over a sliding window, ETA) are published on the shared `/api/ws` channel as `transfer.changed` every `Transfers:ProgressIntervalMilliseconds` (default 250); removals as `transfer.removed`.
 - Shutdown: on application stop the queue closes for new jobs, running and queued jobs are cancelled and cleaned up within `Transfers:ShutdownTimeoutSeconds` (default 10).
@@ -27,7 +29,8 @@ The transfer panel sits under the file panes. Upload/Download buttons send the p
 
 ## Known limitations
 
-- The queue lives in memory: after a restart finished and failed transfers are visible only in the journal, and a kept partial is resumed only by retrying the journal entry.
+- Work is not automatically resumed on restart. Old rows without exact recovery metadata cannot expose unknown partials for discard; no filesystem scan or path guessing is performed.
+- A crash before a checkpoint completes cannot leave a newly written partial from that file, but a crash during commit may leave a recorded path whose file no longer exists; discard treats missing files as already cleaned.
 - Owner, permissions and timestamps of the source are not copied.
 - Directory synchronization is out of scope.
 - Resume trusts the existing partial bytes; integrity is verified by the integration tests, not by a checksum at runtime.

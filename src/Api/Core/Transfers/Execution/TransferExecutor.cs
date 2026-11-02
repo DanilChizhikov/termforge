@@ -105,7 +105,11 @@ public sealed class TransferExecutor(ITransferConnectionOpener opener, TransferS
             return;
         }
 
-        await file.Strategy.DeletePartialAsync(file.Context, partialPath, CancellationToken.None);
+        var deleted = await file.Strategy.DeletePartialAsync(file.Context, partialPath, CancellationToken.None);
+        if (deleted.IsSuccess || deleted.Error.Code == FileErrorCode.NotFound)
+        {
+            file.Job.ForgetPartialPath(partialPath);
+        }
     }
 
     private static TransferOutcome CreateFailure(TransferJob job, FileError error)

@@ -16,6 +16,7 @@ import { OperationFilterBar, periodStart, type OperationPeriod } from './Operati
 import { OperationTable } from './OperationTable';
 import { TransferConflictDialog } from './TransferConflictDialog';
 import { confirmOverwrite, dismissConflict, requestTransferRetry, useTransfersState } from '../state/transfers';
+import { discardTransfer } from '../api/transfers';
 
 const OPERATION_CHANGED = 'operation.changed';
 
@@ -128,11 +129,23 @@ export function OperationHistory() {
         sourcePaths: [source],
         targetDirectory,
         overwrite: false,
-      });
+      }, true);
       return;
     }
     retryOperation(operation.id)
       .then(() => setError(null))
+      .catch((reason: unknown) => setError(describeError(reason)));
+  }, []);
+
+  const discard = useCallback((operation: OperationRecord) => {
+    discardTransfer(operation.id)
+      .then(() => {
+        setPage((current) => current === null ? current : {
+          ...current,
+          items: current.items.map((item) => item.id === operation.id ? { ...item, hasPartial: false } : item),
+        });
+        setError(null);
+      })
       .catch((reason: unknown) => setError(describeError(reason)));
   }, []);
 
@@ -162,7 +175,7 @@ export function OperationHistory() {
         <EmptyState message="No operations match." />
       ) : (
         <div className="table-card">
-          <OperationTable operations={page.items} onRetry={retry} />
+          <OperationTable operations={page.items} onRetry={retry} onDiscard={discard} />
         </div>
       )}
       <div className="operation-paging">

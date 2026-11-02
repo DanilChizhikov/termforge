@@ -99,7 +99,7 @@ function TransferCard({ transfer }: { transfer: TransferRecord }) {
             {transfer.partialBytes > 0 ? 'Resume' : 'Retry'}
           </button>
         )}
-        {!isActive(transfer) && transfer.partialBytes > 0 && (
+        {!isActive(transfer) && (transfer.hasPartial ?? transfer.partialBytes > 0) && (
           <button type="button" className="btn btn-xs btn-danger-link" onClick={() => run(() => discardTransfer(transfer.id))}>
             Discard partial
           </button>
@@ -128,7 +128,7 @@ function TransferCard({ transfer }: { transfer: TransferRecord }) {
 export function TransferPanel() {
   const live = useTransferFeed();
   const { transfers, pendingConflict, error } = useTransfersState();
-  const hasFinished = transfers.some((transfer) => !isActive(transfer) && transfer.partialBytes === 0);
+  const hasFinished = transfers.some((transfer) => !isActive(transfer) && !(transfer.hasPartial ?? transfer.partialBytes > 0));
 
   return (
     <section aria-label="Transfers" className="transfer-panel">

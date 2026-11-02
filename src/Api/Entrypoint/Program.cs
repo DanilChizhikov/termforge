@@ -38,6 +38,7 @@ builder.Services.AddAiBridge(builder.Configuration);
 
 var app = builder.Build();
 await app.MigrateDatabaseAsync();
+await app.RecoverOperationsAsync();
 app.UseLocalHostSecurity();
 app.UseApplicationLifecycle();
 app.MapApplicationLifecycle();

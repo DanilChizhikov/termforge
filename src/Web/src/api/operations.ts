@@ -22,6 +22,7 @@ export interface OperationRecord {
   details: Record<string, string>;
   error: string | null;
   retryable: boolean;
+  hasPartial?: boolean;
 }
 
 export interface OperationPage {

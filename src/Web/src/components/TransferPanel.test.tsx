@@ -169,6 +169,15 @@ describe('TransferPanel', () => {
     expect(screen.queryByRole('button', { name: 'Discard partial' })).not.toBeInTheDocument();
   });
 
+  it('keeps recovered zero-byte partials available for discard and excludes them from clear', async () => {
+    listed = [makeTransfer({ status: 'failed', retryable: true, hasPartial: true, partialBytes: 0 })];
+
+    render(<TransferPanel />);
+
+    expect(await screen.findByRole('button', { name: 'Discard partial' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clear finished' })).toBeDisabled();
+  });
+
   it('asks before overwriting and resends the request with overwrite confirmed', async () => {
     startResponses = [json({ code: 'TransferConflict', conflicts: ['/var/www/site/dist.tar.gz'] }, 409), json([])];
     const user = userEvent.setup();

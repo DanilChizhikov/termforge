@@ -18,6 +18,8 @@ public sealed record TransferResponse
 
     public required string TargetDirectory { get; init; }
 
+    public bool HasPartial { get; init; }
+
     public required string Status { get; init; }
 
     public required long TransferredBytes { get; init; }
@@ -50,6 +52,7 @@ public sealed record TransferResponse
             SourcePath = snapshot.Request.SourcePath,
             TargetPath = snapshot.TargetPath,
             TargetDirectory = snapshot.Request.TargetDirectory,
+            HasPartial = snapshot.HasPartial,
             Status = snapshot.Status.ToString().ToLowerInvariant(),
             TransferredBytes = progress.TransferredBytes,
             TotalBytes = progress.TotalBytes,

@@ -23,6 +23,7 @@ export interface TransferRecord {
   error: string | null;
   retryable: boolean;
   partialBytes: number;
+  hasPartial?: boolean;
 }
 
 export interface TransferStartRequest {
@@ -92,6 +93,11 @@ export function clearFinishedTransfers(client: ApiClient = apiClient): Promise<v
 
 export function retryTransfer(id: string, client: ApiClient = apiClient, options?: TransferRetryOptions): Promise<void> {
   return client.post<void>(`/api/operations/${encodeURIComponent(id)}/retry`, options);
+}
+
+export async function requestTransferRetryConfirmation(id: string, client: ApiClient = apiClient): Promise<string> {
+  const grant = await client.post<{ token: string }>(`/api/operations/${encodeURIComponent(id)}/retry-confirmation`);
+  return grant.token;
 }
 
 export function readConflicts(error: unknown): string[] | null {

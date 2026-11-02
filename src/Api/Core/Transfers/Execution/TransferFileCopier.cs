@@ -2,7 +2,7 @@ using DTech.Core.Files;
 
 namespace DTech.Core.Transfers.Execution;
 
-public sealed class TransferFileCopier
+public sealed class TransferFileCopier(ITransferJournal? journal = null)
 {
     public async Task<FileResult> CopyAsync(TransferFileContext file, TransferItem item, CancellationToken cancellationToken)
     {
@@ -34,6 +34,11 @@ public sealed class TransferFileCopier
         var candidate = new PartialCandidate(partialPath, item.Size);
         var offset = await FindResumeOffsetAsync(file, candidate, cancellationToken);
         job.BeginFile(partialPath, offset);
+        if (journal is not null)
+        {
+            await journal.CheckpointAsync(job, cancellationToken);
+        }
+
         var progress = new TransferFileProgress(job, offset);
         var copy = new TransferCopy(item, partialPath, offset) { Progress = progress };
         var copied = await strategy.CopyAsync(context, copy, cancellationToken);
@@ -49,6 +54,11 @@ public sealed class TransferFileCopier
         }
 
         job.CompleteFile(item.Size);
+        if (journal is not null)
+        {
+            await journal.CheckpointAsync(job, CancellationToken.None);
+        }
+
         return FileResult.Success();
     }
 
