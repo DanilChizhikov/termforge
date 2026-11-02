@@ -85,6 +85,6 @@ internal static class ApplicationLifecycleExtensions
     private static void ApplyShutdownTimeout(HostOptions hostOptions, IOptions<LifecycleOptions> lifecycleOptions)
     {
         var shutdownTimeoutSeconds = lifecycleOptions.Value.ShutdownTimeoutSeconds;
-        hostOptions.ShutdownTimeout = TimeSpan.FromSeconds(shutdownTimeoutSeconds);
+        hostOptions.ShutdownTimeout = TimeSpan.FromSeconds(shutdownTimeoutSeconds + 5L);
     }
 }

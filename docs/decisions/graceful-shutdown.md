@@ -19,6 +19,7 @@ Closing a browser tab never stops TermForge. The backend stops only after an exp
 - `{ "waitForTransfers": true }` with active transfers enters `waitingForTransfers`: new work is rejected, queued and running transfers finish, then the shutdown starts. Without active transfers it shuts down at once.
 - `DELETE /api/lifecycle/exit` cancels a pending wait (204) and the application accepts work again; 409 `NoPendingExit` otherwise.
 - While exiting, unsafe `/api` requests return 503 with code `ApplicationExiting`, except `/api/lifecycle`, `/api/session` and `/api/workspace` (the browser still flushes its workspace).
+- New WebSocket upgrades and `/mcp` requests also return 503 while exiting. Read-only HTTP API requests remain available. Cancelling a pending exit invalidates its response-completion callback; a later exit request can only be started by its own callback.
 
 The dialog follows the `Exit` artboard: the list of pending items, a note that closing the tab does not stop anything, `Exit now` (danger link), `Cancel` and the primary `Exit after transfers finish` (only `Cancel` and `Exit` when no transfer is active). While waiting it shows live progress with `Exit now` and `Keep working`; after the backend stops it says so and the tab can be closed. `Review` on an unsaved file opens it in the editor.
 
@@ -34,7 +35,7 @@ The dialog follows the `Exit` artboard: the list of pending items, a note that c
 
 Then `IHostApplicationLifetime.StopApplication()` stops the host, which disposes resources. A step that fails is logged and the next one runs; when the timeout elapses the remaining steps are skipped with a warning and the host stops anyway.
 
-The same sequence runs from `ApplicationStopping` (`GracefulShutdownHostedService`), so `Ctrl+C` and `SIGTERM` shut down in the same order. The former per-feature `ApplicationStopping` hooks of terminals and transfers were replaced by steps; their `StopAsync` fallbacks remain.
+The same sequence runs asynchronously from `IHostedLifecycleService.StoppingAsync` (`GracefulShutdownHostedService`), before hosted services stop, so `Ctrl+C` and `SIGTERM` shut down in the same order. `ApplicationStopping` callbacks do not synchronously wait for the stages. The host shutdown timeout includes five extra seconds beyond the stage budget. The former per-feature `ApplicationStopping` hooks of terminals and transfers were replaced by steps; their `StopAsync` fallbacks remain.
 
 ### Idle shutdown
 

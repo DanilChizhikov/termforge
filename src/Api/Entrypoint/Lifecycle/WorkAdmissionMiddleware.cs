@@ -15,7 +15,7 @@ internal sealed class WorkAdmissionMiddleware(RequestDelegate next, WorkAdmissio
 
     public Task InvokeAsync(HttpContext context)
     {
-        if (gate.IsAcceptingWork || !StartsNewWork(context.Request))
+        if (gate.IsAcceptingWork || !StartsNewWork(context))
         {
             return next(context);
         }
@@ -28,8 +28,14 @@ internal sealed class WorkAdmissionMiddleware(RequestDelegate next, WorkAdmissio
         return rejection.ExecuteAsync(context);
     }
 
-    private static bool StartsNewWork(HttpRequest request)
+    private static bool StartsNewWork(HttpContext context)
     {
+        var request = context.Request;
+        if (context.WebSockets.IsWebSocketRequest || SecurityPaths.IsAiBridge(request.Path))
+        {
+            return true;
+        }
+
         var isSafeMethod = HttpMethods.IsGet(request.Method) || HttpMethods.IsHead(request.Method) || HttpMethods.IsOptions(request.Method);
         if (isSafeMethod || !SecurityPaths.IsApi(request.Path))
         {
