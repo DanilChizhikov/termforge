@@ -28,7 +28,7 @@ This document describes the threat model, the protections implemented in `src/Ap
 | Cross-site request forgery | A malicious site submits a form or `fetch` to `http://127.0.0.1:5023/api/...` | Session cookie is `SameSite=Strict`; state-changing requests require the `X-CSRF-Token` header that only same-origin script can obtain; `Origin` must match exactly |
 | Cross-site WebSocket hijacking | A malicious site opens `ws://127.0.0.1:5023/...`; browsers do not apply CORS to WebSockets | Every WebSocket handshake must carry an `Origin` equal to the backend origin, a valid session cookie and an origin proof in `Sec-WebSocket-Protocol` |
 | Other local web apps | A local service on another port receives the shared host cookie and replays it to TermForge | Every protected API request requires the origin proof in addition to the cookie. The proof lives in origin-scoped `sessionStorage` and is issued only by successful bootstrap or password login; cookie-only `/api/session` gets `403` |
-| Clickjacking | Framing TermForge in a hostile page | `X-Frame-Options: DENY`, `frame-ancestors 'none'` on the bootstrap page; the Strict cookie is not sent in a cross-site frame |
+| Clickjacking | Framing TermForge in a hostile page | `X-Frame-Options: DENY` and `frame-ancestors 'none'` on every non-API response; the Strict cookie is not sent in a cross-site frame |
 | Other local processes | A process sends HTTP requests to the port without a browser | Every protected `/api` request and WebSocket needs the session cookie and origin proof. The 256-bit bootstrap token is single use, expires after 60 seconds, and is carried in a private launch file rather than process arguments |
 | Token leakage | Bootstrap token in server logs, proxy logs, `Referer`, or browser history | The token travels in the URL fragment (never sent to the server), the bootstrap page clears it with `history.replaceState`, sends `Referrer-Policy: no-referrer`, and the token is exchanged with a `POST` body. Tests run with `Trace` logging and assert that no token or cookie value appears in any log message |
 | Timing attacks | Guessing secrets byte by byte | All secret comparisons use `CryptographicOperations.FixedTimeEquals`; sessions are looked up by the SHA-256 of the token |
@@ -77,6 +77,12 @@ The initial navigation from the private file is cross-site. Only `GET /bootstrap
 
 The SPA does not need to implement any of the bootstrap steps.
 
+### Content Security Policy
+
+Every non-API response, including the SPA shell, deep links and static assets, sends an enforcing CSP: same-origin scripts, connections and workers; no objects, base URL overrides or embedding frames; form submissions stay same-origin. Inline scripts, eval and blob workers are not allowed. Inline styles are allowed because xterm and Monaco generate styles at runtime. Bootstrap keeps its stricter `default-src 'none'` policy with only same-origin scripts/connections and no form submissions.
+
+Vite serves its own development shell, including HMR, on :5173. This does not change or relax the backend's production policy.
+
 ### Session cookie
 
 | Property | Value |
@@ -106,6 +112,7 @@ The SPA cannot and must not read it. `fetch` sends it automatically for same-ori
 - Connect to a same-origin URL built from `window.location`, with `termforge.<origin-proof>` as the requested subprotocol. The server selects that same protocol. Never include the proof in the URL.
 - Browsers send `Origin` and the session cookie on the handshake automatically. Missing or foreign `Origin` → `403`, missing or invalid session → `401`, missing or invalid proof protocol → `403`.
 - Terminal sockets `/api/terminals/{id}/ws` additionally require that the terminal id (256 random bits) was created by the same browser session (`404` otherwise) and is not already attached (`409`). A leaked id alone is useless without the session cookie and a same-origin handshake.
+- Browser WebSockets use a 30-second ping interval and a 10-second pong deadline. Each realtime `/api/ws` connection has one sender and a queue of at most 64 messages; a slow client is aborted on overflow or a 10-second send deadline. Publishing never waits for socket I/O. Request cancellation and application stopping close the socket and remove it from browser-presence tracking.
 
 ### Exit
 
