@@ -21,7 +21,8 @@ public sealed class BrowserOpeningServiceTests
     private readonly CancellationTokenSource _stopping = new();
     private readonly IBrowserLauncher _browserLauncher = Substitute.For<IBrowserLauncher>();
     private readonly CapturingLoggerProvider _logs = new();
-    private readonly BootstrapToken _bootstrapToken = new();
+    private readonly BootstrapToken _bootstrapToken = new(TimeProvider.System);
+    private BootstrapRedirectFile? _redirectFile;
     private readonly ServerAddressesFeature _serverAddresses = new();
 
     public TestContext TestContext { get; set; } = null!;
@@ -29,12 +30,13 @@ public sealed class BrowserOpeningServiceTests
     [TestCleanup]
     public void Cleanup()
     {
+        _redirectFile?.Dispose();
         _started.Dispose();
         _stopping.Dispose();
     }
 
     [TestMethod]
-    public async Task Browser_opens_bootstrap_url_after_application_started()
+    public async Task Browser_opens_private_launch_file_after_application_started()
     {
         _serverAddresses.Addresses.Add("http://127.0.0.1:5023");
         var service = CreateService(true);
@@ -43,9 +45,11 @@ public sealed class BrowserOpeningServiceTests
         _browserLauncher.DidNotReceiveWithAnyArgs().Open(default!);
         await _started.CancelAsync();
 
-        var expectedUrl = $"http://127.0.0.1:5023/bootstrap#token={_bootstrapToken.Value}";
-        var expectedAddress = Arg.Is<Uri>(address => address.AbsoluteUri == expectedUrl);
+        var expectedAddress = Arg.Is<Uri>(address => address.IsFile && !address.AbsoluteUri.Contains(_bootstrapToken.Value));
         _browserLauncher.Received(1).Open(expectedAddress);
+        var launchAddress = (Uri)_browserLauncher.ReceivedCalls().Single().GetArguments()[0]!;
+        var launchHtml = File.ReadAllText(launchAddress.LocalPath);
+        launchHtml.Should().Contain($"http://127.0.0.1:5023/bootstrap#token={_bootstrapToken.Value}");
         _logs.Messages.Should().NotContain(message => message.Contains(_bootstrapToken.Value));
     }
 
@@ -102,10 +106,11 @@ public sealed class BrowserOpeningServiceTests
 
         var lifecycleOptions = new LifecycleOptions { OpenBrowser = openBrowser };
         var options = Options.Create(lifecycleOptions);
-        var bootstrapUrlFactory = new BootstrapUrlFactory(server, _bootstrapToken);
+        var bootstrapUrlFactory = new BootstrapUrlFactory(server, _bootstrapToken, options);
+        _redirectFile = new BootstrapRedirectFile(_bootstrapToken, TimeProvider.System);
         var loggerFactory = LoggerFactory.Create(ConfigureLogging);
         var logger = loggerFactory.CreateLogger<BrowserOpeningService>();
-        return new BrowserOpeningService(bootstrapUrlFactory, _browserLauncher, options, lifetime, logger);
+        return new BrowserOpeningService(bootstrapUrlFactory, _browserLauncher, _redirectFile, options, lifetime, logger);
     }
 
     private void ConfigureLogging(ILoggingBuilder logging)

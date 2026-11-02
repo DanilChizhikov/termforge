@@ -98,6 +98,7 @@ public sealed class NetworkModeProtectionTests
         using var client = factory.CreateClientFor(NetworkAccessSettings.NetworkBaseAddress);
         var session = await PasswordSessions.SignInAsync(client, TestContext.CancellationToken);
         var webSocketClient = CreateWebSocketClient(factory, "https://attacker.example", session.CookieHeader);
+        webSocketClient.SubProtocols.Add($"termforge.{session.CsrfToken}");
 
         var connect = () => webSocketClient.ConnectAsync(NetworkRealtimeUri, TestContext.CancellationToken);
 
@@ -111,6 +112,7 @@ public sealed class NetworkModeProtectionTests
         using var client = factory.CreateClientFor(NetworkAccessSettings.NetworkBaseAddress);
         var session = await PasswordSessions.SignInAsync(client, TestContext.CancellationToken);
         var webSocketClient = CreateWebSocketClient(factory, NetworkAccessSettings.NetworkOrigin, session.CookieHeader);
+        webSocketClient.SubProtocols.Add($"termforge.{session.CsrfToken}");
 
         using var webSocket = await webSocketClient.ConnectAsync(NetworkProbeUri, TestContext.CancellationToken);
         var buffer = new byte[16];

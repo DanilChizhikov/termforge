@@ -78,6 +78,7 @@ internal sealed class TerminalApiHarness : IAsyncDisposable
     public async Task<TerminalSocket> AttachAsync(string id)
     {
         var client = Factory.Server.CreateWebSocketClient();
+        client.SubProtocols.Add($"termforge.{_session.CsrfToken}");
         client.ConfigureRequest = request => ApplyHeaders(request);
         var uri = new Uri($"ws://localhost/api/terminals/{id}/ws");
         var webSocket = await client.ConnectAsync(uri, _testContext.CancellationToken);

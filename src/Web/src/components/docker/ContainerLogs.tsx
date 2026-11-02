@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { containerLogsUrl, LOG_TAIL_OPTIONS, parseLogMessage } from '../../api/docker';
+import { originProofProtocols } from '../../api/originProof';
 import { CloseIcon, SearchIcon, TerminalIcon } from '../icons/Icons';
 
 export interface ContainerLogsProps {
@@ -96,7 +97,10 @@ function LogStream({ connectionId, container, tail, follow, filter }: LogStreamP
 
   useEffect(() => {
     let finished = false;
-    const socket = new WebSocket(containerLogsUrl(connectionId, container, { tail, follow }));
+    const logOptions = { tail, follow };
+    const url = containerLogsUrl(connectionId, container, logOptions);
+    const protocols = originProofProtocols();
+    const socket = new WebSocket(url, protocols);
     socket.onopen = () => setStream({ kind: 'streaming' });
     socket.onmessage = (event: MessageEvent) => {
       if (typeof event.data !== 'string') {

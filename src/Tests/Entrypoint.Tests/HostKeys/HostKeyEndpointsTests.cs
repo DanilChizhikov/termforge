@@ -151,6 +151,7 @@ public sealed class HostKeyEndpointsTests
     {
         var session = await Authenticate();
         var webSocketClient = _factory.Server.CreateWebSocketClient();
+        webSocketClient.SubProtocols.Add($"termforge.{session.CsrfToken}");
         webSocketClient.ConfigureRequest = request => ApplyHeaders(request, session.CookieHeader);
         using var webSocket = await webSocketClient.ConnectAsync(ChannelUri, TestContext.CancellationToken);
         var unknownVerification = new HostKeyVerification(HostKeyStatus.Unknown, []);

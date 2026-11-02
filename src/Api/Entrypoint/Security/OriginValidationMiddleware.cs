@@ -27,7 +27,12 @@ internal sealed class OriginValidationMiddleware(RequestDelegate next, ILogger<O
         var isWebSocketRequest = context.WebSockets.IsWebSocketRequest;
         if (string.IsNullOrEmpty(origin))
         {
-            return isWebSocketRequest ? "WebSocket requests must send an Origin header" : FindFetchSiteRejectionReason(request);
+            if (isWebSocketRequest)
+            {
+                return "WebSocket requests must send an Origin header";
+            }
+
+            return IsBootstrapDocumentNavigation(request) ? null : FindFetchSiteRejectionReason(request);
         }
 
         var expectedOrigin = $"{request.Scheme}://{request.Host.Value}";
@@ -37,6 +42,14 @@ internal sealed class OriginValidationMiddleware(RequestDelegate next, ILogger<O
         }
 
         return FindFetchSiteRejectionReason(request);
+    }
+
+    private static bool IsBootstrapDocumentNavigation(HttpRequest request)
+    {
+        return HttpMethods.IsGet(request.Method)
+            && request.Path.Equals(SecurityPaths.BootstrapPage, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(request.Headers["Sec-Fetch-Mode"], "navigate", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(request.Headers["Sec-Fetch-Dest"], "document", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? FindFetchSiteRejectionReason(HttpRequest request)
