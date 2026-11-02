@@ -25,6 +25,7 @@ public sealed class RealtimeShutdownTests
         var uri = new Uri("ws://localhost/api/ws");
         using var socket = await sockets.ConnectAsync(uri, TestContext.CancellationToken);
         var channel = factory.Services.GetRequiredService<RealtimeChannel>();
+        await WaitForConnectionAsync(channel);
         channel.ConnectionCount.Should().Be(1);
         var buffer = new byte[16];
         var receive = socket.ReceiveAsync(buffer, TestContext.CancellationToken);
@@ -42,6 +43,17 @@ public sealed class RealtimeShutdownTests
         }
 
         channel.ConnectionCount.Should().Be(0);
+    }
+
+    private async Task WaitForConnectionAsync(RealtimeChannel channel)
+    {
+        using var readiness = CancellationTokenSource.CreateLinkedTokenSource(TestContext.CancellationToken);
+        var timeout = TimeSpan.FromSeconds(5);
+        readiness.CancelAfter(timeout);
+        while (channel.ConnectionCount == 0)
+        {
+            await Task.Delay(10, readiness.Token);
+        }
     }
 
     private static void ApplyHeaders(HttpRequest request, AuthenticatedSession session)
