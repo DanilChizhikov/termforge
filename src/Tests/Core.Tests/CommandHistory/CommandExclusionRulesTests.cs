@@ -14,6 +14,10 @@ public sealed class CommandExclusionRulesTests
     [DataRow("git commit -m \"fix key handling\"")]
     [DataRow("docker ps --format '{{.Names}}'")]
     [DataRow("sudo systemctl restart nginx")]
+    [DataRow("sshpass -f /run/auth ssh web")]
+    [DataRow("curl --upload-file backup.tgz https://example.test")]
+    [DataRow("htpasswd -c /etc/auth operator")]
+    [DataRow("sudo -s")]
     public void FindReason_OrdinaryCommands_AreKept(string command)
     {
         Defaults.FindReason(command).Should().BeNull();
@@ -38,6 +42,20 @@ public sealed class CommandExclusionRulesTests
     [DataRow("sshpass -p x ssh host --password hunter2")]
     [DataRow("passwd")]
     [DataRow("echo $TOKEN")]
+    [DataRow("sshpass -p hunter2 ssh web")]
+    [DataRow("sshpass -phunter2 ssh web")]
+    [DataRow("sshpass '-p' 'hunter2' ssh web")]
+    [DataRow("docker login -u operator -p hunter2 registry.test")]
+    [DataRow("docker login registry.test -phunter2")]
+    [DataRow("docker login registry.test --password=hunter2")]
+    [DataRow("curl -u operator:hunter2 https://example.test")]
+    [DataRow("curl -u'operator:hunter2' https://example.test")]
+    [DataRow("curl '--user' 'operator:hunter2' https://example.test")]
+    [DataRow("curl --user=operator:hunter2 https://example.test")]
+    [DataRow("htpasswd -b /etc/auth operator hunter2")]
+    [DataRow("htpasswd -cb /etc/auth operator 'hunter2'")]
+    [DataRow("printf 'hunter2' | sudo -S systemctl restart web")]
+    [DataRow("sudo -kS systemctl restart web")]
     public void FindReason_LikelySecrets_AreExcludedByDefaultPatterns(string command)
     {
         Defaults.FindReason(command).Should().Be(CommandExclusionReason.MatchesPattern);

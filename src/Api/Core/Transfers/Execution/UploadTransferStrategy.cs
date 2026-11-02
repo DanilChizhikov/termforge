@@ -142,7 +142,9 @@ public sealed class UploadTransferStrategy(LocalPathResolver localPaths, RemoteP
     public async Task<FileResult> CommitAsync(TransferContext context, TransferCopy copy, CancellationToken cancellationToken)
     {
         var rename = new RemoteRenameRequest(copy.PartialPath, copy.Item.TargetPath);
-        var replaced = await context.Client.ReplaceAsync(rename, cancellationToken);
+        var replaced = context.Request.Overwrite
+            ? await context.Client.ReplaceAsync(rename, cancellationToken)
+            : await context.Client.RenameAsync(rename, cancellationToken);
         if (replaced.IsSuccess)
         {
             return FileResult.Success();

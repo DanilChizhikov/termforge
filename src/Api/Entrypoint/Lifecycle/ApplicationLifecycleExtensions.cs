@@ -25,6 +25,7 @@ internal static class ApplicationLifecycleExtensions
         services.TryAddSingleton<RealtimeChannel>();
         services.AddSingleton<IBrowserLauncher, SystemBrowserLauncher>();
         services.AddSingleton<BootstrapUrlFactory>();
+        services.AddSingleton<BootstrapRedirectFile>();
         services.AddSingleton<WorkAdmissionGate>();
         services.AddSingleton<IShutdownStep, WorkAdmissionShutdownStep>();
         services.AddSingleton<GracefulShutdown>();

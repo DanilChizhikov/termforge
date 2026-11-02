@@ -35,7 +35,7 @@ public sealed class TransferEnqueuer
             return TransferEnqueueResult.Failed(invalid);
         }
 
-        var denied = await CheckUploadAsync(batch, cancellationToken);
+        var denied = await CheckBeforeInspectionAsync(batch, cancellationToken);
         if (denied is not null)
         {
             return TransferEnqueueResult.Failed(denied);
@@ -55,29 +55,16 @@ public sealed class TransferEnqueuer
             return TransferEnqueueResult.Conflicted(conflicts);
         }
 
-        var busy = FindBusyTarget(candidates);
-        if (busy is not null)
-        {
-            var inProgress = new FileError(FileErrorCode.AlreadyExists, $"A transfer to {busy} is already queued or running.");
-            return TransferEnqueueResult.Failed(inProgress);
-        }
-
-        var snapshots = new List<TransferSnapshot>(candidates.Count);
-        for (var i = 0; i < candidates.Count; i++)
-        {
-            var admitted = await AdmitAsync(candidates[i], cancellationToken);
-            if (!admitted.IsSuccess)
-            {
-                return TransferEnqueueResult.Failed(admitted.Error);
-            }
-
-            snapshots.Add(admitted.Value);
-        }
-
-        return TransferEnqueueResult.Queued(snapshots);
+        return await AdmitAsync(candidates, batch, cancellationToken);
     }
 
-    public async Task<TransferEnqueueResult> RetryAsync(Operation operation, CancellationToken cancellationToken)
+    public Task<TransferEnqueueResult> RetryAsync(Operation operation, CancellationToken cancellationToken)
+    {
+        var options = new OperationRetryOptions();
+        return RetryAsync(operation, options, cancellationToken);
+    }
+
+    public async Task<TransferEnqueueResult> RetryAsync(Operation operation, OperationRetryOptions options, CancellationToken cancellationToken)
     {
         var request = TransferOperationDetails.TryRead(operation);
         if (request is null)
@@ -86,10 +73,21 @@ public sealed class TransferEnqueuer
             return TransferEnqueueResult.Failed(unreadable);
         }
 
-        if (request.Direction == TransferDirection.Upload && await _writeGate.IsReadOnlyAsync(request.ConnectionId, cancellationToken))
+        request = request with { Overwrite = options.Overwrite };
+        var batch = new TransferBatchRequest
         {
-            var readOnly = FileError.ReadOnlyServer();
-            return TransferEnqueueResult.Failed(readOnly);
+            ConnectionId = request.ConnectionId,
+            ServerName = request.ServerName,
+            Direction = request.Direction,
+            SourcePaths = [request.SourcePath],
+            TargetDirectory = request.TargetDirectory,
+            Overwrite = options.Overwrite,
+            ConfirmationToken = options.ConfirmationToken,
+        };
+        var denied = await CheckBeforeInspectionAsync(batch, cancellationToken);
+        if (denied is not null)
+        {
+            return TransferEnqueueResult.Failed(denied);
         }
 
         TransferRequest[] requests = [request];
@@ -99,20 +97,44 @@ public sealed class TransferEnqueuer
             return TransferEnqueueResult.Failed(inspected.Error);
         }
 
-        var candidate = inspected.Value[0] with { ResumeExisting = true };
-        if (_queue.Remove(operation.Id))
+        var recovery = TransferRecoveryState.TryRead(operation);
+        var candidate = inspected.Value[0] with { ResumeExisting = true, PartialPaths = recovery?.PartialPaths ?? [] };
+        TransferCandidate[] candidates = [candidate];
+        var conflicts = FindConflicts(candidates, request.Overwrite);
+        if (conflicts.Count > 0)
+        {
+            return TransferEnqueueResult.Conflicted(conflicts);
+        }
+
+        var admitted = await AdmitAsync(candidates, batch, cancellationToken);
+        if (admitted.IsSuccess)
+        {
+            await _journal.ForgetRecoveryAsync(operation.Id, CancellationToken.None);
+        }
+
+        if (admitted.IsSuccess && _queue.Remove(operation.Id))
         {
             await _notifier.TransferRemoved(operation.Id, CancellationToken.None);
         }
 
-        var admitted = await AdmitAsync(candidate, cancellationToken);
-        if (!admitted.IsSuccess)
+        return admitted;
+    }
+
+    private async Task<FileError?> CheckBeforeInspectionAsync(TransferBatchRequest batch, CancellationToken cancellationToken)
+    {
+        if (batch.Direction != TransferDirection.Upload)
         {
-            return TransferEnqueueResult.Failed(admitted.Error);
+            return null;
         }
 
-        TransferSnapshot[] queued = [admitted.Value];
-        return TransferEnqueueResult.Queued(queued);
+        if (await _writeGate.IsReadOnlyAsync(batch.ConnectionId, cancellationToken))
+        {
+            return FileError.ReadOnlyServer();
+        }
+
+        return batch.Overwrite && string.IsNullOrEmpty(batch.ConfirmationToken)
+            ? FileError.OverwriteConfirmationRequired(batch.TargetDirectory)
+            : null;
     }
 
     private async Task<FileError?> CheckUploadAsync(TransferBatchRequest batch, CancellationToken cancellationToken)
@@ -182,21 +204,6 @@ public sealed class TransferEnqueuer
         return conflicts;
     }
 
-    private string? FindBusyTarget(IReadOnlyList<TransferCandidate> candidates)
-    {
-        for (var i = 0; i < candidates.Count; i++)
-        {
-            var candidate = candidates[i];
-            var probe = new TransferJob(Guid.Empty, candidate.Request, candidate.Inspection.TargetPath);
-            if (_queue.IsTargetBusy(probe))
-            {
-                return candidate.Inspection.TargetPath;
-            }
-        }
-
-        return null;
-    }
-
     private async Task<FileResult<IReadOnlyList<TransferCandidate>>> InspectAsync(IReadOnlyList<TransferRequest> requests, CancellationToken cancellationToken)
     {
         var connectionId = requests[0].ConnectionId;
@@ -226,29 +233,98 @@ public sealed class TransferEnqueuer
         return FileResult<IReadOnlyList<TransferCandidate>>.Success(candidates);
     }
 
-    private async Task<FileResult<TransferSnapshot>> AdmitAsync(TransferCandidate candidate, CancellationToken cancellationToken)
+    private async Task<TransferEnqueueResult> AdmitAsync(IReadOnlyList<TransferCandidate> candidates, TransferBatchRequest batch, CancellationToken cancellationToken)
     {
-        var targetPath = candidate.Inspection.TargetPath;
-        var id = await _journal.CreateAsync(candidate.Request, targetPath, cancellationToken);
-        var job = new TransferJob(id, candidate.Request, targetPath) { ResumeExisting = candidate.ResumeExisting };
-        var admission = _queue.TryAdd(job);
-        if (admission != TransferAdmission.Added)
+        var targets = new TransferTarget[candidates.Count];
+        for (var i = 0; i < candidates.Count; i++)
         {
-            await _journal.CancelAsync(id, CancellationToken.None);
-            var message = admission == TransferAdmission.Closed
-                ? "The application is shutting down and does not accept new transfers."
-                : $"A transfer to {targetPath} is already queued or running.";
-            var rejected = new FileError(FileErrorCode.AlreadyExists, message);
-            return FileResult<TransferSnapshot>.Failure(rejected);
+            targets[i] = new TransferTarget(candidates[i].Request, candidates[i].Inspection.TargetPath);
         }
 
-        var snapshot = job.Snapshot();
-        await _notifier.TransferChanged(snapshot, CancellationToken.None);
-        return FileResult<TransferSnapshot>.Success(snapshot);
+        var reserved = _queue.TryReserve(targets);
+        using var reservation = reserved.Reservation;
+        if (reservation is null)
+        {
+            return AdmissionFailed(reserved.Status);
+        }
+
+        if (batch.Overwrite && batch.Direction == TransferDirection.Download && candidates[0].ResumeExisting)
+        {
+            var scope = new ConfirmationScope(DangerousOperation.LocalTransferOverwrite, batch.ConnectionId, batch.TargetDirectory);
+            if (!_writeGate.ConsumeConfirmation(scope, batch.ConfirmationToken))
+            {
+                var confirmation = FileError.OverwriteConfirmationRequired(batch.TargetDirectory);
+                return TransferEnqueueResult.Failed(confirmation);
+            }
+        }
+
+        var denied = await CheckUploadAsync(batch, cancellationToken);
+        if (denied is not null)
+        {
+            return TransferEnqueueResult.Failed(denied);
+        }
+
+        var jobs = new List<TransferJob>(candidates.Count);
+        var committed = false;
+        try
+        {
+            for (var i = 0; i < candidates.Count; i++)
+            {
+                var candidate = candidates[i];
+                var targetPath = candidate.Inspection.TargetPath;
+                var id = await _journal.CreateAsync(candidate.Request, targetPath, cancellationToken);
+                var job = new TransferJob(id, candidate.Request, targetPath) { ResumeExisting = candidate.ResumeExisting };
+                jobs.Add(job);
+                job.RestorePartials(candidate.PartialPaths);
+                await _journal.CheckpointAsync(job, cancellationToken);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            var admission = reservation.Commit(jobs);
+            if (admission != TransferAdmission.Added)
+            {
+                return AdmissionFailed(admission);
+            }
+
+            committed = true;
+        }
+        finally
+        {
+            if (!committed)
+            {
+                for (var i = 0; i < jobs.Count; i++)
+                {
+                    jobs[i].FinishProcessing();
+                    await _journal.ForgetRecoveryAsync(jobs[i].Id, CancellationToken.None);
+                    await _journal.CancelAsync(jobs[i].Id, CancellationToken.None);
+                }
+            }
+        }
+
+        var snapshots = new List<TransferSnapshot>(jobs.Count);
+        for (var i = 0; i < jobs.Count; i++)
+        {
+            var snapshot = jobs[i].Snapshot();
+            snapshots.Add(snapshot);
+            await _notifier.TransferChanged(snapshot, CancellationToken.None);
+        }
+
+        return TransferEnqueueResult.Queued(snapshots);
+    }
+
+    private static TransferEnqueueResult AdmissionFailed(TransferAdmission admission)
+    {
+        var message = admission == TransferAdmission.Closed
+            ? "The application is shutting down and does not accept new transfers."
+            : "The selection contains duplicate targets or a target is already queued or running.";
+        var error = new FileError(FileErrorCode.AlreadyExists, message);
+        return TransferEnqueueResult.Failed(error);
     }
 
     private sealed record TransferCandidate(TransferRequest Request, TransferInspection Inspection)
     {
         public bool ResumeExisting { get; init; }
+
+        public IReadOnlyList<string> PartialPaths { get; init; } = [];
     }
 }

@@ -13,6 +13,11 @@ internal static class OperationErrorResults
         {
             [ErrorCodeExtension] = exception.Failure.ToString(),
         };
+        if (exception.Conflicts is not null)
+        {
+            extensions["conflicts"] = exception.Conflicts;
+        }
+
         return Results.Problem(detail: exception.Message, statusCode: statusCode, extensions: extensions);
     }
 
@@ -34,6 +39,9 @@ internal static class OperationErrorResults
             OperationFailure.InvalidTransition => StatusCodes.Status409Conflict,
             OperationFailure.NotRetryable => StatusCodes.Status409Conflict,
             OperationFailure.NoRetryHandler => StatusCodes.Status501NotImplemented,
+            OperationFailure.TransferConflict => StatusCodes.Status409Conflict,
+            OperationFailure.ConfirmationRequired => StatusCodes.Status428PreconditionRequired,
+            OperationFailure.ReadOnlyServer => StatusCodes.Status423Locked,
             _ => StatusCodes.Status500InternalServerError,
         };
     }

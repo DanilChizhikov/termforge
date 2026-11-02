@@ -33,9 +33,20 @@ internal sealed class TestRequest
         return this;
     }
 
+    public TestRequest WithFetchMetadata(string mode, string destination)
+    {
+        _message.Headers.Add("Sec-Fetch-Mode", mode);
+        _message.Headers.Add("Sec-Fetch-Dest", destination);
+        return this;
+    }
+
     public TestRequest WithSession(AuthenticatedSession session)
     {
         _message.Headers.Add("Cookie", session.CookieHeader);
+        if (_message.Method == HttpMethod.Get)
+        {
+            _message.Headers.Add("X-CSRF-Token", session.CsrfToken);
+        }
         return this;
     }
 
@@ -47,6 +58,7 @@ internal sealed class TestRequest
 
     public TestRequest WithCsrfToken(string csrfToken)
     {
+        _message.Headers.Remove("X-CSRF-Token");
         _message.Headers.Add("X-CSRF-Token", csrfToken);
         return this;
     }

@@ -105,7 +105,7 @@ public static class TerminalEndpoints
             return Results.Problem(detail: "The terminal is already attached to another connection.", statusCode: StatusCodes.Status409Conflict);
         }
 
-        using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
+        using var webSocket = await context.AcceptBrowserWebSocketAsync();
         await bridge.RunAsync(webSocket, session, context.RequestAborted);
         return Results.Empty;
     }

@@ -113,7 +113,7 @@ public sealed class DownloadTransferStrategy(LocalPathResolver localPaths, Remot
 
     public Task<FileResult> CommitAsync(TransferContext context, TransferCopy copy, CancellationToken cancellationToken)
     {
-        var result = RunLocal(() => File.Move(copy.PartialPath, copy.Item.TargetPath, true), copy.Item.TargetPath);
+        var result = RunLocal(() => File.Move(copy.PartialPath, copy.Item.TargetPath, context.Request.Overwrite), copy.Item.TargetPath);
         return Task.FromResult(result);
     }
 

@@ -10,7 +10,7 @@ internal static class ShellIntegrationPayload
     private const char CommandFinishedCode = 'D';
     private const char CommandLineCode = 'E';
 
-    public static ShellIntegrationEvent? Parse(string payload)
+    public static ShellIntegrationEvent? Parse(string payload, string nonce)
     {
         var body = StripPrefix(payload);
         if (body is null || body.Length == 0)
@@ -18,6 +18,13 @@ internal static class ShellIntegrationPayload
             return null;
         }
 
+        var nonceSeparator = body.LastIndexOf(';');
+        if (nonceSeparator < 2 || !body.AsSpan(nonceSeparator + 1).SequenceEqual(nonce))
+        {
+            return null;
+        }
+
+        body = body[..nonceSeparator];
         var code = body[0];
         if (code == CommandFinishedCode)
         {

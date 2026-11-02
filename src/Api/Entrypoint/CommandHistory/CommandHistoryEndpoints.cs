@@ -1,5 +1,7 @@
 using DTech.Core.CommandHistory;
+using DTech.Core.Terminal.Sessions;
 using DTech.Entrypoint.CommandHistory;
+using DTech.Entrypoint.Terminals;
 
 namespace Microsoft.AspNetCore.Builder;
 
@@ -85,14 +87,28 @@ public static class CommandHistoryEndpoints
         return await GetExclusions(settings, cancellationToken);
     }
 
-    private static IResult GetIntegration(string shell)
+    private static IResult GetIntegration(string shell, HttpContext context, TerminalSessionManager sessionManager)
     {
         if (!Enum.TryParse<ShellKind>(shell, true, out var kind) || !Enum.IsDefined(kind))
         {
             return Results.Problem(detail: $"The shell '{shell}' is not supported. Use bash or zsh.", statusCode: StatusCodes.Status400BadRequest);
         }
 
-        var snippet = ShellIntegrationSnippets.For(kind);
+        var terminalId = context.Request.Query["terminalId"].ToString();
+        if (string.IsNullOrWhiteSpace(terminalId))
+        {
+            return Results.Problem(detail: "An open terminalId is required.", statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var owner = TerminalOwner.From(context);
+        var sessionId = new TerminalSessionId(terminalId);
+        var session = sessionManager.Find(sessionId, owner);
+        if (session is null || session.IsClosed)
+        {
+            return Results.Problem(detail: "The terminal session does not exist or belongs to another browser session.", statusCode: StatusCodes.Status404NotFound);
+        }
+
+        var snippet = ShellIntegrationSnippets.For(kind, session.CommandHistoryNonce);
         var response = new ShellIntegrationResponse(kind.ToString().ToLowerInvariant(), snippet);
         return Results.Ok(response);
     }

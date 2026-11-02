@@ -24,11 +24,7 @@ internal static class PasswordSessions
         var cookiePair = setCookieHeader.Split(';')[0];
         var sessionToken = cookiePair[SessionCookiePrefix.Length..];
 
-        using var sessionResponse = await TestRequest.Get(SessionBootstrapper.SessionPath)
-            .WithCookie(cookiePair)
-            .SendAsync(client, cancellationToken);
-        sessionResponse.EnsureSuccessStatusCode();
-        var sessionBody = await sessionResponse.Content.ReadFromJsonAsync<SessionBody>(cancellationToken);
+        var sessionBody = await loginResponse.Content.ReadFromJsonAsync<SessionBody>(cancellationToken);
         return new AuthenticatedSession(sessionToken, sessionBody!.CsrfToken);
     }
 

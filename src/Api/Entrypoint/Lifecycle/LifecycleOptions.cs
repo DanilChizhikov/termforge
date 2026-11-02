@@ -8,6 +8,8 @@ internal sealed class LifecycleOptions
 
     public string? BrowserCommand { get; set; }
 
+    public string? BrowserOrigin { get; set; }
+
     public int ShutdownTimeoutSeconds { get; set; } = 10;
 
     public int IdleShutdownMinutes { get; set; }

@@ -16,7 +16,7 @@ Status legend: **supported** = implemented and covered by integration tests; **p
 | Password auth | supported | |
 | SSH agent (OpenSSH agent, Unix socket) | supported | via SshNet.Agent; `SSH_AUTH_SOCK` or explicit socket path |
 | SSH agent (Windows OpenSSH pipe, Pageant) | partial | provided by SshNet.Agent, not verified by tests |
-| ProxyJump | partial | a chain through `JumpHost` using a local loopback forward; one level tested |
+| ProxyJump | partial | a chain through `JumpHost` using a local loopback forward that remains active for the session; one level tested. Listener isolation is tracked in [#76](https://github.com/DanilChizhikov/termforge/issues/76) |
 | `~/.ssh/config` import | partial | app-side parser, see [saved-connections.md](saved-connections.md): `Host` (with `*`, `?`, `!` patterns), `Include`, `HostName`, `User`, `Port`, `IdentityFile` (first one), `ProxyJump` (single hop to another imported alias). `Match`, percent tokens and every other directive are reported and ignored |
 | SFTP list / upload / download | supported | errors: `RemotePathNotFound`, `PermissionDenied`, `Cancelled` |
 | SFTP stat / mkdir / rename / delete | supported | files and empty directories; symlink kind (target kind or broken), permissions; see [file-browsing.md](file-browsing.md) |
@@ -26,7 +26,13 @@ Status legend: **supported** = implemented and covered by integration tests; **p
 | FIDO (`sk-*`) keys | partial | only through an agent, not tested |
 | Agent forwarding, X11 forwarding | unsupported | |
 | Reconnect | supported | per-server policy (manual, automatic with backoff, off); a reconnect opens a new shell. See [reconnect-and-command-history.md](reconnect-and-command-history.md) |
-| Keepalive | unsupported | SSH keepalive packets are not sent |
+| Keepalive | supported | SSH keepalive packets every 30 seconds, plus an active connection check with a 10-second deadline; connection errors and failed checks terminate the affected session |
+
+## Connection health
+
+Terminal and command connections check `exec true` every 30 seconds; their SSH accounts must allow that command. SFTP connections check directory attributes and do not require shell access. Jump connections send keepalives and report transport errors without executing commands; the final connection's active check also detects a stalled jump path.
+
+If a check does not respond within 10 seconds, TermForge closes the SSH client, releases the blocked probe and reports the connection failure to the terminal. A terminal with automatic reconnect then follows its existing reconnect policy. This detects silently dropped traffic as well as explicit connection errors; keepalive packets alone do not provide a response deadline.
 
 ## Platforms
 

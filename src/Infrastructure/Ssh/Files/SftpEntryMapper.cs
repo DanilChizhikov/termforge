@@ -5,27 +5,32 @@ using Renci.SshNet.Sftp;
 
 namespace DTech.Ssh.Files;
 
-internal sealed class SftpEntryMapper(SftpClient client)
+internal sealed class SftpEntryMapper(ISftpClient client)
 {
     public async Task<RemoteFileEntry> MapAsync(ISftpFile file, CancellationToken cancellationToken)
     {
+        var entry = Map(file);
+        return await DescribeLinkAsync(entry, cancellationToken);
+    }
+
+    public static RemoteFileEntry Map(ISftpFile file)
+    {
         var kind = ToKind(file);
-        var entry = new RemoteFileEntry(file.Name, file.FullName, kind)
+        return new RemoteFileEntry(file.Name, file.FullName, kind)
         {
             Size = file.Length,
             LastWriteTimeUtc = file.LastWriteTimeUtc,
             Permissions = FormatPermissions(file),
         };
-        if (kind != RemoteFileKind.SymbolicLink)
+    }
+
+    public async Task<RemoteFileEntry> DescribeLinkAsync(RemoteFileEntry entry, CancellationToken cancellationToken)
+    {
+        if (entry.Kind != RemoteFileKind.SymbolicLink)
         {
             return entry;
         }
 
-        return await DescribeLinkAsync(entry, cancellationToken);
-    }
-
-    private async Task<RemoteFileEntry> DescribeLinkAsync(RemoteFileEntry entry, CancellationToken cancellationToken)
-    {
         try
         {
             var target = await client.GetAttributesAsync(entry.FullPath, cancellationToken);

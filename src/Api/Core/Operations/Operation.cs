@@ -23,4 +23,8 @@ public sealed record Operation
     public string? Error { get; init; }
 
     public bool Retryable { get; init; }
+
+    public string? RecoveryData { get; init; }
+
+    public bool HasPendingCleanup { get; init; }
 }

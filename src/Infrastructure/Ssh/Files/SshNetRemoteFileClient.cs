@@ -12,6 +12,7 @@ internal sealed class SshNetRemoteFileClient : IRemoteFileClient
 
     private readonly SshConnection<SftpClient> _connection;
     private readonly SftpEntryMapper _entryMapper;
+    private readonly SftpDirectoryReader _directoryReader;
     private readonly SftpEntryLocator _entryLocator;
     private readonly SftpStreamCopier _streamCopier;
     private readonly SftpFileReplacer _fileReplacer;
@@ -20,27 +21,22 @@ internal sealed class SshNetRemoteFileClient : IRemoteFileClient
     {
         _connection = connection;
         _entryMapper = new SftpEntryMapper(connection.Client);
+        _directoryReader = new SftpDirectoryReader(connection.Client);
         _entryLocator = new SftpEntryLocator(connection.Client);
         _streamCopier = new SftpStreamCopier(connection.Client);
         _fileReplacer = new SftpFileReplacer(connection.Client);
     }
 
-    public async Task<SshResult<IReadOnlyList<RemoteFileEntry>>> ListAsync(string remotePath, CancellationToken cancellationToken)
+    public Task<SshResult<IReadOnlyList<RemoteFileEntry>>> ListAsync(string remotePath, CancellationToken cancellationToken)
+    {
+        return ListAsync(remotePath, resolveLinkTargets: true, cancellationToken);
+    }
+
+    public async Task<SshResult<IReadOnlyList<RemoteFileEntry>>> ListAsync(string remotePath, bool resolveLinkTargets, CancellationToken cancellationToken)
     {
         try
         {
-            var entries = new List<RemoteFileEntry>();
-            await foreach (var file in _connection.Client.ListDirectoryAsync(remotePath, cancellationToken))
-            {
-                if (file.Name is CurrentDirectoryName or ParentDirectoryName)
-                {
-                    continue;
-                }
-
-                var entry = await _entryMapper.MapAsync(file, cancellationToken);
-                entries.Add(entry);
-            }
-
+            var entries = await _directoryReader.ListAsync(remotePath, resolveLinkTargets, cancellationToken);
             return SshResult<IReadOnlyList<RemoteFileEntry>>.Success(entries);
         }
         catch (Exception exception)

@@ -10,6 +10,11 @@ internal sealed class InterceptingRemoteFileClient(IRemoteFileClient inner, Clie
         return inner.ListAsync(remotePath, cancellationToken);
     }
 
+    public Task<SshResult<IReadOnlyList<RemoteFileEntry>>> ListAsync(string remotePath, bool resolveLinkTargets, CancellationToken cancellationToken)
+    {
+        return inner.ListAsync(remotePath, resolveLinkTargets, cancellationToken);
+    }
+
     public Task<SshResult<RemoteFileEntry>> StatAsync(string remotePath, CancellationToken cancellationToken)
     {
         return inner.StatAsync(remotePath, cancellationToken);

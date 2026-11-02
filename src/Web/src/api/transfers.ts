@@ -12,6 +12,7 @@ export interface TransferRecord {
   direction: TransferDirection;
   sourcePath: string;
   targetPath: string;
+  targetDirectory?: string;
   status: TransferStatus;
   transferredBytes: number;
   totalBytes: number;
@@ -22,6 +23,7 @@ export interface TransferRecord {
   error: string | null;
   retryable: boolean;
   partialBytes: number;
+  hasPartial?: boolean;
 }
 
 export interface TransferStartRequest {
@@ -30,6 +32,11 @@ export interface TransferStartRequest {
   sourcePaths: string[];
   targetDirectory: string;
   overwrite: boolean;
+}
+
+export interface TransferRetryOptions {
+  overwrite: boolean;
+  confirmationToken?: string;
 }
 
 export type TransferStartResult =
@@ -84,11 +91,16 @@ export function clearFinishedTransfers(client: ApiClient = apiClient): Promise<v
   return client.post<void>(`${TRANSFERS_PATH}/clear`);
 }
 
-export function retryTransfer(id: string, client: ApiClient = apiClient): Promise<void> {
-  return client.post<void>(`/api/operations/${encodeURIComponent(id)}/retry`);
+export function retryTransfer(id: string, client: ApiClient = apiClient, options?: TransferRetryOptions): Promise<void> {
+  return client.post<void>(`/api/operations/${encodeURIComponent(id)}/retry`, options);
 }
 
-function readConflicts(error: unknown): string[] | null {
+export async function requestTransferRetryConfirmation(id: string, client: ApiClient = apiClient): Promise<string> {
+  const grant = await client.post<{ token: string }>(`/api/operations/${encodeURIComponent(id)}/retry-confirmation`);
+  return grant.token;
+}
+
+export function readConflicts(error: unknown): string[] | null {
   if (!(error instanceof ApiError) || error.status !== 409) {
     return null;
   }

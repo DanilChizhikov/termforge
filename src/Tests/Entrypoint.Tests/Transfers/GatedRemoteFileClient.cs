@@ -12,6 +12,11 @@ internal sealed class GatedRemoteFileClient(TaskCompletionSource gate) : IRemote
         throw new NotSupportedException();
     }
 
+    public Task<SshResult<IReadOnlyList<RemoteFileEntry>>> ListAsync(string remotePath, bool resolveLinkTargets, CancellationToken cancellationToken)
+    {
+        throw new NotSupportedException();
+    }
+
     public Task<SshResult<RemoteFileEntry>> StatAsync(string remotePath, CancellationToken cancellationToken)
     {
         var name = remotePath[(remotePath.LastIndexOf('/') + 1)..];

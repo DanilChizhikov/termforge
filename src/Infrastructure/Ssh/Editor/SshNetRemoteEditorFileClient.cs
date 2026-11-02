@@ -2,7 +2,9 @@ using DTech.Core.Connections;
 using DTech.Core.Editor;
 using DTech.Core.Files;
 using DTech.Ssh.Connections;
+using DTech.Ssh.Files;
 using Renci.SshNet;
+using Renci.SshNet.Sftp;
 
 namespace DTech.Ssh.Editor;
 
@@ -13,14 +15,17 @@ internal sealed class SshNetRemoteEditorFileClient(SshConnection<SftpClient> con
     private const string CurrentDirectoryName = ".";
     private const string ParentDirectoryName = "..";
 
+    private readonly SftpEntryLocator _entries = new(connection.Client);
+    private Dictionary<string, ISftpFile> _listedFiles = new(StringComparer.Ordinal);
+
     private SftpClient Client => connection.Client;
 
     public async Task<SshResult<RemoteFileAttributes>> GetAttributesAsync(string remotePath, CancellationToken cancellationToken)
     {
         try
         {
-            var attributes = await Client.GetAttributesAsync(remotePath, cancellationToken);
-            var mapped = SftpAttributesMapper.Map(attributes);
+            var entry = await _entries.FindAsync(remotePath, cancellationToken);
+            var mapped = SftpAttributesMapper.Map(entry.Attributes);
             return SshResult<RemoteFileAttributes>.Success(mapped);
         }
         catch (Exception exception)
@@ -159,7 +164,16 @@ internal sealed class SshNetRemoteEditorFileClient(SshConnection<SftpClient> con
     {
         try
         {
-            await Client.DeleteFileAsync(remotePath, cancellationToken);
+            var entry = _listedFiles.Remove(remotePath, out var listed)
+                ? listed
+                : await _entries.FindAsync(remotePath, cancellationToken);
+            if (entry.IsDirectory)
+            {
+                var notAFile = new SshError(SshErrorKind.OperationFailed, $"Deleting {remotePath} failed: the path is a directory.");
+                return SshResult.Failure(notAFile);
+            }
+
+            await entry.DeleteAsync(cancellationToken);
             return SshResult.Success();
         }
         catch (Exception exception)
@@ -174,14 +188,19 @@ internal sealed class SshNetRemoteEditorFileClient(SshConnection<SftpClient> con
         try
         {
             var names = new List<string>();
+            var files = new Dictionary<string, ISftpFile>(StringComparer.Ordinal);
+            var directory = remoteDirectory.TrimEnd('/');
             await foreach (var entry in Client.ListDirectoryAsync(remoteDirectory, cancellationToken))
             {
-                if (entry.Name is not (CurrentDirectoryName or ParentDirectoryName))
+                if (entry.Name is not (CurrentDirectoryName or ParentDirectoryName) && entry.IsRegularFile && !entry.IsSymbolicLink)
                 {
                     names.Add(entry.Name);
+                    var path = $"{directory}/{entry.Name}";
+                    files.Add(path, entry);
                 }
             }
 
+            _listedFiles = files;
             return SshResult<IReadOnlyList<string>>.Success(names);
         }
         catch (Exception exception)

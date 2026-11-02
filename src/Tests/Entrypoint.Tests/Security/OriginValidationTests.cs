@@ -42,7 +42,7 @@ public sealed class OriginValidationTests
         using var sameOriginResponse = await SessionBootstrapper.ExchangeAsync(client, factory.BootstrapTokenValue, TestContext.CancellationToken);
 
         foreignResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
-        sameOriginResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        sameOriginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [TestMethod]
@@ -89,5 +89,72 @@ public sealed class OriginValidationTests
             .SendAsync(client, TestContext.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [TestMethod]
+    public async Task Private_file_navigation_can_load_the_bootstrap_document()
+    {
+        await using var factory = new TermForgeApplicationFactory();
+        using var client = factory.CreateClientWithoutCookies();
+
+        using var response = await TestRequest.Get("/bootstrap")
+            .WithFetchSite("cross-site")
+            .WithFetchMetadata("navigate", "document")
+            .SendAsync(client, TestContext.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [TestMethod]
+    [DataRow("/bootstrap", "cors", "empty")]
+    [DataRow("/bootstrap", "navigate", "iframe")]
+    [DataRow("/bootstrap.js", "navigate", "document")]
+    [DataRow("/api/session", "navigate", "document")]
+    public async Task Bootstrap_navigation_exception_does_not_allow_cross_site_fetch_frames_or_api(string path, string mode, string destination)
+    {
+        await using var factory = new TermForgeApplicationFactory();
+        using var client = factory.CreateClientWithoutCookies();
+        var session = await SessionBootstrapper.AuthenticateAsync(factory, client, TestContext.CancellationToken);
+
+        using var response = await TestRequest.Get(path)
+            .WithSession(session)
+            .WithFetchSite("cross-site")
+            .WithFetchMetadata(mode, destination)
+            .SendAsync(client, TestContext.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [TestMethod]
+    public async Task Bootstrap_navigation_with_foreign_origin_is_still_rejected()
+    {
+        await using var factory = new TermForgeApplicationFactory();
+        using var client = factory.CreateClientWithoutCookies();
+
+        using var response = await TestRequest.Get("/bootstrap")
+            .WithOrigin("http://attacker.example")
+            .WithFetchSite("cross-site")
+            .WithFetchMetadata("navigate", "document")
+            .SendAsync(client, TestContext.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [TestMethod]
+    public async Task Bootstrap_navigation_exception_does_not_allow_cross_site_token_exchange()
+    {
+        await using var factory = new TermForgeApplicationFactory();
+        using var client = factory.CreateClientWithoutCookies();
+        var body = new { token = factory.BootstrapTokenValue };
+
+        using var rejected = await TestRequest.Post(SessionBootstrapper.ExchangePath)
+            .WithFetchSite("cross-site")
+            .WithFetchMetadata("navigate", "document")
+            .WithJson(body)
+            .SendAsync(client, TestContext.CancellationToken);
+        using var accepted = await SessionBootstrapper.ExchangeAsync(client, factory.BootstrapTokenValue, TestContext.CancellationToken);
+
+        rejected.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        accepted.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 }

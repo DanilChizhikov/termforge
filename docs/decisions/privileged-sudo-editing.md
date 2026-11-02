@@ -32,7 +32,7 @@ The status also says whether a sudo password for the connection is saved in the 
 
 ## Quoting
 
-Every path and argument goes through `ShellQuoting.Quote` (POSIX single quotes, `'` becomes `'\''`, NUL is rejected). Multi-step privileged steps are fixed `sh -c` scripts that take the quoted values as positional parameters, so no value is ever spliced into script text. Paths are absolute and normalized (no `..`, no control characters) before they reach the command builder, and every command uses `--` before operands.
+Every path and argument goes through the shared `ShellArgument.Quote` (single-quoted values, apostrophes escaped for POSIX `sh` and fish, NUL is rejected). The complete command, including staging, sudo detection and cleanup, is wrapped in `sh -c` so POSIX syntax is interpreted by `sh` even when the SSH user's login shell is fish. Multi-step privileged steps are fixed `sh -c` scripts that take the quoted values as positional parameters, so no value is ever spliced into script text. Paths are absolute and normalized (no `..`, no control characters) before they reach the command builder, and every command uses `--` before operands.
 
 ## Operations
 

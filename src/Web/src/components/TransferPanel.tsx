@@ -10,7 +10,6 @@ import {
   isActive,
   parentDirectoryOf,
   percentOf,
-  retryTransfer,
   type TransferRecord,
 } from '../api/transfers';
 import {
@@ -18,6 +17,7 @@ import {
   dismissConflict,
   dismissTransferError,
   reportTransferError,
+  requestTransferRetry,
   useTransfersState,
 } from '../state/transfers';
 import { activateWorkspaceTab } from '../state/workspaceTab';
@@ -89,11 +89,17 @@ function TransferCard({ transfer }: { transfer: TransferRecord }) {
           </button>
         )}
         {resumable && (
-          <button type="button" className="btn btn-xs btn-safe" onClick={() => run(() => retryTransfer(transfer.id))}>
+          <button type="button" className="btn btn-xs btn-safe" onClick={() => run(() => requestTransferRetry(transfer.id, {
+            connectionId: transfer.connectionId,
+            direction: transfer.direction,
+            sourcePaths: [transfer.sourcePath],
+            targetDirectory: transfer.targetDirectory ?? parentDirectoryOf(transfer.targetPath),
+            overwrite: false,
+          }))}>
             {transfer.partialBytes > 0 ? 'Resume' : 'Retry'}
           </button>
         )}
-        {!isActive(transfer) && transfer.partialBytes > 0 && (
+        {!isActive(transfer) && (transfer.hasPartial ?? transfer.partialBytes > 0) && (
           <button type="button" className="btn btn-xs btn-danger-link" onClick={() => run(() => discardTransfer(transfer.id))}>
             Discard partial
           </button>
@@ -122,7 +128,7 @@ function TransferCard({ transfer }: { transfer: TransferRecord }) {
 export function TransferPanel() {
   const live = useTransferFeed();
   const { transfers, pendingConflict, error } = useTransfersState();
-  const hasFinished = transfers.some((transfer) => !isActive(transfer) && transfer.partialBytes === 0);
+  const hasFinished = transfers.some((transfer) => !isActive(transfer) && !(transfer.hasPartial ?? transfer.partialBytes > 0));
 
   return (
     <section aria-label="Transfers" className="transfer-panel">

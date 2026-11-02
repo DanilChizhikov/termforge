@@ -22,6 +22,8 @@ internal sealed class OperationConfiguration : IEntityTypeConfiguration<Operatio
         builder.Property(operation => operation.UpdatedAt).IsRequired();
         builder.Property(operation => operation.Error);
         builder.Property(operation => operation.Retryable).IsRequired();
+        builder.Property(operation => operation.RecoveryData);
+        builder.Property(operation => operation.HasPendingCleanup).IsRequired();
         builder.Property(operation => operation.Details)
             .IsRequired()
             .HasConversion(DetailsJson.Converter, DetailsJson.Comparer);

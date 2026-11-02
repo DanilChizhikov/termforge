@@ -13,6 +13,7 @@ internal sealed class BootstrapExchangeHandler(BootstrapToken bootstrapToken, Br
         var session = sessionStore.Create(BrowserSessionKind.Launch, null);
         SessionCookie.Append(context, session.SessionToken);
         logger.LogInformation("Browser session created");
-        return Results.NoContent();
+        var response = new BrowserSessionResponse(session.CsrfToken);
+        return Results.Ok(response);
     }
 }

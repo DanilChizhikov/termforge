@@ -21,7 +21,7 @@ public static class RealtimeEndpoints
             return;
         }
 
-        using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
+        using var webSocket = await context.AcceptBrowserWebSocketAsync();
         using var connection = new RealtimeConnection(webSocket);
         channel.Add(connection);
         try

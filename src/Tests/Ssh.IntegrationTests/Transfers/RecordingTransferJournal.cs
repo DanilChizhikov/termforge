@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using DTech.Core.Operations;
 using DTech.Core.Transfers;
+using DTech.Core.Transfers.Queue;
 
 namespace DTech.Ssh.IntegrationTests.Transfers;
 
@@ -34,6 +35,16 @@ internal sealed class RecordingTransferJournal : ITransferJournal
     public Task StartAsync(Guid id, CancellationToken cancellationToken)
     {
         return Move(id, OperationStatus.Running, null);
+    }
+
+    public Task CheckpointAsync(TransferJob job, CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
+    }
+
+    public Task ForgetRecoveryAsync(Guid id, CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
     }
 
     public Task SucceedAsync(Guid id, TransferProgress progress, CancellationToken cancellationToken)

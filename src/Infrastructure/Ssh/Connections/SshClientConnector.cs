@@ -3,44 +3,79 @@ using Renci.SshNet;
 
 namespace DTech.Ssh.Connections;
 
-internal sealed class SshClientConnector(SshHopConnector hopConnector, IHostKeyTrustPrompt hostKeyTrustPrompt)
+internal sealed class SshClientConnector(SshHopConnector hopConnector, IHostKeyTrustPrompt hostKeyTrustPrompt, SshConnectionHealthOptions healthOptions)
 {
     private const string LoopbackAddress = "127.0.0.1";
     private const uint AnyFreePort = 0;
 
-    public async Task<SshResult<SshConnection<TClient>>> ConnectAsync<TClient>(SshConnectionTarget target, Func<ConnectionInfo, TClient> createClient, CancellationToken cancellationToken)
+    public Task<SshResult<SshConnection<TClient>>> ConnectAsync<TClient>(SshConnectionTarget target, Func<ConnectionInfo, TClient> createClient, CancellationToken cancellationToken)
         where TClient : BaseClient
     {
+        var hop = new SshHop<TClient>(target, target.Endpoint, createClient);
+        return ConnectAsync(hop, cancellationToken);
+    }
+
+    private async Task<SshResult<SshConnection<TClient>>> ConnectAsync<TClient>(SshHop<TClient> hop, CancellationToken cancellationToken)
+        where TClient : BaseClient
+    {
+        var target = hop.Target;
         SshTunnel? tunnel = null;
-        var dialEndpoint = target.Endpoint;
-        if (target.JumpHost is not null)
+        SshHopAttempt<TClient>? attempt = null;
+        var transferred = false;
+        try
         {
-            var tunnelResult = await OpenTunnelAsync(target, cancellationToken);
-            if (!tunnelResult.IsSuccess)
+            var dialEndpoint = target.Endpoint;
+            if (target.JumpHost is not null)
             {
-                return SshResult<SshConnection<TClient>>.Failure(tunnelResult.Error!);
+                var tunnelResult = await OpenTunnelAsync(target, cancellationToken);
+                if (!tunnelResult.IsSuccess)
+                {
+                    return SshResult<SshConnection<TClient>>.Failure(tunnelResult.Error!);
+                }
+
+                tunnel = tunnelResult.Value;
+                dialEndpoint = tunnel.LocalEndpoint;
             }
 
-            tunnel = tunnelResult.Value;
-            dialEndpoint = tunnel.LocalEndpoint;
-        }
+            hop = hop with { DialEndpoint = dialEndpoint };
+            attempt = await ConnectVerifiedHopAsync(hop, cancellationToken);
+            if (attempt.Client is null)
+            {
+                return SshResult<SshConnection<TClient>>.Failure(attempt.Error!);
+            }
 
-        var hop = new SshHop<TClient>(target, dialEndpoint, createClient);
-        var attempt = await ConnectVerifiedHopAsync(hop, cancellationToken);
-        if (attempt.Client is null)
+            var dependencies = new List<IDisposable>(attempt.OwnedResources);
+            if (tunnel is not null)
+            {
+                dependencies.Add(tunnel);
+            }
+
+            var options = healthOptions with { ProbeEnabled = hop.ProbeConnection };
+            var connection = new SshConnection<TClient>(attempt.Client, dependencies, options);
+            var connected = SshResult<SshConnection<TClient>>.Success(connection);
+            transferred = true;
+            return connected;
+        }
+        catch (Exception exception)
         {
-            tunnel?.Dispose();
-            return SshResult<SshConnection<TClient>>.Failure(attempt.Error!);
+            var error = SshExceptionMapper.Map(exception, $"Connecting to {target.Endpoint}");
+            return SshResult<SshConnection<TClient>>.Failure(error);
         }
-
-        var dependencies = new List<IDisposable>(attempt.OwnedResources);
-        if (tunnel is not null)
+        finally
         {
-            dependencies.Add(tunnel);
+            if (!transferred)
+            {
+                try
+                {
+                    var resources = attempt?.OwnedResources ?? [];
+                    SshResourceCleanup.Dispose(attempt?.Client, resources);
+                }
+                finally
+                {
+                    tunnel?.Dispose();
+                }
+            }
         }
-
-        var connection = new SshConnection<TClient>(attempt.Client, dependencies);
-        return SshResult<SshConnection<TClient>>.Success(connection);
     }
 
     private async Task<SshHopAttempt<TClient>> ConnectVerifiedHopAsync<TClient>(SshHop<TClient> hop, CancellationToken cancellationToken)
@@ -89,7 +124,8 @@ internal sealed class SshClientConnector(SshHopConnector hopConnector, IHostKeyT
     private async Task<SshResult<SshTunnel>> OpenTunnelAsync(SshConnectionTarget target, CancellationToken cancellationToken)
     {
         var jumpHost = target.JumpHost!;
-        var jumpConnection = await ConnectAsync(jumpHost, CreateSshClient, cancellationToken);
+        var hop = new SshHop<SshClient>(jumpHost, jumpHost.Endpoint, CreateSshClient) { ProbeConnection = false };
+        var jumpConnection = await ConnectAsync(hop, cancellationToken);
         if (!jumpConnection.IsSuccess)
         {
             var jumpError = jumpConnection.Error!;
@@ -97,22 +133,37 @@ internal sealed class SshClientConnector(SshHopConnector hopConnector, IHostKeyT
             return SshResult<SshTunnel>.Failure(error);
         }
 
-        var forwardedPort = new ForwardedPortLocal(LoopbackAddress, AnyFreePort, target.Endpoint.Host, (uint)target.Endpoint.Port);
+        ForwardedPortLocal? forwardedPort = null;
+        var transferred = false;
         try
         {
+            forwardedPort = new ForwardedPortLocal(LoopbackAddress, AnyFreePort, target.Endpoint.Host, (uint)target.Endpoint.Port);
             jumpConnection.Value.Client.AddForwardedPort(forwardedPort);
             forwardedPort.Start();
+            var tunnel = new SshTunnel(jumpConnection.Value, forwardedPort);
+            var opened = SshResult<SshTunnel>.Success(tunnel);
+            transferred = true;
+            return opened;
         }
         catch (Exception exception)
         {
-            forwardedPort.Dispose();
-            jumpConnection.Value.Dispose();
             var error = SshExceptionMapper.Map(exception, $"Forwarding through jump host {jumpHost.Endpoint} to {target.Endpoint}");
             return SshResult<SshTunnel>.Failure(error);
         }
-
-        var tunnel = new SshTunnel(jumpConnection.Value, forwardedPort);
-        return SshResult<SshTunnel>.Success(tunnel);
+        finally
+        {
+            if (!transferred)
+            {
+                try
+                {
+                    forwardedPort?.Dispose();
+                }
+                finally
+                {
+                    jumpConnection.Value.Dispose();
+                }
+            }
+        }
     }
 
     private static SshClient CreateSshClient(ConnectionInfo connectionInfo)

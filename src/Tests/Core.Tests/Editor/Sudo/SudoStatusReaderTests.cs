@@ -1,4 +1,5 @@
 using DTech.Core.Credentials;
+using DTech.Core.Diagnostics;
 using DTech.Core.Editor.Sudo;
 using FluentAssertions;
 
@@ -33,7 +34,8 @@ public sealed class SudoStatusReaderTests
         status.Value.Availability.Should().Be(expected);
         status.Value.HasSavedPassword.Should().BeFalse();
         var probe = _graph.Runner.Commands.Should().ContainSingle().Subject;
-        probe.Text.Should().Be("LC_ALL=C sudo -n true");
+        var expectedCommand = ShellScript.Wrap("LC_ALL=C sudo -n true");
+        probe.Text.Should().Be(expectedCommand);
         probe.StandardInput.Should().BeEmpty();
         _graph.Runner.Disposed.Should().BeTrue();
     }

@@ -30,7 +30,7 @@ public sealed class FileAccessReaderTests
         var probe = commands.Probe(0, location);
 
         probe.Should().StartWith("sh -c '");
-        probe.Should().EndWith(" termforge-access 0 '/etc/it'\\''s $(id)/app `x`.conf' '/etc/it'\\''s $(id)'");
+        probe.Should().EndWith(" termforge-access 0 '/etc/it'\"'\"'s $(id)/app `x`.conf' '/etc/it'\"'\"'s $(id)'");
         var scriptEnd = probe.IndexOf(" termforge-access ", StringComparison.Ordinal);
         probe[..scriptEnd].Should().NotContain("$(id)").And.NotContain("app `x`.conf");
         probe.Should().Contain("getent passwd").And.Contain("[ -w \"$2\" ] && [ -w \"$3\" ]");
@@ -73,7 +73,7 @@ public sealed class FileAccessReaderTests
         access.Value.Should().Be(expected);
         var command = _graph.Runner.Commands.Should().ContainSingle().Subject;
         command.Text.Should().NotStartWith("LC_ALL=C sudo");
-        command.Text.Should().EndWith(" termforge-access 0 '/etc/it'\\''s $(id)/app `x`.conf' '/etc/it'\\''s $(id)'");
+        command.Text.Should().EndWith(" termforge-access 0 '/etc/it'\"'\"'s $(id)/app `x`.conf' '/etc/it'\"'\"'s $(id)'");
         command.StandardInput.Should().BeEmpty();
         _graph.Runner.Disposed.Should().BeTrue();
     }
