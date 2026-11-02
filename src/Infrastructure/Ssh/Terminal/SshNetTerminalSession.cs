@@ -19,18 +19,28 @@ internal sealed class SshNetTerminalSession : ITerminalSession
         _outputPump = new ShellOutputPump(shellStream);
     }
 
-    public bool IsOpen => _disposed == 0 && _connection.Client.IsConnected && !_outputPump.IsCompleted;
+    public bool IsOpen => _disposed == 0 && !_connection.Closed.IsCancellationRequested && _connection.Client.IsConnected && !_outputPump.IsCompleted;
 
-    public ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
+    public SshError? Failure => _connection.Failure;
+
+    public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
     {
-        return _outputPump.ReadAsync(buffer, cancellationToken);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _connection.Closed);
+        try
+        {
+            return await _outputPump.ReadAsync(buffer, linked.Token);
+        }
+        catch (OperationCanceledException) when (_connection.Closed.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            return 0;
+        }
     }
 
     public async ValueTask<SshResult> WriteAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
     {
         if (!IsOpen)
         {
-            var closedError = new SshError(SshErrorKind.SessionClosed, "Terminal session is closed");
+            var closedError = Failure ?? new SshError(SshErrorKind.SessionClosed, "Terminal session is closed");
             return SshResult.Failure(closedError);
         }
 
@@ -57,7 +67,7 @@ internal sealed class SshNetTerminalSession : ITerminalSession
 
         if (!IsOpen)
         {
-            var closedError = new SshError(SshErrorKind.SessionClosed, "Terminal session is closed");
+            var closedError = Failure ?? new SshError(SshErrorKind.SessionClosed, "Terminal session is closed");
             return SshResult.Failure(closedError);
         }
 

@@ -29,7 +29,7 @@ public sealed class ManagedTerminalSession
 
     public bool IsClosed => Volatile.Read(ref _closed) == 1;
 
-    public string? CloseReason => Volatile.Read(ref _closeReason);
+    public string? CloseReason => Volatile.Read(ref _closeReason) ?? _session.Failure?.Message;
 
     public CancellationToken Closing => _closing.Token;
 
