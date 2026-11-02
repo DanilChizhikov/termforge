@@ -14,14 +14,22 @@ public static partial class CpuUsageParser
     {
         var before = ReadCounters(first);
         var after = ReadCounters(second);
-        if (before is null || after is null)
+        if (before is null || after is null || !TryTotal(before, out var beforeTotal) || !TryTotal(after, out var afterTotal))
         {
             return MetricReading<double>.Unavailable("/proc/stat could not be read or has an unexpected format.");
         }
 
-        var totalDelta = Total(after) - Total(before);
+        for (var i = 0; i < before.Length; i++)
+        {
+            if (after[i] < before[i])
+            {
+                return MetricReading<double>.Unavailable("CPU counters moved backwards between the two samples.");
+            }
+        }
+
+        var totalDelta = afterTotal - beforeTotal;
         var idleDelta = Idle(after) - Idle(before);
-        if (totalDelta <= 0 || idleDelta < 0)
+        if (totalDelta <= 0 || idleDelta < 0 || idleDelta > totalDelta)
         {
             return MetricReading<double>.Unavailable("CPU counters did not advance between the two samples.");
         }
@@ -39,7 +47,7 @@ public static partial class CpuUsageParser
         }
 
         var text = match.Groups[1].Value.Replace(',', '.');
-        if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var idle))
+        if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var idle) || !double.IsFinite(idle) || idle is < 0 or > 100)
         {
             return MetricReading<double>.Unavailable("top reported CPU usage in an unreadable format.");
         }
@@ -68,15 +76,20 @@ public static partial class CpuUsageParser
         return counters;
     }
 
-    private static long Total(long[] counters)
+    private static bool TryTotal(long[] counters, out long total)
     {
-        long total = 0;
+        total = 0;
         for (var i = 0; i < counters.Length; i++)
         {
+            if (counters[i] > long.MaxValue - total)
+            {
+                return false;
+            }
+
             total += counters[i];
         }
 
-        return total;
+        return true;
     }
 
     private static long Idle(long[] counters)
@@ -90,6 +103,6 @@ public static partial class CpuUsageParser
         return Math.Round(clamped, 1);
     }
 
-    [GeneratedRegex(@"([\d.,]+)%\s*idle", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"([+-]?[\d.,]+)%\s*idle", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex IdlePercentage();
 }

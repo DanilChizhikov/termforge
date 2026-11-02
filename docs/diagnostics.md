@@ -6,7 +6,7 @@ The same tab shows the server metrics (latency, uptime, load average, CPU, memor
 
 ## API
 
-- `GET /api/connections/{id}/capabilities` returns the cached report, running the checks if none is cached yet.
+- `GET /api/connections/{id}/capabilities` returns a report cached for up to five minutes, running the checks if no unexpired report is cached.
 - `POST /api/connections/{id}/capabilities/refresh` runs the checks again and replaces the cached report.
 
 Report: `state` (`Completed`, `ConnectionFailed`, `CredentialsUnavailable`), `checkedAt`, optional `message`, and `capabilities`: a list of `{ id, name, status, reason }` where `status` is `Available`, `Unavailable` or `Unknown`. Failed reports are not cached.
@@ -32,6 +32,6 @@ Other tasks (Docker actions, metrics) consume these results instead of probing a
 
 ## Limitations
 
-- The cache lives in memory per application run and is not invalidated when a connection is edited; use Refresh.
+- The cache lives in memory per application run. Updating or deleting a connection invalidates its report and the reports of connections that depend on it as a jump host. A successful settings import clears the cache after committing; a failed import preserves it. An older refresh cannot repopulate entries after invalidation.
 - SFTP is probed with a separate connection.
 - Transport feature support is limited to the exec channel and SFTP; other transports would add probes.
