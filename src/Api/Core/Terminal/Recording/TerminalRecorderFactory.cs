@@ -6,28 +6,44 @@ public sealed class TerminalRecorderFactory(TerminalRecordingStorage storage, Ti
     {
         var recorder = new TerminalRecorder(storage, timeProvider, setup);
         Stream? cast = null;
+        var started = false;
         try
         {
             cast = storage.CreateCast(setup.Metadata.Id);
             await recorder.StartAsync(cast, cancellationToken);
+            started = true;
             return TerminalRecordingResult<TerminalRecorder>.Success(recorder);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            if (cast is not null)
-            {
-                await cast.DisposeAsync();
-            }
-
-            storage.Delete(setup.Metadata.Id);
             var failure = TerminalRecordingError.StorageFailed($"The recording could not be created in {storage.DirectoryPath}: {exception.Message}");
             return TerminalRecordingResult<TerminalRecorder>.Failure(failure);
+        }
+        finally
+        {
+            if (!started && cast is not null)
+            {
+                try
+                {
+                    await cast.DisposeAsync();
+                }
+                finally
+                {
+                    storage.Delete(setup.Metadata.Id);
+                }
+            }
         }
     }
 
     public async Task DiscardAsync(TerminalRecorder recorder)
     {
-        await recorder.StopAsync(TerminalRecordingEndReason.Stopped);
-        storage.Delete(recorder.Id);
+        try
+        {
+            await recorder.StopAsync(TerminalRecordingEndReason.Stopped);
+        }
+        finally
+        {
+            storage.Delete(recorder.Id);
+        }
     }
 }

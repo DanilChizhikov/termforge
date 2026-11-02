@@ -45,12 +45,24 @@ public sealed class TerminalRecordingStorage(TerminalRecordingStorageOptions opt
         var path = MetadataPath(metadata.Id);
         var temporaryPath = path + TemporaryExtension;
         var streamOptions = CreateWriteOptions(FileMode.Create);
-        await using (var stream = new FileStream(temporaryPath, streamOptions))
+        var temporaryCreated = false;
+        try
         {
-            await stream.WriteAsync(json, cancellationToken);
-        }
+            await using (var stream = new FileStream(temporaryPath, streamOptions))
+            {
+                temporaryCreated = true;
+                await stream.WriteAsync(json, cancellationToken);
+            }
 
-        File.Move(temporaryPath, path, true);
+            File.Move(temporaryPath, path, true);
+        }
+        finally
+        {
+            if (temporaryCreated)
+            {
+                File.Delete(temporaryPath);
+            }
+        }
     }
 
     public async Task<TerminalRecordingMetadata?> FindAsync(TerminalRecordingId id, CancellationToken cancellationToken)
@@ -102,10 +114,54 @@ public sealed class TerminalRecordingStorage(TerminalRecordingStorageOptions opt
     {
         var castPath = CastPath(id);
         var metadataPath = MetadataPath(id);
-        var existed = File.Exists(metadataPath) || File.Exists(castPath);
+        var temporaryPath = metadataPath + TemporaryExtension;
+        var existed = File.Exists(metadataPath) || File.Exists(castPath) || File.Exists(temporaryPath);
         File.Delete(castPath);
         File.Delete(metadataPath);
+        File.Delete(temporaryPath);
         return existed;
+    }
+
+    public int DeleteOrphanFiles(CancellationToken cancellationToken)
+    {
+        if (!Directory.Exists(_directoryPath))
+        {
+            return 0;
+        }
+
+        var deleted = 0;
+        var castPattern = "*" + AsciicastFormat.FileExtension;
+        foreach (var path in Directory.EnumerateFiles(_directoryPath, castPattern))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var name = Path.GetFileNameWithoutExtension(path);
+            if (!TerminalRecordingId.TryParse(name, out var id))
+            {
+                continue;
+            }
+
+            var metadataPath = MetadataPath(id);
+            if (!File.Exists(metadataPath) && Delete(id))
+            {
+                deleted++;
+            }
+        }
+
+        var temporarySuffix = MetadataExtension + TemporaryExtension;
+        var temporaryPattern = "*" + temporarySuffix;
+        foreach (var path in Directory.EnumerateFiles(_directoryPath, temporaryPattern))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var fileName = Path.GetFileName(path);
+            var name = fileName[..^temporarySuffix.Length];
+            if (TerminalRecordingId.TryParse(name, out _))
+            {
+                File.Delete(path);
+                deleted++;
+            }
+        }
+
+        return deleted;
     }
 
     private string CastPath(TerminalRecordingId id)
