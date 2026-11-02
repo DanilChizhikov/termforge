@@ -5,13 +5,14 @@ using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http.Features;
 using NSubstitute;
+using Microsoft.Extensions.Options;
 
 namespace DTech.Entrypoint.Tests.Lifecycle;
 
 [TestClass]
 public sealed class BootstrapUrlFactoryTests
 {
-    private readonly BootstrapToken _bootstrapToken = new();
+    private readonly BootstrapToken _bootstrapToken = new(TimeProvider.System);
 
     [TestMethod]
     [DataRow("http://127.0.0.1:5023", "http://127.0.0.1:5023")]
@@ -40,7 +41,31 @@ public sealed class BootstrapUrlFactoryTests
         bootstrapUrl.Should().BeNull();
     }
 
-    private BootstrapUrlFactory CreateFactory(string serverAddress)
+    [TestMethod]
+    public void Configured_development_origin_keeps_the_proof_on_the_proxy_origin()
+    {
+        var factory = CreateFactory("http://127.0.0.1:5023", "http://127.0.0.1:5173");
+
+        var bootstrapUrl = factory.Create();
+
+        bootstrapUrl!.AbsoluteUri.Should().Be($"http://127.0.0.1:5173/bootstrap#token={_bootstrapToken.Value}");
+    }
+
+    [TestMethod]
+    [DataRow("http://attacker.example")]
+    [DataRow("file:///tmp/launch")]
+    [DataRow("http://127.0.0.1:5173/other")]
+    [DataRow("http://user@127.0.0.1:5173")]
+    public void Configured_origin_cannot_send_the_launch_token_outside_loopback(string origin)
+    {
+        var factory = CreateFactory("http://127.0.0.1:5023", origin);
+
+        var create = () => factory.Create();
+
+        create.Should().Throw<InvalidOperationException>();
+    }
+
+    private BootstrapUrlFactory CreateFactory(string serverAddress, string? browserOrigin = null)
     {
         var serverAddresses = new ServerAddressesFeature();
         serverAddresses.Addresses.Add(serverAddress);
@@ -48,6 +73,8 @@ public sealed class BootstrapUrlFactoryTests
         features.Set<IServerAddressesFeature>(serverAddresses);
         var server = Substitute.For<IServer>();
         server.Features.Returns(features);
-        return new BootstrapUrlFactory(server, _bootstrapToken);
+        var lifecycleOptions = new LifecycleOptions { BrowserOrigin = browserOrigin };
+        var options = Options.Create(lifecycleOptions);
+        return new BootstrapUrlFactory(server, _bootstrapToken, options);
     }
 }

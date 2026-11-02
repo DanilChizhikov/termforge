@@ -1,4 +1,5 @@
 import { apiClient, type ApiClient } from './client';
+import { clearOriginProof, originProofHeaders, saveOriginProof } from './originProof';
 
 const LOGIN_PATH = '/api/session/login';
 const LOGOUT_PATH = '/api/session/logout';
@@ -21,7 +22,7 @@ export async function getLoginStatus(): Promise<LoginStatus> {
     const response = await globalThis.fetch(LOGIN_PATH, {
       method: 'GET',
       credentials: 'same-origin',
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', ...originProofHeaders() },
     });
     if (!response.ok) {
       return LOGIN_DISABLED;
@@ -44,6 +45,8 @@ export async function signIn(password: string): Promise<SignInResult> {
     body: JSON.stringify({ password }),
   });
   if (response.ok) {
+    const session = (await response.json()) as { csrfToken: string };
+    saveOriginProof(session.csrfToken);
     return { kind: 'signed-in' };
   }
   if (response.status === 401) {
@@ -55,8 +58,9 @@ export async function signIn(password: string): Promise<SignInResult> {
   return { kind: 'failed', status: response.status };
 }
 
-export function signOut(client: ApiClient = apiClient): Promise<void> {
-  return client.post<void>(LOGOUT_PATH);
+export async function signOut(client: ApiClient = apiClient): Promise<void> {
+  await client.post<void>(LOGOUT_PATH);
+  clearOriginProof();
 }
 
 export function isInsecureNetworkConnection(location: Pick<Location, 'protocol' | 'hostname'>): boolean {

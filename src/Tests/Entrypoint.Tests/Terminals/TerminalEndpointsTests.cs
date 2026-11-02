@@ -320,6 +320,7 @@ public sealed class TerminalEndpointsTests
     private WebSocketClient CreateWebSocketClient(string origin, string? cookieHeader)
     {
         var webSocketClient = _factory.Server.CreateWebSocketClient();
+        webSocketClient.SubProtocols.Add($"termforge.{_session.CsrfToken}");
         webSocketClient.ConfigureRequest = request => ApplyHeaders(request, origin, cookieHeader);
         return webSocketClient;
     }

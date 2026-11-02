@@ -58,7 +58,7 @@ public sealed class BrowserSessionTests
 
         using var response = await SessionBootstrapper.ExchangeAsync(client, factory.BootstrapTokenValue, TestContext.CancellationToken);
 
-        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
         var setCookieHeader = SessionBootstrapper.ReadSetCookieHeader(response);
         setCookieHeader.Should().ContainEquivalentOf("httponly");
         setCookieHeader.Should().ContainEquivalentOf("samesite=strict");
@@ -75,7 +75,7 @@ public sealed class BrowserSessionTests
         using var firstResponse = await SessionBootstrapper.ExchangeAsync(client, factory.BootstrapTokenValue, TestContext.CancellationToken);
         using var secondResponse = await SessionBootstrapper.ExchangeAsync(client, factory.BootstrapTokenValue, TestContext.CancellationToken);
 
-        firstResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         secondResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         secondResponse.Headers.Contains("Set-Cookie").Should().BeFalse();
     }
@@ -94,7 +94,7 @@ public sealed class BrowserSessionTests
 
         var responses = await Task.WhenAll(exchanges);
 
-        responses.Count(response => response.StatusCode == HttpStatusCode.NoContent).Should().Be(1);
+        responses.Count(response => response.StatusCode == HttpStatusCode.OK).Should().Be(1);
         responses.Count(response => response.StatusCode == HttpStatusCode.Forbidden).Should().Be(7);
     }
 
@@ -111,7 +111,7 @@ public sealed class BrowserSessionTests
         using var validResponse = await SessionBootstrapper.ExchangeAsync(client, factory.BootstrapTokenValue, TestContext.CancellationToken);
 
         invalidResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
-        validResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        validResponse.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [TestMethod]
@@ -130,6 +130,40 @@ public sealed class BrowserSessionTests
         response.Headers.CacheControl!.NoStore.Should().BeTrue();
         body.Should().ContainKey("csrfToken").WhoseValue.Should().Be(session.CsrfToken);
         session.CsrfToken.Should().NotBe(session.SessionToken);
+    }
+
+    [TestMethod]
+    [DataRow("/api/session")]
+    [DataRow("/api/connections")]
+    [DataRow("/api/recordings")]
+    public async Task Cookie_without_origin_proof_cannot_read_protected_api(string path)
+    {
+        await using var factory = new TermForgeApplicationFactory();
+        using var client = factory.CreateClientWithoutCookies();
+        var session = await SessionBootstrapper.AuthenticateAsync(factory, client, TestContext.CancellationToken);
+
+        using var response = await TestRequest.Get(path)
+            .WithCookie(session.CookieHeader)
+            .SendAsync(client, TestContext.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        body.Should().NotContain(session.CsrfToken);
+    }
+
+    [TestMethod]
+    public async Task Session_read_with_wrong_origin_proof_is_rejected()
+    {
+        await using var factory = new TermForgeApplicationFactory();
+        using var client = factory.CreateClientWithoutCookies();
+        var session = await SessionBootstrapper.AuthenticateAsync(factory, client, TestContext.CancellationToken);
+
+        using var response = await TestRequest.Get(SessionBootstrapper.SessionPath)
+            .WithSession(session)
+            .WithCsrfToken("wrong-proof")
+            .SendAsync(client, TestContext.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
     [TestMethod]

@@ -1,5 +1,6 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { imagePullUrl, parseLogMessage } from '../../api/docker';
+import { originProofProtocols } from '../../api/originProof';
 import { CloseIcon } from '../icons/Icons';
 
 export interface ImagePullProgressProps {
@@ -26,7 +27,9 @@ export function ImagePullProgress({ connectionId, image, onFinished, onClose }: 
 
   useEffect(() => {
     let finished = false;
-    const socket = new WebSocket(imagePullUrl(connectionId, image));
+    const url = imagePullUrl(connectionId, image);
+    const protocols = originProofProtocols();
+    const socket = new WebSocket(url, protocols);
     socket.onopen = () => setState({ kind: 'pulling' });
     socket.onmessage = (event: MessageEvent) => {
       if (typeof event.data !== 'string') {

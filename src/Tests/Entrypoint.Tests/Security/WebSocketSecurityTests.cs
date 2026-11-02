@@ -23,6 +23,7 @@ public sealed class WebSocketSecurityTests
         using var client = factory.CreateClientWithoutCookies();
         var session = await SessionBootstrapper.AuthenticateAsync(factory, client, TestContext.CancellationToken);
         var webSocketClient = CreateWebSocketClient(factory, origin, session.CookieHeader);
+        webSocketClient.SubProtocols.Add($"termforge.{session.CsrfToken}");
 
         var connect = () => webSocketClient.ConnectAsync(ProbeUri, TestContext.CancellationToken);
 
@@ -36,6 +37,7 @@ public sealed class WebSocketSecurityTests
         using var client = factory.CreateClientWithoutCookies();
         var session = await SessionBootstrapper.AuthenticateAsync(factory, client, TestContext.CancellationToken);
         var webSocketClient = CreateWebSocketClient(factory, null, session.CookieHeader);
+        webSocketClient.SubProtocols.Add($"termforge.{session.CsrfToken}");
 
         var connect = () => webSocketClient.ConnectAsync(ProbeUri, TestContext.CancellationToken);
 
@@ -62,12 +64,47 @@ public sealed class WebSocketSecurityTests
         using var client = factory.CreateClientWithoutCookies();
         var session = await SessionBootstrapper.AuthenticateAsync(factory, client, TestContext.CancellationToken);
         var webSocketClient = CreateWebSocketClient(factory, TermForgeApplicationFactory.ApplicationOrigin, session.CookieHeader);
+        webSocketClient.SubProtocols.Add($"termforge.{session.CsrfToken}");
 
         using var webSocket = await webSocketClient.ConnectAsync(ProbeUri, TestContext.CancellationToken);
         var buffer = new byte[16];
         var result = await webSocket.ReceiveAsync(buffer, TestContext.CancellationToken);
 
         result.MessageType.Should().Be(WebSocketMessageType.Close);
+        webSocket.SubProtocol.Should().Be($"termforge.{session.CsrfToken}");
+    }
+
+    [TestMethod]
+    [DataRow(null)]
+    [DataRow("termforge.wrong-proof")]
+    public async Task WebSocket_with_cookie_requires_a_valid_origin_proof_protocol(string? protocol)
+    {
+        await using var factory = new TermForgeApplicationFactory();
+        using var client = factory.CreateClientWithoutCookies();
+        var session = await SessionBootstrapper.AuthenticateAsync(factory, client, TestContext.CancellationToken);
+        var webSocketClient = CreateWebSocketClient(factory, TermForgeApplicationFactory.ApplicationOrigin, session.CookieHeader);
+        if (protocol is not null)
+        {
+            webSocketClient.SubProtocols.Add(protocol);
+        }
+
+        var connect = () => webSocketClient.ConnectAsync(ProbeUri, TestContext.CancellationToken);
+
+        await connect.Should().ThrowAsync<InvalidOperationException>().WithMessage("*403*");
+    }
+
+    [TestMethod]
+    public async Task WebSocket_query_token_does_not_replace_the_origin_proof_protocol()
+    {
+        await using var factory = new TermForgeApplicationFactory();
+        using var client = factory.CreateClientWithoutCookies();
+        var session = await SessionBootstrapper.AuthenticateAsync(factory, client, TestContext.CancellationToken);
+        var webSocketClient = CreateWebSocketClient(factory, TermForgeApplicationFactory.ApplicationOrigin, session.CookieHeader);
+        var uri = new Uri($"{ProbeUri}?token={session.CsrfToken}");
+
+        var connect = () => webSocketClient.ConnectAsync(uri, TestContext.CancellationToken);
+
+        await connect.Should().ThrowAsync<InvalidOperationException>().WithMessage("*403*");
     }
 
     private static WebSocketClient CreateWebSocketClient(TermForgeApplicationFactory factory, string? origin, string? cookieHeader)

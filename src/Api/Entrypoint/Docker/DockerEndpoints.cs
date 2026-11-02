@@ -117,7 +117,7 @@ public static class DockerEndpoints
         }
 
         var request = new ImagePullRequest(call.Id, call.Image);
-        using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
+        using var webSocket = await context.AcceptBrowserWebSocketAsync();
         var opened = await service.OpenAsync(request, context.RequestAborted);
         if (!opened.IsSuccess)
         {
@@ -162,7 +162,7 @@ public static class DockerEndpoints
 
         var options = ContainerLogOptions.Create(call.Tail, call.Follow ?? false);
         var request = new ContainerLogRequest(call.Id, call.Container, options);
-        using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
+        using var webSocket = await context.AcceptBrowserWebSocketAsync();
         var opened = await service.OpenAsync(request, context.RequestAborted);
         if (!opened.IsSuccess)
         {

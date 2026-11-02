@@ -3,10 +3,11 @@ namespace DTech.Entrypoint.Security;
 internal sealed class CsrfProtectionMiddleware(RequestDelegate next, ILogger<CsrfProtectionMiddleware> logger)
 {
     public const string HeaderName = "X-CSRF-Token";
+    public const string WebSocketProtocolPrefix = "termforge.";
 
     public Task InvokeAsync(HttpContext context)
     {
-        if (!RequiresCsrfToken(context.Request) || HasValidCsrfToken(context))
+        if (!RequiresCsrfToken(context) || HasValidCsrfToken(context))
         {
             return next(context);
         }
@@ -15,13 +16,21 @@ internal sealed class CsrfProtectionMiddleware(RequestDelegate next, ILogger<Csr
         return RequestRejection.WriteAsync(context, StatusCodes.Status403Forbidden, "A valid CSRF token is required");
     }
 
-    private static bool RequiresCsrfToken(HttpRequest request)
+    private static bool RequiresCsrfToken(HttpContext context)
     {
+        var request = context.Request;
+        if (context.WebSockets.IsWebSocketRequest)
+        {
+            return !SecurityPaths.IsAiBridge(request.Path);
+        }
+
         var isSafeMethod = HttpMethods.IsGet(request.Method)
             || HttpMethods.IsHead(request.Method)
             || HttpMethods.IsOptions(request.Method)
             || HttpMethods.IsTrace(request.Method);
-        return !isSafeMethod && !SecurityPaths.IsSessionEstablishment(request.Path) && !SecurityPaths.IsAiBridge(request.Path);
+        return (SecurityPaths.IsApi(request.Path) || !isSafeMethod)
+            && !SecurityPaths.IsSessionEstablishment(request.Path)
+            && !SecurityPaths.IsAiBridge(request.Path);
     }
 
     private static bool HasValidCsrfToken(HttpContext context)
@@ -29,6 +38,22 @@ internal sealed class CsrfProtectionMiddleware(RequestDelegate next, ILogger<Csr
         var session = context.Features.Get<BrowserSession>();
         if (session is null)
         {
+            return false;
+        }
+
+        if (context.WebSockets.IsWebSocketRequest)
+        {
+            var protocols = context.WebSockets.WebSocketRequestedProtocols;
+            for (var i = 0; i < protocols.Count; i++)
+            {
+                var protocol = protocols[i];
+                if (protocol.StartsWith(WebSocketProtocolPrefix, StringComparison.Ordinal)
+                    && SecretComparer.AreEqual(session.CsrfToken, protocol[WebSocketProtocolPrefix.Length..]))
+                {
+                    return true;
+                }
+            }
+
             return false;
         }
 

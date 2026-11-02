@@ -1,3 +1,5 @@
+import { clearOriginProof, originProofHeaders } from './originProof';
+
 export interface SessionInfo {
   csrfToken: string;
 }
@@ -16,7 +18,7 @@ export class ApiError extends Error {
   }
 
   get isSessionMissing(): boolean {
-    return this.status === 401;
+    return this.status === 401 || (this.status === 403 && this.body === 'A valid CSRF token is required');
   }
 }
 
@@ -26,14 +28,10 @@ export interface ApiClientOptions {
 }
 
 const SESSION_PATH = '/api/session';
-const CSRF_HEADER = 'X-CSRF-Token';
-const UNSAFE_METHODS: ReadonlySet<HttpMethod> = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 export class ApiClient {
   private readonly fetchImpl: typeof fetch;
   private readonly onSessionMissing: (() => void) | undefined;
-  private csrfToken: string | null = null;
-  private csrfRequest: Promise<string> | null = null;
 
   constructor(options: ApiClientOptions = {}) {
     this.fetchImpl = options.fetchImpl ?? ((input, init) => globalThis.fetch(input, init));
@@ -44,15 +42,14 @@ export class ApiClient {
     const response = await this.fetchImpl(SESSION_PATH, {
       method: 'GET',
       credentials: 'same-origin',
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', ...originProofHeaders() },
     });
     const body = await readBody(response);
     if (!response.ok) {
-      this.handleFailure(response.status);
+      this.handleFailure(response.status, body);
       throw new ApiError(response.status, body);
     }
     const session = body as SessionInfo;
-    this.csrfToken = session.csrfToken;
     return session;
   }
 
@@ -81,12 +78,12 @@ export class ApiClient {
     const response = await this.fetchImpl(path, {
       method: 'GET',
       credentials: 'same-origin',
-      headers: { Accept: 'application/x-ndjson, application/json' },
+      headers: { Accept: 'application/x-ndjson, application/json', ...originProofHeaders() },
       signal,
     });
     if (!response.ok) {
       const payload = await readBody(response);
-      this.handleFailure(response.status);
+      this.handleFailure(response.status, payload);
       throw new ApiError(response.status, payload);
     }
     return response;
@@ -94,18 +91,11 @@ export class ApiClient {
 
   async request<T>(method: HttpMethod, path: string, body?: unknown): Promise<T> {
     assertApiPath(path);
-    const isUnsafe = UNSAFE_METHODS.has(method);
-    const tokenWasCached = this.csrfToken !== null;
-    let response = await this.send(method, path, body, isUnsafe);
-
-    if (isUnsafe && response.status === 403 && tokenWasCached) {
-      this.csrfToken = null;
-      response = await this.send(method, path, body, isUnsafe);
-    }
+    const response = await this.send(method, path, body);
 
     const payload = await readBody(response);
     if (!response.ok) {
-      this.handleFailure(response.status);
+      this.handleFailure(response.status, payload);
       throw new ApiError(response.status, payload);
     }
     return payload as T;
@@ -115,12 +105,8 @@ export class ApiClient {
     method: HttpMethod,
     path: string,
     body: unknown,
-    isUnsafe: boolean,
   ): Promise<Response> {
-    const headers: Record<string, string> = { Accept: 'application/json' };
-    if (isUnsafe) {
-      headers[CSRF_HEADER] = await this.ensureCsrfToken();
-    }
+    const headers: Record<string, string> = { Accept: 'application/json', ...originProofHeaders() };
     const init: RequestInit = { method, credentials: 'same-origin', headers };
     if (body !== undefined) {
       headers['Content-Type'] = 'application/json';
@@ -129,21 +115,11 @@ export class ApiClient {
     return this.fetchImpl(path, init);
   }
 
-  private ensureCsrfToken(): Promise<string> {
-    if (this.csrfToken !== null) {
-      return Promise.resolve(this.csrfToken);
-    }
-    this.csrfRequest ??= this.getSession()
-      .then((session) => session.csrfToken)
-      .finally(() => {
-        this.csrfRequest = null;
-      });
-    return this.csrfRequest;
-  }
-
-  private handleFailure(status: number): void {
+  private handleFailure(status: number, body: unknown): void {
     if (status === 401) {
-      this.csrfToken = null;
+      clearOriginProof();
+      this.onSessionMissing?.();
+    } else if (status === 403 && body === 'A valid CSRF token is required') {
       this.onSessionMissing?.();
     }
   }

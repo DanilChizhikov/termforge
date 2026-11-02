@@ -3,6 +3,7 @@ import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import { describeError } from '../api/connections';
+import { originProofProtocols } from '../api/originProof';
 import {
   TERMINAL_CURSOR_STYLE,
   TERMINAL_FONT_FAMILY,
@@ -149,7 +150,9 @@ export function TerminalView({
     });
 
     const attach = (session: TerminalSession) => {
-      const webSocket = new WebSocket(terminalSocketUrl(session.id));
+      const url = terminalSocketUrl(session.id);
+      const protocols = originProofProtocols();
+      const webSocket = new WebSocket(url, protocols);
       webSocket.binaryType = 'arraybuffer';
       socket = webSocket;
       webSocket.onopen = () => {
