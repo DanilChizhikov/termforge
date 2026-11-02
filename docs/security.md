@@ -28,7 +28,7 @@ This document describes the threat model, the protections implemented in `src/Ap
 | Cross-site request forgery | A malicious site submits a form or `fetch` to `http://127.0.0.1:5023/api/...` | Session cookie is `SameSite=Strict`; state-changing requests require the `X-CSRF-Token` header that only same-origin script can obtain; `Origin` must match exactly |
 | Cross-site WebSocket hijacking | A malicious site opens `ws://127.0.0.1:5023/...`; browsers do not apply CORS to WebSockets | Every WebSocket handshake must carry an `Origin` equal to the backend origin, a valid session cookie and an origin proof in `Sec-WebSocket-Protocol` |
 | Other local web apps | A local service on another port receives the shared host cookie and replays it to TermForge | Every protected API request requires the origin proof in addition to the cookie. The proof lives in origin-scoped `sessionStorage` and is issued only by successful bootstrap or password login; cookie-only `/api/session` gets `403` |
-| Clickjacking | Framing TermForge in a hostile page | `X-Frame-Options: DENY`, `frame-ancestors 'none'` on the bootstrap page; the Strict cookie is not sent in a cross-site frame |
+| Clickjacking | Framing TermForge in a hostile page | `X-Frame-Options: DENY` and `frame-ancestors 'none'` on every non-API response; the Strict cookie is not sent in a cross-site frame |
 | Other local processes | A process sends HTTP requests to the port without a browser | Every protected `/api` request and WebSocket needs the session cookie and origin proof. The 256-bit bootstrap token is single use, expires after 60 seconds, and is carried in a private launch file rather than process arguments |
 | Token leakage | Bootstrap token in server logs, proxy logs, `Referer`, or browser history | The token travels in the URL fragment (never sent to the server), the bootstrap page clears it with `history.replaceState`, sends `Referrer-Policy: no-referrer`, and the token is exchanged with a `POST` body. Tests run with `Trace` logging and assert that no token or cookie value appears in any log message |
 | Timing attacks | Guessing secrets byte by byte | All secret comparisons use `CryptographicOperations.FixedTimeEquals`; sessions are looked up by the SHA-256 of the token |
@@ -76,6 +76,12 @@ This is the contract the frontend (`src/Web`) must follow.
 The initial navigation from the private file is cross-site. Only `GET /bootstrap` without an `Origin` and with `Sec-Fetch-Mode: navigate` plus `Sec-Fetch-Dest: document` may bypass the fetch-site check. This does not exempt token exchanges, API requests, script fetches, frames or WebSockets.
 
 The SPA does not need to implement any of the bootstrap steps.
+
+### Content Security Policy
+
+Every non-API response, including the SPA shell, deep links and static assets, sends an enforcing CSP: same-origin scripts, connections and workers; no objects, base URL overrides or embedding frames; form submissions stay same-origin. Inline scripts, eval and blob workers are not allowed. Inline styles are allowed because xterm and Monaco generate styles at runtime. Bootstrap keeps its stricter `default-src 'none'` policy with only same-origin scripts/connections and no form submissions.
+
+Vite serves its own development shell, including HMR, on :5173. This does not change or relax the backend's production policy.
 
 ### Session cookie
 
