@@ -26,7 +26,12 @@ internal static class LocalHostSecurityExtensions
     {
         app.UseMiddleware<HostHeaderValidationMiddleware>();
         app.UseMiddleware<SecurityHeadersMiddleware>();
-        app.UseWebSockets();
+        var webSocketOptions = new WebSocketOptions
+        {
+            KeepAliveInterval = TimeSpan.FromSeconds(30),
+            KeepAliveTimeout = TimeSpan.FromSeconds(10),
+        };
+        app.UseWebSockets(webSocketOptions);
         app.UseMiddleware<OriginValidationMiddleware>();
         app.UseMiddleware<BrowserSessionMiddleware>();
         app.UseMiddleware<CsrfProtectionMiddleware>();

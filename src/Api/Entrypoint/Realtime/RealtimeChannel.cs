@@ -8,45 +8,48 @@ public sealed class RealtimeChannel
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     private readonly ConcurrentDictionary<Guid, RealtimeConnection> _connections = new();
+    private readonly Lock _publishing = new();
     private readonly ILogger<RealtimeChannel> _logger;
+    private readonly TimeProvider _timeProvider;
 
-    public RealtimeChannel(ILogger<RealtimeChannel> logger)
+    public RealtimeChannel(ILogger<RealtimeChannel> logger, TimeProvider timeProvider)
     {
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     public int ConnectionCount => _connections.Count;
 
-    public async Task Publish<TPayload>(string type, TPayload payload, CancellationToken cancellationToken)
+    public Task Publish<TPayload>(string type, TPayload payload, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var message = new RealtimeMessage<TPayload>(type, payload);
         var bytes = JsonSerializer.SerializeToUtf8Bytes(message, SerializerOptions);
-        foreach (var connection in _connections.Values)
+        lock (_publishing)
         {
-            await SendSafely(connection, bytes, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            foreach (var connection in _connections)
+            {
+                connection.Value.TryEnqueue(bytes);
+            }
         }
+
+        return Task.CompletedTask;
     }
 
-    internal void Add(RealtimeConnection connection)
+    internal RealtimeConnection Connect(System.Net.WebSockets.WebSocket webSocket, CancellationToken cancellationToken)
     {
+        var connection = new RealtimeConnection(webSocket, Remove, _timeProvider);
         _connections[connection.Id] = connection;
+        connection.Start(cancellationToken);
+        return connection;
     }
 
-    internal void Remove(RealtimeConnection connection)
+    private void Remove(RealtimeConnection connection)
     {
-        _connections.TryRemove(connection.Id, out _);
-    }
-
-    private async Task SendSafely(RealtimeConnection connection, byte[] bytes, CancellationToken cancellationToken)
-    {
-        try
+        if (_connections.TryRemove(connection.Id, out _) && connection.Failure is not null)
         {
-            await connection.Send(bytes, cancellationToken);
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            _logger.LogDebug($"Dropping realtime connection after send failure: {exception.GetType().Name}");
-            Remove(connection);
+            _logger.LogDebug($"Dropping realtime connection: {connection.Failure}");
         }
     }
 }
