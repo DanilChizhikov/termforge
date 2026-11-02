@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using DTech.Core.Credentials;
+using DTech.Credentials.Native.Processes;
 using Microsoft.Extensions.Options;
 
 namespace DTech.Credentials.Native;
@@ -19,12 +20,16 @@ public sealed class OperatingSystemCredentialStoreProbe(IOperatingSystemCredenti
         }
 
         var timeout = options.Value.ProbeTimeout;
-        var roundTrip = Task.Run(RunRoundTrip, cancellationToken);
+        using var deadline = new CancellationTokenSource(timeout);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
+        var roundTrip = RunRoundTrip(linked.Token);
         try
         {
-            return await roundTrip.WaitAsync(timeout, cancellationToken);
+            return store is ProcessCredentialStore
+                ? await roundTrip
+                : await roundTrip.WaitAsync(linked.Token);
         }
-        catch (TimeoutException)
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             return CredentialStoreAvailability.Unavailable(store.Name, $"{store.Name} did not respond within {timeout.TotalSeconds:0.#} seconds. It may be locked or waiting for a confirmation dialog.");
         }
@@ -34,38 +39,57 @@ public sealed class OperatingSystemCredentialStoreProbe(IOperatingSystemCredenti
         }
     }
 
-    private async Task<CredentialStoreAvailability> RunRoundTrip()
+    private async Task<CredentialStoreAvailability> RunRoundTrip(CancellationToken cancellationToken)
     {
-        var keyResult = CredentialKey.Create(ProbeKeyValue);
+        var keyText = $"{ProbeKeyValue}-{Guid.NewGuid():N}";
+        var keyResult = CredentialKey.Create(keyText);
         var key = keyResult.Value;
         var probeText = RandomNumberGenerator.GetHexString(ProbeSecretLength);
         using var probeSecret = Secret.FromString(probeText);
 
-        var storeResult = await store.Store(key, probeSecret, CancellationToken.None);
+        var storeResult = await store.Store(key, probeSecret, cancellationToken);
         if (!storeResult.IsSuccess)
         {
             return Unavailable("store", storeResult.Error);
         }
 
-        var readResult = await store.Read(key, CancellationToken.None);
-        if (!readResult.IsSuccess)
+        var deleted = false;
+        try
         {
-            return Unavailable("read", readResult.Error);
-        }
+            var readResult = await store.Read(key, cancellationToken);
+            if (!readResult.IsSuccess)
+            {
+                return Unavailable("read", readResult.Error);
+            }
 
-        using var readSecret = readResult.Value;
-        if (!readSecret.ContentEquals(probeSecret))
+            using var readSecret = readResult.Value;
+            if (!readSecret.ContentEquals(probeSecret))
+            {
+                return CredentialStoreAvailability.Unavailable(store.Name, $"{store.Name} returned a different value than the one stored during the availability self-test.");
+            }
+
+            var deleteResult = await store.Delete(key, cancellationToken);
+            if (!deleteResult.IsSuccess)
+            {
+                return Unavailable("delete", deleteResult.Error);
+            }
+
+            deleted = true;
+            return CredentialStoreAvailability.Available(store.Name);
+        }
+        finally
         {
-            return CredentialStoreAvailability.Unavailable(store.Name, $"{store.Name} returned a different value than the one stored during the availability self-test.");
+            if (!deleted)
+            {
+                try
+                {
+                    await store.Delete(key, cancellationToken);
+                }
+                catch (Exception)
+                {
+                }
+            }
         }
-
-        var deleteResult = await store.Delete(key, CancellationToken.None);
-        if (!deleteResult.IsSuccess)
-        {
-            return Unavailable("delete", deleteResult.Error);
-        }
-
-        return CredentialStoreAvailability.Available(store.Name);
     }
 
     private CredentialStoreAvailability Unavailable(string operation, CredentialError error)

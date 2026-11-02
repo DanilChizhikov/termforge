@@ -6,7 +6,7 @@ using DTech.Core.Credentials;
 namespace DTech.Credentials.Native.Linux;
 
 [SupportedOSPlatform("linux")]
-public sealed unsafe class LinuxSecretServiceStore : IOperatingSystemCredentialStore
+public sealed unsafe class LinuxSecretServiceStore(TimeSpan? operationTimeout = null) : IOperatingSystemCredentialStore
 {
     private const string SessionBusAddressVariable = "DBUS_SESSION_BUS_ADDRESS";
     private const string RuntimeDirectoryVariable = "XDG_RUNTIME_DIR";
@@ -16,11 +16,12 @@ public sealed unsafe class LinuxSecretServiceStore : IOperatingSystemCredentialS
 
     public CredentialStoreAvailability CheckPrerequisites()
     {
-        if (!NativeLibrary.TryLoad(LibSecret.LibraryName, out _))
+        if (!NativeLibrary.TryLoad(LibSecret.LibraryName, out var handle))
         {
             return CredentialStoreAvailability.Unavailable(Name, $"{LibSecret.LibraryName} is not installed. Install libsecret (Debian/Ubuntu: 'sudo apt install libsecret-1-0', Fedora: 'sudo dnf install libsecret'). {ProviderHint}");
         }
 
+        NativeLibrary.Free(handle);
         if (!HasSessionBus())
         {
             return CredentialStoreAvailability.Unavailable(Name, $"No D-Bus session bus was found ({SessionBusAddressVariable} is not set and ${RuntimeDirectoryVariable}/bus does not exist). Run the application inside a desktop session or 'dbus-run-session'. {ProviderHint}");
@@ -31,19 +32,22 @@ public sealed unsafe class LinuxSecretServiceStore : IOperatingSystemCredentialS
 
     public Task<CredentialResult> Store(CredentialKey key, Secret secret, CancellationToken cancellationToken)
     {
-        var result = StorePassword(key, secret);
+        cancellationToken.ThrowIfCancellationRequested();
+        var result = StorePassword(key, secret, cancellationToken);
         return Task.FromResult(result);
     }
 
     public Task<CredentialResult<Secret>> Read(CredentialKey key, CancellationToken cancellationToken)
     {
-        var result = LookupPassword(key);
+        cancellationToken.ThrowIfCancellationRequested();
+        var result = LookupPassword(key, cancellationToken);
         return Task.FromResult(result);
     }
 
     public Task<CredentialResult> Delete(CredentialKey key, CancellationToken cancellationToken)
     {
-        var result = ClearPassword(key);
+        cancellationToken.ThrowIfCancellationRequested();
+        var result = ClearPassword(key, cancellationToken);
         return Task.FromResult(result);
     }
 
@@ -65,7 +69,7 @@ public sealed unsafe class LinuxSecretServiceStore : IOperatingSystemCredentialS
         return File.Exists(busPath);
     }
 
-    private static CredentialResult StorePassword(CredentialKey key, Secret secret)
+    private CredentialResult StorePassword(CredentialKey key, Secret secret, CancellationToken cancellationToken)
     {
         var secretBytes = secret.AsSpan();
         if (secretBytes.Contains((byte)0) || !Utf8.IsValid(secretBytes))
@@ -75,6 +79,8 @@ public sealed unsafe class LinuxSecretServiceStore : IOperatingSystemCredentialS
         }
 
         var schema = LinuxSecretSchema.Instance;
+        var timeout = operationTimeout ?? TimeSpan.FromSeconds(10);
+        using var cancellation = new GLibCancellation(cancellationToken, timeout);
         using var attributes = new GLibAttributeTable(LinuxSecretSchema.KeyAttribute, key.Value);
         var label = Marshal.StringToCoTaskMemUTF8($"termforge: {key.Value}");
         var passwordLength = (nuint)secretBytes.Length + 1;
@@ -84,7 +90,8 @@ public sealed unsafe class LinuxSecretServiceStore : IOperatingSystemCredentialS
             var passwordSpan = new Span<byte>(password, secretBytes.Length);
             secretBytes.CopyTo(passwordSpan);
             GLib.Error* error = null;
-            var stored = LibSecret.StorePassword(schema.Pointer, attributes.Handle, null, (byte*)label, password, IntPtr.Zero, &error);
+            var stored = LibSecret.StorePassword(schema.Pointer, attributes.Handle, null, (byte*)label, password, cancellation.Handle, &error);
+            cancellation.ThrowIfCancellationRequested(error);
             if (stored != 0)
             {
                 return CredentialResult.Success();
@@ -101,42 +108,51 @@ public sealed unsafe class LinuxSecretServiceStore : IOperatingSystemCredentialS
         }
     }
 
-    private static CredentialResult<Secret> LookupPassword(CredentialKey key)
+    private CredentialResult<Secret> LookupPassword(CredentialKey key, CancellationToken cancellationToken)
     {
         var schema = LinuxSecretSchema.Instance;
+        var timeout = operationTimeout ?? TimeSpan.FromSeconds(10);
+        using var cancellation = new GLibCancellation(cancellationToken, timeout);
         using var attributes = new GLibAttributeTable(LinuxSecretSchema.KeyAttribute, key.Value);
         GLib.Error* error = null;
-        var password = LibSecret.LookupPassword(schema.Pointer, attributes.Handle, IntPtr.Zero, &error);
-        if (error is not null)
-        {
-            var failure = TakeError(error);
-            return CredentialResult<Secret>.Failure(failure);
-        }
-
-        if (password is null)
-        {
-            var notFound = CredentialErrors.NotFound(key);
-            return CredentialResult<Secret>.Failure(notFound);
-        }
-
+        var password = LibSecret.LookupPassword(schema.Pointer, attributes.Handle, cancellation.Handle, &error);
         try
         {
+            cancellation.ThrowIfCancellationRequested(error);
+            if (error is not null)
+            {
+                var failure = TakeError(error);
+                return CredentialResult<Secret>.Failure(failure);
+            }
+
+            if (password is null)
+            {
+                var notFound = CredentialErrors.NotFound(key);
+                return CredentialResult<Secret>.Failure(notFound);
+            }
+
             var passwordBytes = MemoryMarshal.CreateReadOnlySpanFromNullTerminated(password);
             var secret = Secret.FromBytes(passwordBytes);
             return CredentialResult<Secret>.Success(secret);
         }
         finally
         {
-            LibSecret.FreePassword(password);
+            if (password is not null)
+            {
+                LibSecret.FreePassword(password);
+            }
         }
     }
 
-    private static CredentialResult ClearPassword(CredentialKey key)
+    private CredentialResult ClearPassword(CredentialKey key, CancellationToken cancellationToken)
     {
         var schema = LinuxSecretSchema.Instance;
+        var timeout = operationTimeout ?? TimeSpan.FromSeconds(10);
+        using var cancellation = new GLibCancellation(cancellationToken, timeout);
         using var attributes = new GLibAttributeTable(LinuxSecretSchema.KeyAttribute, key.Value);
         GLib.Error* error = null;
-        var cleared = LibSecret.ClearPassword(schema.Pointer, attributes.Handle, IntPtr.Zero, &error);
+        var cleared = LibSecret.ClearPassword(schema.Pointer, attributes.Handle, cancellation.Handle, &error);
+        cancellation.ThrowIfCancellationRequested(error);
         if (error is not null)
         {
             var failure = TakeError(error);

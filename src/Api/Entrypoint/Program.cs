@@ -3,6 +3,12 @@ using DTech.Entrypoint.Security;
 using DTech.Entrypoint.Security.Network;
 using DTech.Entrypoint.SpaHosting;
 using DTech.Persistence;
+using DTech.Credentials.Native.Processes;
+
+if (await CredentialHelperCommand.TryRunAsync(args))
+{
+    return;
+}
 
 if (PasswordHashCommand.TryRun(args))
 {

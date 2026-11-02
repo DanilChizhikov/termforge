@@ -19,18 +19,21 @@ public sealed unsafe class WindowsCredentialManagerStore : IOperatingSystemCrede
 
     public Task<CredentialResult> Store(CredentialKey key, Secret secret, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var result = StoreCredential(key, secret);
         return Task.FromResult(result);
     }
 
     public Task<CredentialResult<Secret>> Read(CredentialKey key, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var result = ReadCredential(key);
         return Task.FromResult(result);
     }
 
     public Task<CredentialResult> Delete(CredentialKey key, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var result = DeleteCredential(key);
         return Task.FromResult(result);
     }

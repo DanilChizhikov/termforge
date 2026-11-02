@@ -40,7 +40,7 @@ public sealed class CredentialStoreServiceCollectionExtensionsTests
         var options = provider.GetRequiredService<IOptions<CredentialStoreOptions>>().Value;
         var vaultFile = provider.GetRequiredService<VaultFile>();
 
-        options.VaultKdfIterations.Should().Be(2_000);
+        options.VaultKdfIterations.Should().Be(600_001);
         vaultFile.FilePath.Should().Be(vaultPath);
     }
 
@@ -57,7 +57,7 @@ public sealed class CredentialStoreServiceCollectionExtensionsTests
         var settings = new Dictionary<string, string?>
         {
             ["Credentials:VaultPath"] = vaultPath,
-            ["Credentials:VaultKdfIterations"] = "2000",
+            ["Credentials:VaultKdfIterations"] = "600001",
         };
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
         var services = new ServiceCollection();
