@@ -9,7 +9,8 @@ export type DangerousOperation =
   | 'ComposeRestart'
   | 'ComposeRecreate'
   | 'FileRollback'
-  | 'TransferOverwrite';
+  | 'TransferOverwrite'
+  | 'LocalTransferOverwrite';
 
 export interface ConfirmationScope {
   operation: DangerousOperation;

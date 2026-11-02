@@ -12,27 +12,53 @@ internal sealed class TerminalWebSocketBridge(TerminalSessionManager sessionMana
     {
         using var writer = new TerminalSocketWriter(webSocket);
         using var relayStop = CancellationTokenSource.CreateLinkedTokenSource(requestAborted);
-        var capture = captureFactory.Create(session.Descriptor.ConnectionId);
+        var capture = captureFactory.Create(session);
         var context = new TerminalRelayContext(webSocket, session, writer, capture);
-        var connected = TerminalServerMessage.Connected();
-        await TrySendAsync(writer, connected, relayStop.Token);
-
-        var outputRelay = TerminalOutputRelay.RunAsync(context, relayStop.Token);
-        var inputRelay = TerminalInputRelay.RunAsync(context, relayStop.Token);
-        var firstFinished = await Task.WhenAny(outputRelay, inputRelay);
-        var outcome = await firstFinished;
-        var reason = ResolveReason(session, outcome);
-        await sessionManager.ReleaseAsync(session, reason);
-        relayStop.CancelAfter(CloseHandshakeTimeout);
-        if (outcome == TerminalRelayOutcome.SessionEnded)
+        Task outputRelay = Task.CompletedTask;
+        Task inputRelay = Task.CompletedTask;
+        try
         {
-            var disconnected = TerminalServerMessage.Disconnected(reason);
-            await TrySendAsync(writer, disconnected, relayStop.Token);
+            var connected = TerminalServerMessage.Connected();
+            await TrySendAsync(writer, connected, relayStop.Token);
+
+            var output = TerminalOutputRelay.RunAsync(context, relayStop.Token);
+            var input = TerminalInputRelay.RunAsync(context, relayStop.Token);
+            outputRelay = output;
+            inputRelay = input;
+            var firstFinished = await Task.WhenAny(output, input);
+            var outcome = await firstFinished;
+            var reason = ResolveReason(session, outcome);
+            await sessionManager.ReleaseAsync(session, reason);
+            relayStop.CancelAfter(CloseHandshakeTimeout);
+            if (outcome == TerminalRelayOutcome.SessionEnded)
+            {
+                var disconnected = TerminalServerMessage.Disconnected(reason);
+                await TrySendAsync(writer, disconnected, relayStop.Token);
+            }
+
+            await TryCloseAsync(writer, relayStop.Token);
+        }
+        finally
+        {
+            try
+            {
+                var reason = session.CloseReason ?? TerminalCloseReasons.BrowserDisconnected;
+                await sessionManager.ReleaseAsync(session, reason);
+            }
+            finally
+            {
+                await relayStop.CancelAsync();
+                try
+                {
+                    await Task.WhenAll(outputRelay, inputRelay);
+                }
+                finally
+                {
+                    await capture.CompleteAsync(CancellationToken.None);
+                }
+            }
         }
 
-        await TryCloseAsync(writer, relayStop.Token);
-        await Task.WhenAll(outputRelay, inputRelay);
-        await capture.CompleteAsync(CancellationToken.None);
         var descriptor = session.Descriptor;
         logger.LogInformation($"Terminal {descriptor.SessionNumber} of {descriptor.ConnectionName} closed: {session.CloseReason}");
     }

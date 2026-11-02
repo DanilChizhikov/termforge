@@ -14,6 +14,9 @@ import { openWebSocket } from '../api/webSocket';
 import { EmptyState } from './EmptyState';
 import { OperationFilterBar, periodStart, type OperationPeriod } from './OperationFilterBar';
 import { OperationTable } from './OperationTable';
+import { TransferConflictDialog } from './TransferConflictDialog';
+import { confirmOverwrite, dismissConflict, requestTransferRetry, useTransfersState } from '../state/transfers';
+import { discardTransfer } from '../api/transfers';
 
 const OPERATION_CHANGED = 'operation.changed';
 
@@ -64,6 +67,7 @@ export function OperationHistory() {
   const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState(false);
   const filtersRef = useRef(filters);
+  const transfers = useTransfersState();
 
   useEffect(() => {
     filtersRef.current = filters;
@@ -113,8 +117,35 @@ export function OperationHistory() {
   }, []);
 
   const retry = useCallback((operation: OperationRecord) => {
+    if (operation.kind === 'transfer.upload' || operation.kind === 'transfer.download') {
+      const { connectionId, source, targetDirectory } = operation.details;
+      if (!connectionId || !source || !targetDirectory) {
+        setError('The operation does not describe a transfer.');
+        return;
+      }
+      void requestTransferRetry(operation.id, {
+        connectionId,
+        direction: operation.kind === 'transfer.upload' ? 'upload' : 'download',
+        sourcePaths: [source],
+        targetDirectory,
+        overwrite: false,
+      }, true);
+      return;
+    }
     retryOperation(operation.id)
       .then(() => setError(null))
+      .catch((reason: unknown) => setError(describeError(reason)));
+  }, []);
+
+  const discard = useCallback((operation: OperationRecord) => {
+    discardTransfer(operation.id)
+      .then(() => {
+        setPage((current) => current === null ? current : {
+          ...current,
+          items: current.items.map((item) => item.id === operation.id ? { ...item, hasPartial: false } : item),
+        });
+        setError(null);
+      })
       .catch((reason: unknown) => setError(describeError(reason)));
   }, []);
 
@@ -144,7 +175,7 @@ export function OperationHistory() {
         <EmptyState message="No operations match." />
       ) : (
         <div className="table-card">
-          <OperationTable operations={page.items} onRetry={retry} />
+          <OperationTable operations={page.items} onRetry={retry} onDiscard={discard} />
         </div>
       )}
       <div className="operation-paging">
@@ -164,6 +195,14 @@ export function OperationHistory() {
       <p className="operation-privacy">
         The journal keeps status, timing and errors. It never stores file contents, passwords or terminal output.
       </p>
+      {transfers.error !== null && <p role="alert" className="notice notice-danger">{transfers.error}</p>}
+      {transfers.pendingConflict !== null && (
+        <TransferConflictDialog
+          pending={transfers.pendingConflict}
+          onOverwrite={() => void confirmOverwrite()}
+          onCancel={dismissConflict}
+        />
+      )}
     </div>
   );
 }

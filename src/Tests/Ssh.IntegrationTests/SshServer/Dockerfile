@@ -1,11 +1,14 @@
 FROM alpine:3.22
 
-RUN apk add --no-cache openssh-server openssh-keygen sudo \
+RUN apk add --no-cache openssh-server openssh-keygen sudo fish \
     && adduser -D -s /bin/sh tester \
     && echo 'tester:tester-password' | chpasswd \
     && adduser -D -s /bin/sh sudoer \
     && echo 'sudoer:sudoer-password' | chpasswd \
     && addgroup sudoer wheel \
+    && adduser -D -s /usr/bin/fish fishsudoer \
+    && echo 'fishsudoer:fish-sudoer-password' | chpasswd \
+    && addgroup fishsudoer wheel \
     && echo '%wheel ALL=(ALL:ALL) ALL' > /etc/sudoers.d/wheel \
     && chmod 440 /etc/sudoers.d/wheel
 

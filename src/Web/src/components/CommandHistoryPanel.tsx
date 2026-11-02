@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   clearCommandHistory,
   deleteCommand,
@@ -16,6 +16,7 @@ import { formatClock } from './timeFormat';
 export interface CommandHistoryPanelProps {
   connectionId: string;
   connectionName: string;
+  terminalId: string | null;
   version: number;
   onInsert: (text: string) => void;
   onCollapse: () => void;
@@ -134,6 +135,7 @@ function RecentRow(props: CommandRowProps) {
 export function CommandHistoryPanel({
   connectionId,
   connectionName,
+  terminalId,
   version,
   onInsert,
   onCollapse,
@@ -143,6 +145,14 @@ export function CommandHistoryPanel({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [reloads, setReloads] = useState(0);
+  const integrationRequest = useRef(0);
+
+  useEffect(() => {
+    integrationRequest.current++;
+    return () => {
+      integrationRequest.current++;
+    };
+  }, [terminalId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -175,12 +185,23 @@ export function CommandHistoryPanel({
   };
 
   const insertSnippet = (shell: ShellName) => {
-    getShellIntegration(shell)
+    if (terminalId === null) {
+      return;
+    }
+    const request = ++integrationRequest.current;
+    getShellIntegration(shell, terminalId)
       .then((integration) => {
+        if (request !== integrationRequest.current) {
+          return;
+        }
         onInsert(integration.snippet);
         setNotice('Snippet inserted. Press Enter in the terminal to start recording commands.');
       })
-      .catch((failure: unknown) => setError(describeError(failure)));
+      .catch((failure: unknown) => {
+        if (request === integrationRequest.current) {
+          setError(describeError(failure));
+        }
+      });
   };
 
   const pinned = entries.filter((entry) => entry.isPinned);
@@ -257,7 +278,7 @@ export function CommandHistoryPanel({
         <span className="field-hint">Record commands from this shell:</span>
         <div className="history-shells">
           {SHELLS.map((shell) => (
-            <button key={shell} type="button" className="btn btn-xs" onClick={() => insertSnippet(shell)}>
+            <button key={shell} type="button" className="btn btn-xs" disabled={terminalId === null} onClick={() => insertSnippet(shell)}>
               {shell}
             </button>
           ))}

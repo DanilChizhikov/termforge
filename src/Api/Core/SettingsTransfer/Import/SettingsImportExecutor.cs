@@ -1,3 +1,5 @@
+using DTech.Core.Diagnostics;
+
 namespace DTech.Core.SettingsTransfer.Import;
 
 public sealed class SettingsImportExecutor
@@ -6,17 +8,20 @@ public sealed class SettingsImportExecutor
     private readonly PreferencesImportApplier _preferences;
     private readonly WorkspaceImportApplier _workspace;
     private readonly PinnedCommandImportApplier _pinnedCommands;
+    private readonly CapabilityReportCache? _capabilityCache;
 
     public SettingsImportExecutor(
         ConnectionImportApplier connections,
         PreferencesImportApplier preferences,
         WorkspaceImportApplier workspace,
-        PinnedCommandImportApplier pinnedCommands)
+        PinnedCommandImportApplier pinnedCommands,
+        CapabilityReportCache? capabilityCache = null)
     {
         _connections = connections;
         _preferences = preferences;
         _workspace = workspace;
         _pinnedCommands = pinnedCommands;
+        _capabilityCache = capabilityCache;
     }
 
     public async Task<SettingsImportResult> ExecuteAsync(PreparedSettingsImport prepared, CancellationToken cancellationToken)
@@ -36,7 +41,7 @@ public sealed class SettingsImportExecutor
         {
             var preferencesError = await _preferences.ApplyAsync(prepared.Preferences, cancellationToken);
             preferencesImported = preferencesError is null;
-            AddIfPresent(warnings, preferencesError);
+            ThrowIfPresent(preferencesError);
         }
 
         var workspaceImported = false;
@@ -44,7 +49,7 @@ public sealed class SettingsImportExecutor
         {
             var workspaceError = await _workspace.ApplyAsync(document.Workspace!, plan, cancellationToken);
             workspaceImported = workspaceError is null;
-            AddIfPresent(warnings, workspaceError);
+            ThrowIfPresent(workspaceError);
         }
 
         var pinned = new PinnedCommandImportOutcome(0, 0);
@@ -69,11 +74,37 @@ public sealed class SettingsImportExecutor
         };
     }
 
-    private static void AddIfPresent(List<string> warnings, string? warning)
+    public async Task<SettingsImportResult> AfterCommitAsync(PreparedSettingsImport prepared, SettingsImportResult result, CancellationToken cancellationToken)
+    {
+        if (prepared.Sections.Connections)
+        {
+            _capabilityCache?.Clear();
+        }
+
+        if (prepared.Preferences is null)
+        {
+            return result;
+        }
+
+        try
+        {
+            await _preferences.AfterCommitAsync(prepared.Preferences, cancellationToken);
+            return result;
+        }
+        catch (Exception)
+        {
+            var warnings = result.Warnings.ToList();
+            warnings.Add("Settings were imported, but terminal recording cleanup could not finish. Save recording settings or restart the application to retry cleanup.");
+            return result with { Warnings = warnings };
+        }
+    }
+
+    private static void ThrowIfPresent(string? warning)
     {
         if (warning is not null)
         {
-            warnings.Add(warning);
+            var error = new SettingsTransferError(SettingsTransferErrorCode.ImportFailed, warning);
+            throw new SettingsImportException(error);
         }
     }
 }

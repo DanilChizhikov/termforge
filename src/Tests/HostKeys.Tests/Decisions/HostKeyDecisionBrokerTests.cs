@@ -108,4 +108,15 @@ public sealed class HostKeyDecisionBrokerTests
 
         pending.ExpiresAt.Should().BeOnOrAfter(before + LongTimeout);
     }
+
+    [TestMethod]
+    public async Task TryClaim_ExpiredBeforeTimerCallback_RejectsDecision()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var pending = new PendingHostKeyDecision(Guid.NewGuid(), TestChallenges.Create(HostKeyStatus.Unknown), now);
+
+        pending.TryClaim(now).Should().BeFalse();
+
+        (await pending.Completion).Should().Be(HostKeyPromptOutcome.TimedOut);
+    }
 }

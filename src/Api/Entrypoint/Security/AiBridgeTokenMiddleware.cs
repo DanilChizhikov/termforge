@@ -17,9 +17,10 @@ internal sealed class AiBridgeTokenMiddleware(RequestDelegate next, ILogger<AiBr
         }
 
         var remoteAddress = context.Connection.RemoteIpAddress;
-        if (remoteAddress is not null && !IPAddress.IsLoopback(remoteAddress))
+        if ((remoteAddress is not null && !IPAddress.IsLoopback(remoteAddress))
+            || !LoopbackHost.IsLoopback(context.Request.Host.Host))
         {
-            logger.LogWarning($"Rejected AI bridge request from {remoteAddress}: only local clients are allowed");
+            logger.LogWarning($"Rejected AI bridge request from {remoteAddress} to {context.Request.Host}: only local clients and loopback hosts are allowed");
             await RequestRejection.WriteAsync(context, StatusCodes.Status403Forbidden, "The AI bridge accepts local connections only");
             return;
         }

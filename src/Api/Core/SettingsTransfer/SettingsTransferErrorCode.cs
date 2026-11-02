@@ -9,4 +9,6 @@ public enum SettingsTransferErrorCode
     FileDamaged,
     ConfirmationRequired,
     SecretsUnavailable,
+    ImportFailed,
+    CompensationFailed,
 }

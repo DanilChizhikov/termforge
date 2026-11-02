@@ -8,7 +8,7 @@ namespace DTech.Core.Tests.Editor.Sudo;
 public sealed class SudoCommandBuilderTests
 {
     private const string HostilePath = "/etc/it's $(id).conf";
-    private const string QuotedHostilePath = "'/etc/it'\\''s $(id).conf'";
+    private const string QuotedHostilePath = "'/etc/it'\"'\"'s $(id).conf'";
 
     private readonly SudoCommandBuilder _commands = new();
 

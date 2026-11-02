@@ -214,6 +214,191 @@ public sealed class TransferEnqueuerTests
         _queue.List().Should().ContainSingle().Which.Id.Should().Be(previous.Id);
     }
 
+    [TestMethod]
+    public async Task RetryAsync_StoredOverwriteWithoutFreshConfirmation_ReturnsConflicts()
+    {
+        var batch = CreateBatch(true, "/home/me/existing.txt");
+        var request = new TransferRequest
+        {
+            ConnectionId = ConnectionId,
+            ServerName = batch.ServerName,
+            Direction = batch.Direction,
+            SourcePath = batch.SourcePaths[0],
+            TargetDirectory = batch.TargetDirectory,
+            Overwrite = true,
+        };
+        var operation = FailedOperation(request);
+
+        var result = await _enqueuer.RetryAsync(operation, TestContext.CancellationToken);
+
+        result.Conflicts.Should().Equal("/srv/existing.txt");
+        _queue.List().Should().BeEmpty();
+        await _journal.DidNotReceive().CreateAsync(Arg.Any<TransferRequest>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [TestMethod]
+    public async Task RetryAsync_FreshConfirmation_AllowsOverwriteOnce()
+    {
+        var request = RetryRequest(TransferDirection.Upload);
+        var operation = FailedOperation(request);
+        var token = _safety.Confirm(DangerousOperation.TransferOverwrite, ConnectionId, request.TargetDirectory);
+        var options = new OperationRetryOptions(true, token);
+
+        var result = await _enqueuer.RetryAsync(operation, options, TestContext.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue();
+        _queue.List().Should().ContainSingle().Which.Request.Overwrite.Should().BeTrue();
+        var scope = new ConfirmationScope(DangerousOperation.TransferOverwrite, ConnectionId, request.TargetDirectory);
+        _safety.Confirmations.TryConsume(scope, token).Should().BeFalse();
+    }
+
+    [TestMethod]
+    public async Task RetryAsync_DownloadOverwrite_RequiresLocalConfirmation()
+    {
+        var enqueuer = CreateDownloadEnqueuer();
+        var request = RetryRequest(TransferDirection.Download);
+        var operation = FailedOperation(request);
+        var options = new OperationRetryOptions(true);
+
+        var result = await enqueuer.RetryAsync(operation, options, TestContext.CancellationToken);
+
+        result.Error!.Code.Should().Be(FileErrorCode.ConfirmationRequired);
+        _queue.List().Should().BeEmpty();
+    }
+
+    [TestMethod]
+    public async Task RetryAsync_DownloadToBusyTarget_DoesNotConsumeLocalConfirmation()
+    {
+        var enqueuer = CreateDownloadEnqueuer();
+        var request = RetryRequest(TransferDirection.Download);
+        var active = new TransferJob(Guid.NewGuid(), request, "/srv/existing.txt");
+        _queue.TryAdd(active);
+        var operation = FailedOperation(request);
+        var token = _safety.Confirm(DangerousOperation.LocalTransferOverwrite, ConnectionId, request.TargetDirectory);
+        var options = new OperationRetryOptions(true, token);
+
+        var result = await enqueuer.RetryAsync(operation, options, TestContext.CancellationToken);
+
+        result.Error!.Code.Should().Be(FileErrorCode.AlreadyExists);
+        var scope = new ConfirmationScope(DangerousOperation.LocalTransferOverwrite, ConnectionId, request.TargetDirectory);
+        _safety.Confirmations.TryConsume(scope, token).Should().BeTrue();
+    }
+
+    [TestMethod]
+    public async Task RetryAsync_ConfirmedDownloadFromReadOnlyServer_IsAllowed()
+    {
+        var enqueuer = CreateDownloadEnqueuer();
+        var request = RetryRequest(TransferDirection.Download);
+        var operation = FailedOperation(request);
+        var token = _safety.Confirm(DangerousOperation.LocalTransferOverwrite, ConnectionId, request.TargetDirectory);
+        var options = new OperationRetryOptions(true, token);
+        _safety.MarkReadOnly(ConnectionId);
+
+        var result = await enqueuer.RetryAsync(operation, options, TestContext.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue();
+        _queue.List().Should().ContainSingle();
+    }
+
+    [TestMethod]
+    public async Task EnqueueAsync_InspectionFails_DoesNotConsumeConfirmation()
+    {
+        var batch = CreateBatch(true, "/home/me/new.txt");
+        var missing = FileError.NotFound("/home/me/new.txt");
+        _strategy.InspectAsync(Arg.Any<TransferContext>(), Arg.Any<CancellationToken>()).Returns(FileResult<TransferInspection>.Failure(missing));
+
+        await _enqueuer.EnqueueAsync(batch, TestContext.CancellationToken);
+
+        var scope = new ConfirmationScope(DangerousOperation.TransferOverwrite, ConnectionId, batch.TargetDirectory);
+        _safety.Confirmations.TryConsume(scope, batch.ConfirmationToken).Should().BeTrue();
+    }
+
+    [TestMethod]
+    public async Task EnqueueAsync_DuplicateBatchTargets_DoesNotCreateOrPublishJobs()
+    {
+        var batch = CreateBatch(false, "/one/new.txt", "/two/new.txt");
+
+        var result = await _enqueuer.EnqueueAsync(batch, TestContext.CancellationToken);
+
+        result.Error!.Code.Should().Be(FileErrorCode.AlreadyExists);
+        _queue.List().Should().BeEmpty();
+        _queue.Pending.TryRead(out _).Should().BeFalse();
+        await _journal.DidNotReceive().CreateAsync(Arg.Any<TransferRequest>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [TestMethod]
+    public async Task EnqueueAsync_SecondJournalEntryFails_CancelsFirstWithoutPublishing()
+    {
+        var firstId = Guid.NewGuid();
+        _journal.CreateAsync(Arg.Any<TransferRequest>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(_ => firstId, _ => throw new InvalidOperationException("database unavailable"));
+        var batch = CreateBatch(false, "/home/me/a.txt", "/home/me/b.txt");
+
+        var action = () => _enqueuer.EnqueueAsync(batch, TestContext.CancellationToken);
+
+        await action.Should().ThrowAsync<InvalidOperationException>();
+        _queue.List().Should().BeEmpty();
+        _queue.Pending.TryRead(out _).Should().BeFalse();
+        await _journal.Received(1).CancelAsync(firstId, CancellationToken.None);
+    }
+
+    [TestMethod]
+    public async Task EnqueueAsync_QueueClosesDuringJournalCreation_CancelsWholeBatch()
+    {
+        _journal.CreateAsync(Arg.Any<TransferRequest>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            _queue.Close();
+            return Guid.NewGuid();
+        });
+        var batch = CreateBatch(false, "/home/me/a.txt", "/home/me/b.txt");
+
+        var result = await _enqueuer.EnqueueAsync(batch, TestContext.CancellationToken);
+
+        result.IsSuccess.Should().BeFalse();
+        _queue.List().Should().BeEmpty();
+        _queue.Pending.TryRead(out _).Should().BeFalse();
+        await _journal.Received(2).CancelAsync(Arg.Any<Guid>(), CancellationToken.None);
+    }
+
+    private TransferEnqueuer CreateDownloadEnqueuer()
+    {
+        _strategy.Direction.Returns(TransferDirection.Download);
+        var strategies = new TransferStrategySelector([_strategy]);
+        var client = Substitute.For<IRemoteFileClient>();
+        var opener = Substitute.For<ITransferConnectionOpener>();
+        var opened = FileResult<IRemoteFileClient>.Success(client);
+        opener.OpenAsync(ConnectionId, Arg.Any<CancellationToken>()).Returns(opened);
+        return new TransferEnqueuer(_queue, opener, strategies, _journal, _notifier, _safety.Gate);
+    }
+
+    private static TransferRequest RetryRequest(TransferDirection direction)
+    {
+        return new TransferRequest
+        {
+            ConnectionId = ConnectionId,
+            ServerName = "web-01",
+            Direction = direction,
+            SourcePath = "/home/me/existing.txt",
+            TargetDirectory = "/srv",
+            Overwrite = true,
+        };
+    }
+
+    private static Operation FailedOperation(TransferRequest request)
+    {
+        return new Operation
+        {
+            Id = Guid.NewGuid(),
+            Kind = TransferOperationKinds.For(request.Direction),
+            Server = request.ServerName,
+            Status = OperationStatus.Failed,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            Details = TransferOperationDetails.Describe(request, "/srv/existing.txt"),
+            Retryable = true,
+        };
+    }
+
     private TransferBatchRequest CreateBatch(bool overwrite, params string[] sources)
     {
         var batch = CreateUnconfirmedBatch(overwrite, sources);

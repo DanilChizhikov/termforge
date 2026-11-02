@@ -9,6 +9,11 @@ public sealed class ServerWriteGate(IServerAccessModeReader accessModes, IConfir
         return accessModes.IsReadOnlyAsync(connectionId, cancellationToken);
     }
 
+    public bool ConsumeConfirmation(ConfirmationScope scope, string? token)
+    {
+        return confirmations.TryConsume(scope, token);
+    }
+
     public async Task<WriteDenial?> CheckAsync(WriteIntent intent, CancellationToken cancellationToken)
     {
         if (await accessModes.IsReadOnlyAsync(intent.ConnectionId, cancellationToken))

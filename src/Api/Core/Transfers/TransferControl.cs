@@ -1,5 +1,6 @@
 using DTech.Core.Files;
 using DTech.Core.Operations;
+using DTech.Core.Safety;
 using DTech.Core.Transfers.Execution;
 using DTech.Core.Transfers.Queue;
 
@@ -12,14 +13,16 @@ public sealed class TransferControl
     private readonly ITransferNotifier _notifier;
     private readonly ITransferConnectionOpener _opener;
     private readonly TransferStrategySelector _strategies;
+    private readonly ServerWriteGate? _writeGate;
 
-    public TransferControl(TransferQueue queue, ITransferJournal journal, ITransferNotifier notifier, ITransferConnectionOpener opener, TransferStrategySelector strategies)
+    public TransferControl(TransferQueue queue, ITransferJournal journal, ITransferNotifier notifier, ITransferConnectionOpener opener, TransferStrategySelector strategies, ServerWriteGate? writeGate = null)
     {
         _queue = queue;
         _journal = journal;
         _notifier = notifier;
         _opener = opener;
         _strategies = strategies;
+        _writeGate = writeGate;
     }
 
     public IReadOnlyList<TransferSnapshot> List()
@@ -33,6 +36,15 @@ public sealed class TransferControl
         }
 
         return snapshots;
+    }
+
+    public async Task FinishAsync(TransferJob job)
+    {
+        var removed = _queue.Finish(job);
+        for (var i = 0; i < removed.Count; i++)
+        {
+            await _notifier.TransferRemoved(removed[i], CancellationToken.None);
+        }
     }
 
     public async Task<TransferCancelOutcome> CancelAsync(Guid id)
@@ -79,6 +91,15 @@ public sealed class TransferControl
             return FileResult.Failure(active);
         }
 
+        TransferTarget[] targets = [new(job.Request, job.TargetPath)];
+        var reserved = _queue.TryReserve(targets);
+        using var reservation = reserved.Reservation;
+        if (reservation is null)
+        {
+            var busy = FileError.Invalid("Wait for the active transfer to finish before discarding its partial files.");
+            return FileResult.Failure(busy);
+        }
+
         var deleted = await DeletePartialAsync(job, cancellationToken);
         if (!deleted.IsSuccess)
         {
@@ -86,6 +107,7 @@ public sealed class TransferControl
         }
 
         job.ForgetPartial();
+        await _journal.CheckpointAsync(job, CancellationToken.None);
         _queue.Remove(id);
         await _notifier.TransferRemoved(id, CancellationToken.None);
         return FileResult.Success();
@@ -97,7 +119,7 @@ public sealed class TransferControl
         for (var i = 0; i < jobs.Count; i++)
         {
             var job = jobs[i];
-            if (OperationStateMachine.IsTerminal(job.Status) && job.PartialPath is null && _queue.Remove(job.Id))
+            if (OperationStateMachine.IsTerminal(job.Status) && !job.HasPartial && _queue.Remove(job.Id))
             {
                 await _notifier.TransferRemoved(job.Id, CancellationToken.None);
             }
@@ -106,10 +128,21 @@ public sealed class TransferControl
 
     private async Task<FileResult> DeletePartialAsync(TransferJob job, CancellationToken cancellationToken)
     {
-        var partialPath = job.PartialPath;
-        if (partialPath is null)
+        var recovery = job.CaptureRecovery();
+        if (recovery.PartialPaths.Count == 0)
         {
             return FileResult.Success();
+        }
+
+        if (job.Request.Direction == TransferDirection.Download)
+        {
+            return DeleteLocalPartials(recovery.PartialPaths);
+        }
+
+        if (_writeGate is not null && await _writeGate.IsReadOnlyAsync(job.Request.ConnectionId, cancellationToken))
+        {
+            var readOnly = FileError.ReadOnlyServer();
+            return FileResult.Failure(readOnly);
         }
 
         var opened = await _opener.OpenAsync(job.Request.ConnectionId, cancellationToken);
@@ -121,6 +154,33 @@ public sealed class TransferControl
         await using var client = opened.Value;
         var strategy = _strategies.For(job.Request.Direction);
         var context = new TransferContext(client, job.Request);
-        return await strategy.DeletePartialAsync(context, partialPath, cancellationToken);
+        for (var i = 0; i < recovery.PartialPaths.Count; i++)
+        {
+            var deleted = await strategy.DeletePartialAsync(context, recovery.PartialPaths[i], cancellationToken);
+            if (!deleted.IsSuccess && deleted.Error.Code != FileErrorCode.NotFound)
+            {
+                return deleted;
+            }
+        }
+
+        return FileResult.Success();
+    }
+
+    private static FileResult DeleteLocalPartials(IReadOnlyList<string> paths)
+    {
+        for (var i = 0; i < paths.Count; i++)
+        {
+            try
+            {
+                File.Delete(paths[i]);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                var error = DTech.Core.Files.Local.LocalIoErrors.Map(exception, paths[i]);
+                return FileResult.Failure(error);
+            }
+        }
+
+        return FileResult.Success();
     }
 }

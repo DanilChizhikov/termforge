@@ -24,12 +24,13 @@ public static partial class DiskUsageParser
 
     private static MetricReading<DiskUsage> ToReading(Match match)
     {
-        var blocks = long.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
-        var available = long.Parse(match.Groups[3].Value, CultureInfo.InvariantCulture);
         var mountPoint = match.Groups[4].Value;
-        if (blocks <= 0)
+        if (!long.TryParse(match.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var blocks) ||
+            !long.TryParse(match.Groups[2].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var used) ||
+            !long.TryParse(match.Groups[3].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var available) ||
+            blocks <= 0 || blocks > long.MaxValue / KibiByte || available > blocks || used > blocks)
         {
-            return MetricReading<DiskUsage>.Unavailable($"df reported no capacity for {mountPoint}.");
+            return MetricReading<DiskUsage>.Unavailable($"df reported invalid capacity for {mountPoint}.");
         }
 
         var usage = new DiskUsage(available * KibiByte, blocks * KibiByte, mountPoint);

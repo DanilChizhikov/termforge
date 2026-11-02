@@ -1,4 +1,5 @@
 using DTech.Core.Connections;
+using DTech.Core.Diagnostics;
 
 namespace DTech.Core.Editor.Sudo;
 
@@ -11,7 +12,8 @@ public sealed class SudoAvailabilityProbe(SudoCommandBuilder commands, SudoRespo
 
     public async Task<SshResult<SudoProbeOutcome>> ProbeAsync(IRemoteShellCommandRunner runner, CancellationToken cancellationToken)
     {
-        var text = commands.Probe();
+        var script = commands.Probe();
+        var text = ShellScript.Wrap(script);
         var command = new RemoteShellCommand(text, ProbeTimeout, MaxOutputBytes);
         var executed = await runner.RunAsync(command, cancellationToken);
         if (!executed.IsSuccess)

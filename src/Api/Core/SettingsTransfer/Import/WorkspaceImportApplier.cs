@@ -10,7 +10,7 @@ public sealed class WorkspaceImportApplier(IWorkspaceStateStore store, Workspace
         var drafts = await store.LoadDraftsAsync(cancellationToken);
         var withDraftTabs = WorkspaceDraftTabs.IncludeDraftTabs(remapped, drafts);
         var snapshot = new WorkspaceSnapshot(withDraftTabs, drafts);
-        var saved = await saver.SaveAsync(snapshot, cancellationToken);
+        var saved = await saver.SaveWithinWriteAsync(snapshot, cancellationToken);
         return saved.IsSuccess ? null : $"The workspace layout was not imported: {saved.Error.Message}";
     }
 }

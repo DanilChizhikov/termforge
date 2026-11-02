@@ -5,6 +5,21 @@ namespace DTech.HostKeys;
 
 internal sealed class HostKeyVerifier(KnownHostsReader knownHostsReader, ITrustedHostKeyStore trustedHostKeyStore) : IHostKeyVerifier
 {
+    public IReadOnlyList<HostKey> GetKnownHostKeys(SshEndpoint endpoint)
+    {
+        var keys = new List<HostKey>();
+        foreach (var entry in knownHostsReader.ReadEntries())
+        {
+            if (entry.Marker == KnownHostsMarker.None && KnownHostsHostMatcher.Matches(entry.HostPatterns, endpoint))
+            {
+                AddDistinct(keys, entry.HostKey);
+            }
+        }
+
+        AddDistinct(keys, trustedHostKeyStore.GetTrustedHostKeys(endpoint));
+        return keys;
+    }
+
     public HostKeyVerification Verify(HostKeyVerificationRequest request)
     {
         var knownHostKeys = new List<HostKey>();
@@ -46,7 +61,6 @@ internal sealed class HostKeyVerifier(KnownHostsReader knownHostsReader, ITruste
 
     private static HostKeyStatus DetermineStatus(HostKey presentedHostKey, IReadOnlyList<HostKey> knownHostKeys)
     {
-        var hasKeyOfSameAlgorithm = false;
         for (var i = 0; i < knownHostKeys.Count; i++)
         {
             var knownHostKey = knownHostKeys[i];
@@ -54,11 +68,9 @@ internal sealed class HostKeyVerifier(KnownHostsReader knownHostsReader, ITruste
             {
                 return HostKeyStatus.Trusted;
             }
-
-            hasKeyOfSameAlgorithm |= knownHostKey.Algorithm == presentedHostKey.Algorithm;
         }
 
-        return hasKeyOfSameAlgorithm ? HostKeyStatus.Changed : HostKeyStatus.Unknown;
+        return knownHostKeys.Count > 0 ? HostKeyStatus.Changed : HostKeyStatus.Unknown;
     }
 
     private static void AddDistinct(List<HostKey> knownHostKeys, IReadOnlyList<HostKey> additionalHostKeys)

@@ -1,6 +1,5 @@
 using DTech.Core.Connections;
 using Renci.SshNet;
-using Renci.SshNet.Common;
 using SshNet.Agent;
 
 namespace DTech.Ssh.Connections;
@@ -9,12 +8,18 @@ internal sealed class SshAuthenticationFactory
 {
     private static readonly TimeSpan AgentTimeout = TimeSpan.FromSeconds(10);
 
-    public SshResult<SshAuthenticationMaterial> Create(SshConnectionTarget target)
+    public async Task<SshResult<SshAuthenticationMaterial>> CreateAsync(SshConnectionTarget target, CancellationToken cancellationToken)
     {
+        if (cancellationToken.IsCancellationRequested)
+        {
+            var cancelled = new SshError(SshErrorKind.Cancelled, "Preparing SSH authentication was cancelled");
+            return SshResult<SshAuthenticationMaterial>.Failure(cancelled);
+        }
+
         return target.Authentication switch
         {
             PrivateKeyAuthentication privateKey => CreatePrivateKey(target.UserName, privateKey),
-            AgentAuthentication agent => CreateAgent(target.UserName, agent),
+            AgentAuthentication agent => await CreateAgentAsync(target.UserName, agent, cancellationToken),
             PasswordAuthentication password => CreatePassword(target.UserName, password),
             _ => Unsupported(target.Authentication),
         };
@@ -22,47 +27,78 @@ internal sealed class SshAuthenticationFactory
 
     private static SshResult<SshAuthenticationMaterial> CreatePrivateKey(string userName, PrivateKeyAuthentication authentication)
     {
-        PrivateKeyFile keyFile;
+        PrivateKeyFile? keyFile = null;
+        PrivateKeyAuthenticationMethod? method = null;
+        var transferred = false;
         try
         {
             keyFile = new PrivateKeyFile(authentication.PrivateKeyPath, authentication.Passphrase);
+            method = new PrivateKeyAuthenticationMethod(userName, keyFile);
+            var ownedResources = new IDisposable[] { method, keyFile };
+            var material = new SshAuthenticationMaterial(method, ownedResources);
+            var result = SshResult<SshAuthenticationMaterial>.Success(material);
+            transferred = true;
+            return result;
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SshException or ArgumentException or InvalidOperationException)
+        catch (Exception exception)
         {
             var error = new SshError(SshErrorKind.PrivateKeyUnusable, $"Private key {authentication.PrivateKeyPath} cannot be loaded: {exception.Message}");
             return SshResult<SshAuthenticationMaterial>.Failure(error);
         }
-
-        var method = new PrivateKeyAuthenticationMethod(userName, keyFile);
-        var ownedResources = new IDisposable[] { method, keyFile };
-        var material = new SshAuthenticationMaterial(method, ownedResources);
-        return SshResult<SshAuthenticationMaterial>.Success(material);
+        finally
+        {
+            if (!transferred)
+            {
+                try
+                {
+                    method?.Dispose();
+                }
+                finally
+                {
+                    keyFile?.Dispose();
+                }
+            }
+        }
     }
 
-    private static SshResult<SshAuthenticationMaterial> CreateAgent(string userName, AgentAuthentication authentication)
+    private static async Task<SshResult<SshAuthenticationMaterial>> CreateAgentAsync(string userName, AgentAuthentication authentication, CancellationToken cancellationToken)
     {
-        IPrivateKeySource[] identities;
+        PrivateKeyAuthenticationMethod? method = null;
+        var transferred = false;
         try
         {
             var agent = CreateAgentClient(authentication.AgentAddress);
-            identities = agent.RequestIdentities();
+            var identities = await agent.RequestIdentitiesAsync(cancellationToken);
+            if (identities.Length == 0)
+            {
+                var empty = new SshError(SshErrorKind.AgentUnavailable, "SSH agent holds no identities");
+                return SshResult<SshAuthenticationMaterial>.Failure(empty);
+            }
+
+            method = new PrivateKeyAuthenticationMethod(userName, identities);
+            var ownedResources = new IDisposable[] { method };
+            var material = new SshAuthenticationMaterial(method, ownedResources);
+            var result = SshResult<SshAuthenticationMaterial>.Success(material);
+            transferred = true;
+            return result;
         }
-        catch (Exception exception) when (exception is SshAgentException or IOException or System.Net.Sockets.SocketException or TimeoutException or UnauthorizedAccessException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            var cancelled = new SshError(SshErrorKind.Cancelled, "Preparing SSH agent authentication was cancelled");
+            return SshResult<SshAuthenticationMaterial>.Failure(cancelled);
+        }
+        catch (Exception exception)
         {
             var error = new SshError(SshErrorKind.AgentUnavailable, $"SSH agent is not reachable: {exception.Message}");
             return SshResult<SshAuthenticationMaterial>.Failure(error);
         }
-
-        if (identities.Length == 0)
+        finally
         {
-            var error = new SshError(SshErrorKind.AgentUnavailable, "SSH agent holds no identities");
-            return SshResult<SshAuthenticationMaterial>.Failure(error);
+            if (!transferred)
+            {
+                method?.Dispose();
+            }
         }
-
-        var method = new PrivateKeyAuthenticationMethod(userName, identities);
-        var ownedResources = new IDisposable[] { method };
-        var material = new SshAuthenticationMaterial(method, ownedResources);
-        return SshResult<SshAuthenticationMaterial>.Success(material);
     }
 
     private static SshAgent CreateAgentClient(string? agentAddress)

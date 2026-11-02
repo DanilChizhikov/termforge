@@ -59,7 +59,7 @@ public sealed class PasswordLoginTests
 
         using var response = await SendLoginAsync(client, NetworkAccessSettings.NetworkOrigin, NetworkAccessSettings.Password);
 
-        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
         var setCookieHeader = SessionBootstrapper.ReadSetCookieHeader(response);
         setCookieHeader.Should().ContainEquivalentOf("httponly");
         setCookieHeader.Should().ContainEquivalentOf("samesite=strict");

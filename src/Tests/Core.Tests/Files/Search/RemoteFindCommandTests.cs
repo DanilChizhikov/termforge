@@ -41,7 +41,7 @@ public sealed class RemoteFindCommandTests
 
         var script = RemoteFindCommand.BuildScript(query);
 
-        script.Should().Contain("-iname '*it'\\''s; rm -rf ~*' ");
+        script.Should().Contain("-iname '*it'\"'\"'s; rm -rf ~*' ");
     }
 
     [TestMethod]
@@ -51,7 +51,7 @@ public sealed class RemoteFindCommandTests
 
         var script = RemoteFindCommand.BuildScript(query);
 
-        script.Should().StartWith("find '/srv/o'\\''brien' ");
+        script.Should().StartWith("find '/srv/o'\"'\"'brien' ");
     }
 
     [TestMethod]

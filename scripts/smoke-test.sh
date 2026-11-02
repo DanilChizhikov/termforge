@@ -109,7 +109,7 @@ start_app() {
 
 wait_for_launch_url() {
   local elapsed=0
-  until [[ -s "$url_file" ]] && grep -q '#token=' "$url_file"; do
+  until [[ -s "$url_file" ]]; do
     if ! kill -0 "$app_pid" 2>/dev/null; then
       fail "TermForge exited during startup"
     fi
@@ -122,24 +122,39 @@ wait_for_launch_url() {
 }
 
 api_request() {
-  curl -sS -b "$cookie_jar" -c "$cookie_jar" -H "Origin: $origin" "$@"
+  if [[ -n "$csrf_token" ]]; then
+    curl -sS -b "$cookie_jar" -c "$cookie_jar" -H "Origin: $origin" -H "X-CSRF-Token: $csrf_token" "$@"
+  else
+    curl -sS -b "$cookie_jar" -c "$cookie_jar" -H "Origin: $origin" "$@"
+  fi
 }
 
 create_browser_session() {
-  local launch_url token status
-  launch_url="$(tr -d '\r\n' < "$url_file")"
-  token="${launch_url##*#token=}"
-  status="$(api_request -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' \
-    -d "{\"token\":\"$token\"}" "$origin/api/session/bootstrap")"
-  [[ "$status" == "204" ]] || fail "bootstrap exchange answered $status, expected 204"
+  local launch_file token status
+  launch_file="$(tr -d '\r\n' < "$url_file")"
+  launch_file="${launch_file#\"}"
+  launch_file="${launch_file%\"}"
+  if command -v cygpath >/dev/null 2>&1; then
+    launch_file="$(cygpath -u "$launch_file")"
+  fi
+  [[ -f "$launch_file" ]] || fail "browser command received no private launch file"
+  token="$(sed -n 's/.*#token=\([A-Za-z0-9_-]*\).*/\1/p' "$launch_file")"
+  [[ -n "$token" ]] || fail "private launch file contains no bootstrap token"
+  status="$(printf '{\"token\":\"%s\"}' "$token" | api_request -o "$work_dir/session.json" -w '%{http_code}' -H 'Content-Type: application/json' \
+    --data-binary @- "$origin/api/session/bootstrap")"
+  [[ "$status" == "200" ]] || fail "bootstrap exchange answered $status, expected 200"
+  csrf_token="$(sed -n 's|.*"csrfToken":"\([^"]*\)".*|\1|p' "$work_dir/session.json")"
+  [[ -n "$csrf_token" ]] || fail "bootstrap exchange returned no origin proof"
+  [[ ! -e "$launch_file" ]] || fail "consumed launch file was not deleted"
   echo "==> Browser session created"
 }
 
 read_csrf_token() {
   local session_json
   session_json="$(api_request -f "$origin/api/session")" || fail "GET /api/session failed"
-  csrf_token="$(printf '%s' "$session_json" | sed -n 's|.*"csrfToken":"\([^"]*\)".*|\1|p')"
-  [[ -n "$csrf_token" ]] || fail "GET /api/session returned no csrfToken: $session_json"
+  local status
+  status="$(curl -sS -b "$cookie_jar" -o /dev/null -w '%{http_code}' "$origin/api/session")"
+  [[ "$status" == "403" ]] || fail "cookie-only session request answered $status, expected 403"
   echo "==> Session API answered"
 }
 
@@ -159,7 +174,7 @@ report_credential_store() {
 request_exit() {
   local status
   status="$(api_request -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' \
-    -H "X-CSRF-Token: $csrf_token" -d '{"waitForTransfers":false}' "$origin/api/lifecycle/exit")"
+    -d '{"waitForTransfers":false}' "$origin/api/lifecycle/exit")"
   [[ "$status" == "202" ]] || fail "exit request answered $status, expected 202"
   echo "==> Exit requested"
 }

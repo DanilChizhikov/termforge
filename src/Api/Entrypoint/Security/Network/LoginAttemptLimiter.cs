@@ -18,12 +18,20 @@ internal sealed class LoginAttemptLimiter(IOptions<NetworkAccessOptions> options
         var now = timeProvider.GetUtcNow();
         lock (_attemptsLock)
         {
-            var clientAttempts = GetClientAttempts(clientKey, now, lockoutDuration);
-            var lockedUntil = Max(clientAttempts.LockedUntil, _globalAttempts.LockedUntil);
-            if (lockedUntil > now)
+            if (_globalAttempts.LockedUntil > now)
             {
-                var retryAfter = lockedUntil - now;
-                return new LoginAttemptDecision(false, retryAfter);
+                return new LoginAttemptDecision(false, _globalAttempts.LockedUntil - now);
+            }
+
+            var clientAttempts = GetClientAttempts(clientKey, now, lockoutDuration);
+            if (clientAttempts is null)
+            {
+                return new LoginAttemptDecision(false, lockoutDuration);
+            }
+
+            if (clientAttempts.LockedUntil > now)
+            {
+                return new LoginAttemptDecision(false, clientAttempts.LockedUntil - now);
             }
 
             var clientWindow = new AttemptWindow(now, lockoutDuration, networkAccess.MaxFailedLoginAttempts);
@@ -43,12 +51,7 @@ internal sealed class LoginAttemptLimiter(IOptions<NetworkAccessOptions> options
         }
     }
 
-    private static DateTimeOffset Max(DateTimeOffset first, DateTimeOffset second)
-    {
-        return first > second ? first : second;
-    }
-
-    private AttemptState GetClientAttempts(string clientKey, DateTimeOffset now, TimeSpan lockoutDuration)
+    private AttemptState? GetClientAttempts(string clientKey, DateTimeOffset now, TimeSpan lockoutDuration)
     {
         if (_clientAttempts.TryGetValue(clientKey, out var existingAttempts))
         {
@@ -58,6 +61,10 @@ internal sealed class LoginAttemptLimiter(IOptions<NetworkAccessOptions> options
         if (_clientAttempts.Count >= MaximumTrackedClients)
         {
             RemoveStaleClients(now, lockoutDuration);
+            if (_clientAttempts.Count >= MaximumTrackedClients)
+            {
+                return null;
+            }
         }
 
         var clientAttempts = new AttemptState();

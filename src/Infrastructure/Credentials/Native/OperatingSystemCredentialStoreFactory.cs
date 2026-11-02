@@ -8,6 +8,12 @@ public static class OperatingSystemCredentialStoreFactory
 {
     public static IOperatingSystemCredentialStore Create()
     {
+        var timeout = TimeSpan.FromSeconds(10);
+        return Create(timeout);
+    }
+
+    public static IOperatingSystemCredentialStore Create(TimeSpan operationTimeout)
+    {
         if (OperatingSystem.IsWindows())
         {
             return new WindowsCredentialManagerStore();
@@ -20,7 +26,7 @@ public static class OperatingSystemCredentialStoreFactory
 
         if (OperatingSystem.IsLinux())
         {
-            return new LinuxSecretServiceStore();
+            return new LinuxSecretServiceStore(operationTimeout);
         }
 
         return new UnsupportedPlatformCredentialStore();

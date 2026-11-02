@@ -190,6 +190,31 @@ public sealed class RemoteFileBrowsingTests
     }
 
     [TestMethod]
+    public async Task List_WithoutLinkTargets_PreservesEntriesAndResolvedListingOrder()
+    {
+        await using var session = await RemoteSession.OpenAsync();
+        var directory = await session.CreateWorkDirectoryAsync(TestContext.CancellationToken);
+        for (var i = 0; i < 24; i++)
+        {
+            var path = $"{directory}/link-{i:D2}";
+            var target = i % 2 == 0 ? directory : $"{directory}/missing";
+            await session.CreateSymbolicLinkAsync(path, target);
+        }
+
+        var raw = await session.Client.ListAsync(directory, false, TestContext.CancellationToken);
+        var resolved = await session.Client.ListAsync(directory, TestContext.CancellationToken);
+
+        raw.IsSuccess.Should().BeTrue(raw.Error?.Message);
+        resolved.IsSuccess.Should().BeTrue(resolved.Error?.Message);
+        raw.Value.Should().HaveCount(24);
+        raw.Value.Should().OnlyContain(entry => entry.Kind == RemoteFileKind.SymbolicLink && entry.LinkTargetKind == null && !entry.IsBrokenLink);
+        var expectedNames = raw.Value.Select(entry => entry.Name);
+        resolved.Value.Select(entry => entry.Name).Should().Equal(expectedNames);
+        resolved.Value.Should().Contain(entry => entry.Name == "link-00" && entry.LinkTargetKind == RemoteFileKind.Directory);
+        resolved.Value.Should().Contain(entry => entry.Name == "link-01" && entry.IsBrokenLink);
+    }
+
+    [TestMethod]
     public async Task Stat_SymbolicLink_DescribesTheLinkItself()
     {
         await using var session = await RemoteSession.OpenAsync();
@@ -434,6 +459,11 @@ public sealed class RemoteFileBrowsingTests
         public Task<SshResult<IReadOnlyList<RemoteFileEntry>>> ListAsync(string remotePath, CancellationToken cancellationToken)
         {
             return inner.ListAsync(remotePath, cancellationToken);
+        }
+
+        public Task<SshResult<IReadOnlyList<RemoteFileEntry>>> ListAsync(string remotePath, bool resolveLinkTargets, CancellationToken cancellationToken)
+        {
+            return inner.ListAsync(remotePath, resolveLinkTargets, cancellationToken);
         }
 
         public Task<SshResult<RemoteFileEntry>> StatAsync(string remotePath, CancellationToken cancellationToken)

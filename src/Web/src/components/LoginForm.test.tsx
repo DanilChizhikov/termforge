@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { isInsecureNetworkConnection } from '../api/session';
 import { LoginForm } from './LoginForm';
 import { SessionBanner } from './SessionBanner';
+import { getOriginProof } from '../api/originProof';
 
 function stubFetch(handler: (url: string, method: string, body: string | undefined) => Response) {
   const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
@@ -20,7 +21,7 @@ afterEach(() => {
 describe('LoginForm', () => {
   it('signs in with the password and notifies the caller', async () => {
     const user = userEvent.setup();
-    const fetchMock = stubFetch(() => new Response(null, { status: 204 }));
+    const fetchMock = stubFetch(() => new Response(JSON.stringify({ csrfToken: 'signed-in-proof' }), { status: 200 }));
     const onSignedIn = vi.fn();
     render(<LoginForm onSignedIn={onSignedIn} />);
 
@@ -28,6 +29,7 @@ describe('LoginForm', () => {
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
     await vi.waitFor(() => expect(onSignedIn).toHaveBeenCalledOnce());
+    expect(getOriginProof()).toBe('signed-in-proof');
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/session/login',
       expect.objectContaining({ method: 'POST', body: JSON.stringify({ password: 'secret password' }) }),

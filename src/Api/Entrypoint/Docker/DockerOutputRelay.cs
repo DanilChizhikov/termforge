@@ -28,15 +28,33 @@ internal sealed class DockerOutputRelay(ILogger<DockerOutputRelay> logger)
         {
             logger.LogDebug($"Docker output stream stopped: {exception.GetType().Name}");
         }
+        catch (IOException exception)
+        {
+            var error = ContainerLogMessage.Error(exception.InnerException?.Message ?? exception.Message);
+            try
+            {
+                await SendAsync(webSocket, error, stopping.Token);
+            }
+            catch (Exception sendFailure) when (sendFailure is OperationCanceledException or WebSocketException or ObjectDisposedException)
+            {
+                logger.LogDebug($"Docker output failure was not delivered: {sendFailure.GetType().Name}");
+            }
+        }
         finally
         {
-            await stream.DisposeAsync();
+            try
+            {
+                await stream.DisposeAsync();
+            }
+            finally
+            {
+                await stopping.CancelAsync();
+                await clientClosed;
+            }
         }
 
-        stopping.CancelAfter(CloseHandshakeTimeout);
-        await TryCloseAsync(webSocket, stopping.Token);
-        await stopping.CancelAsync();
-        await clientClosed;
+        using var closeTimeout = new CancellationTokenSource(CloseHandshakeTimeout);
+        await TryCloseAsync(webSocket, closeTimeout.Token);
     }
 
     public async Task RejectAsync(WebSocket webSocket, DockerError error, CancellationToken cancellationToken)

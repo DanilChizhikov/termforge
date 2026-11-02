@@ -35,7 +35,10 @@ public sealed class ComposeActionService
         return action == ComposeAction.Restart ? DockerOperationRecorder.ComposeRestartKind : DockerOperationRecorder.ComposeRecreateKind;
     }
 
-    public async Task<DockerResult<ComposeActionResult>> RunAsync(ComposeActionRequest request, CancellationToken cancellationToken)
+    public async Task<DockerResult<ComposeActionResult>> RunAsync(
+        ComposeActionRequest request,
+        CancellationToken cancellationToken,
+        CancellationToken applicationStopping = default)
     {
         if (!ComposeProjectName.TryParse(request.Project, out var project))
         {
@@ -70,9 +73,11 @@ public sealed class ComposeActionService
         };
         var kind = KindOf(request.Action);
         var entry = new DockerOperationEntry(kind, resolved.Value.ServerName, details);
+        cancellationToken.ThrowIfCancellationRequested();
         var operationId = await _recorder.StartAsync(entry, cancellationToken);
         var execution = new ComposeExecution(resolved.Value, project, request.Action);
-        var outcome = await ExecuteAsync(execution, cancellationToken);
+        var executionToken = request.Action == ComposeAction.Recreate ? applicationStopping : cancellationToken;
+        var outcome = await ExecuteAsync(execution, executionToken);
         if (outcome is not null)
         {
             await _recorder.FailAsync(operationId, outcome);

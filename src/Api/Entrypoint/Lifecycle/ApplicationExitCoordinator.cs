@@ -9,6 +9,8 @@ internal sealed class ApplicationExitCoordinator : IDisposable
     private readonly ILogger<ApplicationExitCoordinator> _logger;
     private readonly Lock _sync = new();
     private CancellationTokenSource? _waiting;
+    private long _requestVersion;
+    private long _startedVersion;
 
     public ApplicationExitCoordinator(
         WorkAdmissionGate gate,
@@ -28,20 +30,33 @@ internal sealed class ApplicationExitCoordinator : IDisposable
 
     public bool TryBegin(ExitTransferPolicy policy)
     {
+        return TryBegin(policy, out _);
+    }
+
+    public bool TryBegin(ExitTransferPolicy policy, out long requestVersion)
+    {
         lock (_sync)
         {
+            requestVersion = 0;
             var waitForTransfers = policy == ExitTransferPolicy.WaitForTransfers && _transferWatcher.HasActiveTransfers();
             if (waitForTransfers)
             {
-                return _gate.TryBeginWaiting();
+                if (!_gate.TryBeginWaiting())
+                {
+                    return false;
+                }
             }
-
-            if (!_gate.TryBeginShutdown())
+            else
             {
-                return false;
+                if (!_gate.TryBeginShutdown())
+                {
+                    return false;
+                }
+
+                _waiting?.Cancel();
             }
 
-            _waiting?.Cancel();
+            requestVersion = ++_requestVersion;
             return true;
         }
     }
@@ -50,17 +65,35 @@ internal sealed class ApplicationExitCoordinator : IDisposable
     {
         lock (_sync)
         {
+            Start(_requestVersion);
+        }
+    }
+
+    public void Start(long requestVersion)
+    {
+        lock (_sync)
+        {
+            if (requestVersion != _requestVersion || requestVersion == _startedVersion)
+            {
+                return;
+            }
+
             if (_gate.State == ApplicationExitState.WaitingForTransfers)
             {
+                _startedVersion = requestVersion;
                 _waiting?.Dispose();
                 _waiting = new CancellationTokenSource();
                 var waitingToken = _waiting.Token;
-                _ = WaitThenExitAsync(waitingToken);
+                _ = WaitThenExitAsync(waitingToken, requestVersion);
                 return;
             }
-        }
 
-        _ = ExitAsync();
+            if (_gate.State == ApplicationExitState.ShuttingDown)
+            {
+                _startedVersion = requestVersion;
+                _ = ExitAsync();
+            }
+        }
     }
 
     public bool TryCancelWaiting()
@@ -83,7 +116,7 @@ internal sealed class ApplicationExitCoordinator : IDisposable
         _waiting?.Dispose();
     }
 
-    private async Task WaitThenExitAsync(CancellationToken waitingToken)
+    private async Task WaitThenExitAsync(CancellationToken waitingToken, long requestVersion)
     {
         _logger.LogInformation("Application exit is waiting for active transfers to finish");
         try
@@ -97,7 +130,7 @@ internal sealed class ApplicationExitCoordinator : IDisposable
 
         lock (_sync)
         {
-            if (waitingToken.IsCancellationRequested || !_gate.TryBeginShutdown())
+            if (waitingToken.IsCancellationRequested || requestVersion != _requestVersion || _gate.State != ApplicationExitState.WaitingForTransfers || !_gate.TryBeginShutdown())
             {
                 return;
             }

@@ -1,4 +1,5 @@
 using DTech.Core.Connections;
+using DTech.Core.Diagnostics;
 using DTech.Core.Editor;
 using DTech.Core.Editor.Sudo;
 using DTech.Core.Files.Remote;
@@ -72,6 +73,8 @@ internal sealed class SudoEditorTestGraph
     public void AnswerAuthentication(int exitCode, string standardError)
     {
         var result = new RemoteShellCommandResult(exitCode, [], standardError);
-        Runner.Reply(static text => text.EndsWith(" true", StringComparison.Ordinal), result);
+        var passwordless = ShellScript.Wrap("LC_ALL=C sudo -n true");
+        var withPassword = ShellScript.Wrap("LC_ALL=C sudo -S -p '' true");
+        Runner.Reply(text => text == passwordless || text == withPassword, result);
     }
 }

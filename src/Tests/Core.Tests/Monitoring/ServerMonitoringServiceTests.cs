@@ -26,7 +26,7 @@ public sealed class ServerMonitoringServiceTests
     {
         _repository = new InMemorySavedConnectionRepository();
         _credentials = new InMemoryCredentialStore();
-        _connections = new SavedConnectionService(_repository, new ConnectionPasswordStore(_credentials), TimeProvider.System);
+        _connections = new SavedConnectionService(_repository, new ConnectionPasswordStore(_credentials), new ConnectionSecretCleaner(_credentials), TimeProvider.System);
         _runner = new ScriptedCommandRunner();
         _runnerFactory = Substitute.For<IRemoteCommandRunnerFactory>();
         _runnerFactory.ConnectAsync(default!, default).ReturnsForAnyArgs(_ => SshResult<IRemoteCommandRunner>.Success(_runner));

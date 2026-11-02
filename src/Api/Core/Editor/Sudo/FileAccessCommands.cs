@@ -1,4 +1,5 @@
 using System.Globalization;
+using DTech.Core.Diagnostics;
 
 namespace DTech.Core.Editor.Sudo;
 
@@ -10,6 +11,9 @@ public sealed class FileAccessCommands
     public string Probe(int ownerId, RemoteFileLocation location)
     {
         var owner = ownerId.ToString(CultureInfo.InvariantCulture);
-        return $"sh -c {ShellQuoting.Quote(ProbeScript)} termforge-access {owner} {ShellQuoting.Quote(location.Path)} {ShellQuoting.Quote(location.Directory)}";
+        var quotedScript = ShellArgument.Quote(ProbeScript);
+        var quotedPath = ShellArgument.Quote(location.Path);
+        var quotedDirectory = ShellArgument.Quote(location.Directory);
+        return $"sh -c {quotedScript} termforge-access {owner} {quotedPath} {quotedDirectory}";
     }
 }

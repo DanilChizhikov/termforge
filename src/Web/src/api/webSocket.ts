@@ -1,3 +1,5 @@
+import { originProofProtocols } from './originProof';
+
 export interface LocationLike {
   protocol: string;
   host: string;
@@ -21,5 +23,7 @@ export function buildWebSocketUrl(
 }
 
 export function openWebSocket(path: string, query: WebSocketQuery = {}): WebSocket {
-  return new WebSocket(buildWebSocketUrl(path, query));
+  const url = buildWebSocketUrl(path, query);
+  const protocols = originProofProtocols();
+  return new WebSocket(url, protocols);
 }

@@ -1,16 +1,27 @@
+using DTech.Core.Diagnostics;
+
 namespace DTech.Core.SavedConnections;
 
 public sealed class SavedConnectionService
 {
     private readonly ISavedConnectionRepository _repository;
     private readonly ConnectionPasswordStore _passwordStore;
+    private readonly ConnectionSecretCleaner _secretCleaner;
     private readonly TimeProvider _timeProvider;
+    private readonly CapabilityReportCache? _capabilityCache;
 
-    public SavedConnectionService(ISavedConnectionRepository repository, ConnectionPasswordStore passwordStore, TimeProvider timeProvider)
+    public SavedConnectionService(
+        ISavedConnectionRepository repository,
+        ConnectionPasswordStore passwordStore,
+        ConnectionSecretCleaner secretCleaner,
+        TimeProvider timeProvider,
+        CapabilityReportCache? capabilityCache = null)
     {
         _repository = repository;
         _passwordStore = passwordStore;
+        _secretCleaner = secretCleaner;
         _timeProvider = timeProvider;
+        _capabilityCache = capabilityCache;
     }
 
     public Task<IReadOnlyList<SavedConnection>> ListAsync(CancellationToken cancellationToken)
@@ -105,7 +116,15 @@ public sealed class SavedConnectionService
             HasPassword = password.Value,
             UpdatedAt = _timeProvider.GetUtcNow().UtcDateTime,
         };
-        await _repository.UpdateAsync(updated, cancellationToken);
+        try
+        {
+            await _repository.UpdateAsync(updated, cancellationToken);
+        }
+        finally
+        {
+            _capabilityCache?.Invalidate(id, all);
+        }
+
         return SavedConnectionResult<SavedConnection>.Success(updated);
     }
 
@@ -126,16 +145,21 @@ public sealed class SavedConnectionService
             return SavedConnectionResult.Failure(inUse);
         }
 
-        if (existing.HasPassword)
+        var removalError = await _secretCleaner.RemoveAsync(id, cancellationToken);
+        if (removalError is not null)
         {
-            var removed = await _passwordStore.RemoveAsync(id, cancellationToken);
-            if (!removed.IsSuccess)
-            {
-                return removed;
-            }
+            return SavedConnectionResult.Failure(SavedConnectionError.FromCredential(removalError));
         }
 
-        await _repository.DeleteAsync(id, cancellationToken);
+        try
+        {
+            await _repository.DeleteAsync(id, cancellationToken);
+        }
+        finally
+        {
+            _capabilityCache?.Invalidate(id, all);
+        }
+
         return SavedConnectionResult.Success();
     }
 

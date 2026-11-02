@@ -25,7 +25,7 @@ public sealed class ConnectionImportApplierTests
         _repository = new InMemorySavedConnectionRepository();
         _credentialStore = new InMemoryCredentialStore();
         var secretWriter = new ConnectionSecretWriter(_credentialStore);
-        _applier = new ConnectionImportApplier(_repository, secretWriter, TimeProvider.System);
+        _applier = new ConnectionImportApplier(_repository, secretWriter, new ConnectionSecretCleaner(_credentialStore), TimeProvider.System);
     }
 
     [TestMethod]
@@ -93,11 +93,13 @@ public sealed class ConnectionImportApplierTests
     [TestMethod]
     public async Task Apply_Replace_RemovesMissingServersWithTheirSavedPasswords()
     {
-        var removed = SettingsSamples.Saved("db") with { HasPassword = true };
+        var removed = SettingsSamples.Saved("db");
         await _repository.AddAsync(removed, TestContext.CancellationToken);
         var passwordKey = PasswordCredentialKey.For(removed.Id);
         using var storedPassword = Secret.FromString("old");
         await _credentialStore.Store(passwordKey, storedPassword, TestContext.CancellationToken);
+        var sudoKey = ConnectionSecretKeys.For(removed.Id, ArchivedSecretKind.SudoPassword);
+        await _credentialStore.Store(sudoKey, storedPassword, TestContext.CancellationToken);
         var imported = SettingsSamples.Connection("web");
         var plan = await PlanAsync(ImportMode.Replace, imported);
 
@@ -107,6 +109,24 @@ public sealed class ConnectionImportApplierTests
         outcome.Added.Should().Be(1);
         _repository.Snapshot.Should().ContainSingle().Which.Details.Name.Should().Be("web");
         _credentialStore.Secrets.Should().BeEmpty();
+    }
+
+    [TestMethod]
+    public async Task Apply_Replace_WhenSecretsCannotBeRemoved_KeepsTheServerAndItsJumpHost()
+    {
+        var jumpHost = SettingsSamples.Saved("jump");
+        var dependent = SettingsSamples.Saved("db");
+        dependent = dependent with { Details = dependent.Details with { JumpHostId = jumpHost.Id } };
+        await _repository.AddAsync(jumpHost, TestContext.CancellationToken);
+        await _repository.AddAsync(dependent, TestContext.CancellationToken);
+        var plan = await PlanAsync(ImportMode.Replace, SettingsSamples.Connection("web"));
+        _credentialStore.FailureToReturn = CredentialErrors.VaultLocked();
+
+        var outcome = await _applier.ApplyAsync(plan, null, TestContext.CancellationToken);
+
+        outcome.Removed.Should().Be(0);
+        outcome.Warnings.Should().ContainSingle().Which.Should().Contain("could not be removed").And.Contain("remaining servers were kept");
+        _repository.Snapshot.Should().Contain(jumpHost).And.Contain(dependent);
     }
 
     [TestMethod]

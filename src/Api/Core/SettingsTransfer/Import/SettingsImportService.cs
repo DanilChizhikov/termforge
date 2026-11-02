@@ -1,6 +1,6 @@
 namespace DTech.Core.SettingsTransfer.Import;
 
-public sealed class SettingsImportService(SettingsImportPreparer preparer, SettingsImportExecutor executor)
+public sealed class SettingsImportService(SettingsImportPreparer preparer, SettingsImportCoordinator coordinator)
 {
     public async Task<SettingsTransferResult<SettingsImportPreview>> PreviewAsync(SettingsImportRequest request, CancellationToken cancellationToken)
     {
@@ -33,7 +33,6 @@ public sealed class SettingsImportService(SettingsImportPreparer preparer, Setti
             return SettingsTransferResult<SettingsImportResult>.Failure(confirmation);
         }
 
-        var result = await executor.ExecuteAsync(import, cancellationToken);
-        return SettingsTransferResult<SettingsImportResult>.Success(result);
+        return await coordinator.ExecuteAsync(import, cancellationToken);
     }
 }

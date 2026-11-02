@@ -6,6 +6,8 @@ public interface IRemoteFileClient : IAsyncDisposable
 {
     Task<SshResult<IReadOnlyList<RemoteFileEntry>>> ListAsync(string remotePath, CancellationToken cancellationToken);
 
+    Task<SshResult<IReadOnlyList<RemoteFileEntry>>> ListAsync(string remotePath, bool resolveLinkTargets, CancellationToken cancellationToken);
+
     Task<SshResult<RemoteFileEntry>> StatAsync(string remotePath, CancellationToken cancellationToken);
 
     Task<SshResult<string>> GetHomeDirectoryAsync(CancellationToken cancellationToken);

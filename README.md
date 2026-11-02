@@ -38,11 +38,11 @@ macOS builds are not notarized, so the `xattr` line is needed for a downloaded c
 
 ## Start and stop
 
-TermForge starts a local server on `http://127.0.0.1:5023` and opens your default browser with a one-time launch link. That link creates the browser session. Keep the terminal window open, since the server runs there and writes its log to it. Closing the browser tab does not stop TermForge.
+TermForge starts a local server on `http://127.0.0.1:5023` and opens a private launch file in your default browser. Its one-time link creates the browser session and expires after 60 seconds. Keep the terminal window open, since the server runs there and writes its log to it. Closing the browser tab does not stop TermForge.
 
 To stop it, press Exit app in the header or `Ctrl+C` in the terminal. If transfers are running, files are unsaved or terminals are open, the exit dialog lists them and lets you exit now, wait for the transfers or cancel. Shutdown then cancels the remaining transfers, closes the sessions and saves the journal and the workspace. See [docs/decisions/graceful-shutdown.md](docs/decisions/graceful-shutdown.md).
 
-The launch link works once. If the browser loses the session, start TermForge again. Only one TermForge can use the port at a time.
+The launch link works once. Reloading the authenticated tab preserves access; a new tab without its origin proof needs password sign-in or a restart of TermForge. Only one TermForge can use the port at a time.
 
 ## Use
 
@@ -118,7 +118,7 @@ Settings live in `appsettings.json` next to the binary. Any key can also be pass
 |---|---|---|
 | `Kestrel:Endpoints:Http:Url` | `http://127.0.0.1:5023` | address and port. Non-loopback addresses are refused unless network access is enabled |
 | `Lifecycle:OpenBrowser` | `true` | open the browser after start |
-| `Lifecycle:BrowserCommand` | none | executable that receives the launch link instead of the default browser |
+| `Lifecycle:BrowserCommand` | none | executable that receives the private launch filename instead of the default browser |
 | `Lifecycle:ShutdownTimeoutSeconds` | `10` | limit for the graceful shutdown |
 | `Lifecycle:IdleShutdownMinutes` | `0` (off) | stop after this many minutes with no open tab and no running transfer |
 | `Persistence:DatabasePath` | see [installation](docs/installation.md#where-data-lives) | SQLite database file |
@@ -137,7 +137,7 @@ Network access from other devices needs a password hash from `TermForge --hash-p
 
 ## Security
 
-The browser session uses an HttpOnly `SameSite=Strict` cookie, a CSRF token on every state-changing request, exact `Origin` checks, a host header allow-list against DNS rebinding and origin checks on WebSockets. Passwords live in Windows Credential Manager, the macOS Keychain or the Linux Secret Service. Without a usable system store they go to an encrypted vault file (PBKDF2-SHA256, AES-256-GCM) that you unlock with a master password. Logs never contain secrets, launch tokens or cookies. The AI bridge at `/mcp` answers local clients only and needs its own bearer token.
+The browser session uses an HttpOnly `SameSite=Strict` cookie and an origin proof kept in `sessionStorage`, required on every protected API request and WebSocket. Exact `Origin` checks and a host header allow-list protect against cross-origin requests and DNS rebinding. Passwords live in Windows Credential Manager, the macOS Keychain or the Linux Secret Service. Without a usable system store they go to an encrypted vault file (PBKDF2-SHA256, AES-256-GCM) that you unlock with a master password. Logs never contain secrets, launch tokens or cookies. The AI bridge at `/mcp` answers local clients only and needs its own bearer token.
 
 The threat model and the browser contract are in [docs/security.md](docs/security.md), credential storage in [docs/credentials.md](docs/credentials.md), and supported SSH features (key types, agents, ProxyJump, what is missing) in [docs/ssh-capabilities.md](docs/ssh-capabilities.md).
 

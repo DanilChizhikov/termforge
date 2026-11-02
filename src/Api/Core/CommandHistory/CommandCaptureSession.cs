@@ -5,14 +5,15 @@ public sealed class CommandCaptureSession
     private readonly Guid _connectionId;
     private readonly ICommandHistoryRecorder _recorder;
     private readonly TimeProvider _timeProvider;
-    private readonly ShellIntegrationParser _parser = new();
+    private readonly ShellIntegrationParser _parser;
     private PendingCommand? _pending;
 
-    public CommandCaptureSession(Guid connectionId, ICommandHistoryRecorder recorder, TimeProvider timeProvider)
+    public CommandCaptureSession(CommandCaptureTarget target, ICommandHistoryRecorder recorder, TimeProvider timeProvider)
     {
-        _connectionId = connectionId;
+        _connectionId = target.ConnectionId;
         _recorder = recorder;
         _timeProvider = timeProvider;
+        _parser = new ShellIntegrationParser(target.Nonce);
     }
 
     public async ValueTask<int> ObserveAsync(ReadOnlyMemory<byte> output, CancellationToken cancellationToken)

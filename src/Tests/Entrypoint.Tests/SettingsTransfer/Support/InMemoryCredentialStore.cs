@@ -3,9 +3,20 @@ using DTech.Core.Credentials;
 
 namespace DTech.Entrypoint.Tests.SettingsTransfer.Support;
 
-internal sealed class InMemoryCredentialStore : ICredentialStore
+internal sealed class InMemoryCredentialStore : IUncoordinatedCredentialStore
 {
     private readonly ConcurrentDictionary<string, string> _secrets = new(StringComparer.Ordinal);
+    private int _storeCalls;
+
+    public int StoreCalls => _storeCalls;
+
+    public int? FailStoreCall { get; set; }
+
+    public bool MutateBeforeFailure { get; set; }
+
+    public bool FailCompensation { get; set; }
+
+    public Action<CancellationToken>? OnStore { get; set; }
 
     public IReadOnlyDictionary<string, string> Secrets => _secrets;
 
@@ -18,6 +29,20 @@ internal sealed class InMemoryCredentialStore : ICredentialStore
 
     public Task<CredentialResult> Store(CredentialKey key, Secret secret, CancellationToken cancellationToken)
     {
+        var call = Interlocked.Increment(ref _storeCalls);
+        OnStore?.Invoke(cancellationToken);
+        if (FailStoreCall == call || (FailCompensation && FailStoreCall is { } failed && call > failed))
+        {
+            if (MutateBeforeFailure)
+            {
+                _secrets[key.Value] = secret.RevealString();
+            }
+
+            var unknown = CredentialErrors.StoreUnavailable("The native write result is unknown.");
+            var failedWrite = CredentialResult.Failure(unknown);
+            return Task.FromResult(failedWrite);
+        }
+
         if (FailureToReturn is not null)
         {
             var failure = CredentialResult.Failure(FailureToReturn);

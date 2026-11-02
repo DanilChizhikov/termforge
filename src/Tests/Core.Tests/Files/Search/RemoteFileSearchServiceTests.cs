@@ -70,7 +70,7 @@ public sealed class RemoteFileSearchServiceTests
         events.OfType<FileSearchMatch>().Should().HaveCount(2);
         Summary(events).Method.Should().Be(FileSearchMethod.RemoteFind);
         await _connectionOpener.DidNotReceive().OpenAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
-        await _runner.Received(1).RunAsync(Arg.Is<RemoteCommandRequest>(sent => sent.Command.Contains("-iname '\\''*x'\\''\\'\\'''\\''; rm -rf ~; '\\''\\'\\'''\\''*'\\''", StringComparison.Ordinal)), Arg.Any<CancellationToken>());
+        await _runner.Received(1).RunAsync(Arg.Is<RemoteCommandRequest>(sent => sent.Command.Contains("-iname '\"'\"'*x'\"'\"'\"'\"'\"'\"'\"'\"'; rm -rf ~; '\"'\"'\"'\"'\"'\"'\"'\"'*'\"'\"'", StringComparison.Ordinal)), Arg.Any<CancellationToken>());
         await _runner.Received(1).DisposeAsync();
     }
 
@@ -139,7 +139,7 @@ public sealed class RemoteFileSearchServiceTests
         StubListing("/srv", locked, visible);
         var denied = new SshError(SshErrorKind.PermissionDenied, "Permission denied");
         var deniedResult = SshResult<IReadOnlyList<RemoteFileEntry>>.Failure(denied);
-        _fileClient.ListAsync("/srv/locked", Arg.Any<CancellationToken>()).Returns(deniedResult);
+        _fileClient.ListAsync("/srv/locked", false, Arg.Any<CancellationToken>()).Returns(deniedResult);
         var request = CreateRequest("*", false);
 
         var events = await RunAsync(request);
@@ -167,7 +167,7 @@ public sealed class RemoteFileSearchServiceTests
     {
         IReadOnlyList<RemoteFileEntry> listed = entries;
         var result = SshResult<IReadOnlyList<RemoteFileEntry>>.Success(listed);
-        _fileClient.ListAsync(path, Arg.Any<CancellationToken>()).Returns(result);
+        _fileClient.ListAsync(path, false, Arg.Any<CancellationToken>()).Returns(result);
     }
 
     private void StubToolLookup(int exitCode)

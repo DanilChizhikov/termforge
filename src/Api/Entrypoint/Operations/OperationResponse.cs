@@ -13,7 +13,8 @@ public sealed record OperationResponse(
     DateTime UpdatedAt,
     IReadOnlyDictionary<string, string> Details,
     string? Error,
-    bool Retryable)
+    bool Retryable,
+    bool HasPartial = false)
 {
     public static OperationResponse From(Operation operation)
     {
@@ -29,6 +30,7 @@ public sealed record OperationResponse(
             operation.UpdatedAt,
             operation.Details,
             operation.Error,
-            operation.Retryable);
+            operation.Retryable,
+            operation.HasPendingCleanup);
     }
 }

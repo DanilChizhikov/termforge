@@ -10,7 +10,12 @@ internal sealed class SystemBrowserLauncher(IOptions<LifecycleOptions> options) 
 
     public void Open(Uri address)
     {
-        var startInfo = CreateStartInfo(address.AbsoluteUri);
+        if (!address.IsFile)
+        {
+            throw new InvalidOperationException("The browser launch requires a private local file.");
+        }
+
+        var startInfo = CreateStartInfo(address.LocalPath);
         using var process = Process.Start(startInfo);
     }
 

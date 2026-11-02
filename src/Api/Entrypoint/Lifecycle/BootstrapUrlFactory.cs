@@ -2,13 +2,30 @@ using System.Net;
 using DTech.Entrypoint.Security;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.Extensions.Options;
 
 namespace DTech.Entrypoint.Lifecycle;
 
-internal sealed class BootstrapUrlFactory(IServer server, BootstrapToken bootstrapToken)
+internal sealed class BootstrapUrlFactory(IServer server, BootstrapToken bootstrapToken, IOptions<LifecycleOptions> options)
 {
     public Uri? Create()
     {
+        var browserOrigin = options.Value.BrowserOrigin;
+        if (!string.IsNullOrWhiteSpace(browserOrigin))
+        {
+            if (!Uri.TryCreate(browserOrigin, UriKind.Absolute, out var browserUri)
+                || browserUri.Scheme is not ("http" or "https")
+                || !LoopbackHost.IsLoopback(browserUri.Host)
+                || browserUri.AbsolutePath != "/" || browserUri.Query.Length != 0
+                || browserUri.Fragment.Length != 0 || browserUri.UserInfo.Length != 0)
+            {
+                throw new InvalidOperationException("The browser origin must be a loopback HTTP origin.");
+            }
+
+            var configuredOrigin = browserUri.GetLeftPart(UriPartial.Authority);
+            return new Uri($"{configuredOrigin}{SecurityPaths.BootstrapPage}#token={bootstrapToken.Value}");
+        }
+
         var addressesFeature = server.Features.Get<IServerAddressesFeature>();
         if (addressesFeature is null)
         {

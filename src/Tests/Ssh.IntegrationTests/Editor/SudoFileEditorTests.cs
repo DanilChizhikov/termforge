@@ -229,6 +229,31 @@ public sealed class SudoFileEditorTests
     }
 
     [TestMethod]
+    public async Task BackupCatalog_ExcludesSymbolicLinksAndDirectories()
+    {
+        await using var session = await SudoEditorSession.OpenAsync();
+        var directory = await session.CreateProtectedDirectoryAsync();
+        var file = new ProtectedFile(directory, "site.conf", Original);
+        var path = await session.CreateProtectedFileAsync(file);
+        const string regular = ".site.conf.termforge-20260104T000000000Z.bak";
+        const string linked = ".site.conf.termforge-20260103T000000000Z.bak";
+        const string broken = ".site.conf.termforge-20260102T000000000Z.bak";
+        const string folder = ".site.conf.termforge-20260101T000000000Z.bak";
+        var backup = new ProtectedFile(directory, regular, Original);
+        await session.CreateProtectedFileAsync(backup);
+        await session.ExecuteAsync($"ln -s '{path}' '{directory}/{linked}' && ln -s '{directory}/missing' '{directory}/{broken}' && mkdir '{directory}/{folder}'");
+        var client = await session.ElevateSudoerAsync();
+        var location = session.Locate(path);
+
+        var backups = await session.Catalog.ListAsync(client, location, CancellationToken.None);
+
+        backups.IsSuccess.Should().BeTrue(backups.Error?.Message);
+        backups.Value.Should().ContainSingle().Which.Name.Should().Be(regular);
+        var content = await session.ReadAsRootAsync(path);
+        content.Should().Be(Original);
+    }
+
+    [TestMethod]
     public async Task Access_RootOwnedFile_IsNotWritableAndNamesRoot()
     {
         await using var session = await SudoEditorSession.OpenAsync();

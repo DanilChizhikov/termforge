@@ -5,15 +5,20 @@ namespace DTech.Core.Monitoring.Parsing;
 
 public static partial class UptimeParser
 {
+    private const long MaximumSeconds = long.MaxValue / TimeSpan.TicksPerSecond;
+
     public static MetricReading<TimeSpan> ParseProcUptime(string procUptime)
     {
         var fields = procUptime.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (fields.Length == 0 || !double.TryParse(fields[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds) || seconds < 0)
+        if (fields.Length == 0 || !double.TryParse(fields[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds) ||
+            !double.IsFinite(seconds) || seconds < 0 || Math.Floor(seconds) > MaximumSeconds)
         {
             return MetricReading<TimeSpan>.Unavailable("/proc/uptime could not be read or has an unexpected format.");
         }
 
-        return MetricReading<TimeSpan>.Available(TimeSpan.FromSeconds(Math.Floor(seconds)));
+        var ticks = (long)Math.Floor(seconds) * TimeSpan.TicksPerSecond;
+        var uptime = TimeSpan.FromTicks(ticks);
+        return MetricReading<TimeSpan>.Available(uptime);
     }
 
     public static MetricReading<TimeSpan> ParseBootTime(string bootTime, string now)
@@ -30,12 +35,13 @@ public static partial class UptimeParser
         }
 
         var uptimeSeconds = nowSeconds - bootSeconds.Value;
-        if (uptimeSeconds < 0)
+        if (uptimeSeconds < 0 || uptimeSeconds > MaximumSeconds)
         {
-            return MetricReading<TimeSpan>.Unavailable("The boot time is later than the current time on the server.");
+            return MetricReading<TimeSpan>.Unavailable("The server uptime is outside the supported range.");
         }
 
-        return MetricReading<TimeSpan>.Available(TimeSpan.FromSeconds(uptimeSeconds));
+        var uptime = TimeSpan.FromTicks(uptimeSeconds * TimeSpan.TicksPerSecond);
+        return MetricReading<TimeSpan>.Available(uptime);
     }
 
     private static long? ReadBootSeconds(string bootTime)
@@ -43,13 +49,13 @@ public static partial class UptimeParser
         var match = BootSeconds().Match(bootTime);
         if (match.Success)
         {
-            return long.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
+            return long.TryParse(match.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var bootSeconds) ? bootSeconds : null;
         }
 
         var plain = bootTime.Trim();
         return long.TryParse(plain, NumberStyles.None, CultureInfo.InvariantCulture, out var seconds) ? seconds : null;
     }
 
-    [GeneratedRegex(@"sec\s*=\s*(\d+)", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\bsec\s*=\s*(\d+)", RegexOptions.CultureInvariant)]
     private static partial Regex BootSeconds();
 }

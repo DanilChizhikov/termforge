@@ -1,7 +1,9 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using DTech.Core.Credentials;
 using DTech.Core.Terminal;
 using DTech.Entrypoint.Tests.Infrastructure;
+using DTech.Entrypoint.Tests.SettingsTransfer.Support;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
@@ -76,6 +78,7 @@ internal sealed class TerminalApiHarness : IAsyncDisposable
     public async Task<TerminalSocket> AttachAsync(string id)
     {
         var client = Factory.Server.CreateWebSocketClient();
+        client.SubProtocols.Add($"termforge.{_session.CsrfToken}");
         client.ConfigureRequest = request => ApplyHeaders(request);
         var uri = new Uri($"ws://localhost/api/terminals/{id}/ws");
         var webSocket = await client.ConnectAsync(uri, _testContext.CancellationToken);
@@ -103,6 +106,8 @@ internal sealed class TerminalApiHarness : IAsyncDisposable
 
     private void ReplaceServices(IServiceCollection services)
     {
+        services.RemoveAll<ICredentialStore>();
+        services.AddSingleton<ICredentialStore, InMemoryCredentialStore>();
         services.RemoveAll<ITerminalSessionFactory>();
         services.AddSingleton<ITerminalSessionFactory>(SessionFactory);
     }

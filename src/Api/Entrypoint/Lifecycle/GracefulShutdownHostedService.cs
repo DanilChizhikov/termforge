@@ -1,15 +1,29 @@
 namespace DTech.Entrypoint.Lifecycle;
 
-internal sealed class GracefulShutdownHostedService(IHostApplicationLifetime lifetime, GracefulShutdown shutdown, ILogger<GracefulShutdownHostedService> logger) : IHostedService
+internal sealed class GracefulShutdownHostedService(IHostApplicationLifetime lifetime, WorkAdmissionGate gate, GracefulShutdown shutdown) : IHostedLifecycleService
 {
-    private static readonly TimeSpan WaitMargin = TimeSpan.FromSeconds(1);
-
     private CancellationTokenRegistration _stoppingRegistration;
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        _stoppingRegistration = lifetime.ApplicationStopping.Register(RunOnStopping);
+        _stoppingRegistration = lifetime.ApplicationStopping.Register(gate.Close);
         return Task.CompletedTask;
+    }
+
+    public Task StartingAsync(CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
+    }
+
+    public Task StartedAsync(CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
+    }
+
+    public async Task StoppingAsync(CancellationToken cancellationToken)
+    {
+        var running = shutdown.RunAsync();
+        await running.WaitAsync(cancellationToken);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
@@ -17,14 +31,8 @@ internal sealed class GracefulShutdownHostedService(IHostApplicationLifetime lif
         await _stoppingRegistration.DisposeAsync();
     }
 
-    private void RunOnStopping()
+    public Task StoppedAsync(CancellationToken cancellationToken)
     {
-        var running = shutdown.RunAsync();
-        var waitLimit = shutdown.Timeout + WaitMargin;
-        var finished = running.Wait(waitLimit);
-        if (!finished)
-        {
-            logger.LogWarning($"Graceful shutdown did not finish within {waitLimit.TotalSeconds} seconds");
-        }
+        return Task.CompletedTask;
     }
 }

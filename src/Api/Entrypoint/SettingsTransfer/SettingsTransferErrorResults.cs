@@ -23,6 +23,8 @@ internal static class SettingsTransferErrorResults
             SettingsTransferErrorCode.TooLarge => StatusCodes.Status413PayloadTooLarge,
             SettingsTransferErrorCode.ConfirmationRequired => StatusCodes.Status409Conflict,
             SettingsTransferErrorCode.SecretsUnavailable => StatusCodes.Status409Conflict,
+            SettingsTransferErrorCode.ImportFailed => StatusCodes.Status500InternalServerError,
+            SettingsTransferErrorCode.CompensationFailed => StatusCodes.Status500InternalServerError,
             _ => StatusCodes.Status400BadRequest,
         };
     }

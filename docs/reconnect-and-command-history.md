@@ -28,13 +28,14 @@ Stored per command: text, UTC timestamp, exit code when known, pinned flag. Term
 
 TermForge does not guess commands from keystrokes or screen contents. It reads standard shell integration escape sequences that the shell prints into the terminal stream:
 
-- `OSC 633;E;<command>` carries the command line (VS Code convention; `\\` and `\xHH` escapes, `;` is escaped as `\x3b`).
-- `OSC 133;D;<exit code>` (and `633;D`) marks the end of a command and carries the exit code.
+- `OSC 633;E;<command>;<nonce>` carries the command line (VS Code convention; `\\` and `\xHH` escapes, `;` is escaped as `\x3b`).
+- `OSC 133;D;<exit code>;<nonce>` (and `633;D`) marks the end of a command and carries the exit code.
+- Both events must carry the random nonce of the current terminal session. Missing or mismatched nonces are ignored, so printing an untrusted file containing ordinary shell integration markers cannot inject history entries or finish a pending command. This does not protect against a malicious SSH server that knows the session's nonce.
 
 Consequences:
 
 - Without shell integration nothing is recorded. The panel says so.
-- Integration is opt-in. The panel buttons "bash" / "zsh" insert a one-line snippet into the terminal without Enter; you review it and press Enter. It is not added to any startup file, so it applies to that shell session only. Add it to `~/.bashrc` or `~/.zshrc` yourself for permanent capture. Servers that already emit these sequences (for example with their own VS Code style integration) need nothing.
+- Integration is opt-in. The panel buttons "bash" / "zsh" insert a one-line snippet for the connected terminal without Enter; you review it and press Enter. It is not added to any startup file and applies only to that shell session. Reconnect creates a new nonce, so insert a fresh snippet after reconnecting. Existing VS Code style integration without the matching nonce is ignored.
 - Only bash and zsh snippets are provided. fish, sh and others record nothing unless they emit the sequences themselves.
 - bash reports a command after it finished, so its timestamp is the finish time; zsh reports it before it starts. A command still running when the session ends is stored without an exit code.
 - Multi-line commands are stored but cannot be inserted back from the panel.
@@ -45,7 +46,7 @@ Consequences:
 A command is not stored when:
 
 - it starts with a space or tab (with bash `HISTCONTROL=ignorespace` such commands also never reach the snippet),
-- it matches an exclusion pattern. Defaults cover words like password, token, secret, api key, `export *KEY=` style assignments, `NAME_TOKEN=value` prefixes, `Authorization: Bearer`, credentials in URLs and `mysql -pSECRET`.
+- it matches an exclusion pattern. Defaults cover words like password, token, secret, api key, `export *KEY=` style assignments, `NAME_TOKEN=value` prefixes, `Authorization: Bearer`, credentials in URLs, `mysql -pSECRET`, `sshpass -p`, `docker login -p/--password`, `curl -u/--user`, `htpasswd -b` and `sudo -S`.
 
 Patterns are .NET regular expressions with a 100 ms timeout; a timeout counts as a match. They are configurable through `GET/PUT/DELETE /api/command-history/exclusions` (PUT replaces the whole list, DELETE restores defaults); there is no UI for this yet. Pattern matching is best effort: it cannot recognize every secret, so use a leading space for anything sensitive.
 
@@ -53,7 +54,7 @@ Patterns are .NET regular expressions with a 100 ms timeout; a timeout counts as
 
 - `GET /api/connections/{id}/history?search=&limit=`, `DELETE /api/connections/{id}/history`
 - `PUT /api/command-history/{id}/pin` `{ "pinned": true }`, `DELETE /api/command-history/{id}`
-- `GET /api/command-history/integration/{bash|zsh}`
+- `GET /api/command-history/integration/{bash|zsh}?terminalId=<id>` requires an open terminal owned by the current browser session.
 - The terminal WebSocket sends `{ "type": "history" }` after a command was stored, so the panel refreshes.
 
 Deleting a server deletes its history. Tables: `command_history` and four `reconnect_*` columns on `saved_connections` (migration `AddReconnectPolicyAndCommandHistory`).

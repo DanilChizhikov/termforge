@@ -62,13 +62,13 @@ internal sealed class IdleShutdownService : BackgroundService
             return false;
         }
 
-        if (!_exitCoordinator.TryBegin(ExitTransferPolicy.WaitForTransfers))
+        if (!_exitCoordinator.TryBegin(ExitTransferPolicy.WaitForTransfers, out var requestVersion))
         {
             return true;
         }
 
         _logger.LogInformation($"No browser was connected for {_options.IdleShutdownMinutes} minutes: shutting down");
-        _exitCoordinator.Start();
+        _exitCoordinator.Start(requestVersion);
         return true;
     }
 }

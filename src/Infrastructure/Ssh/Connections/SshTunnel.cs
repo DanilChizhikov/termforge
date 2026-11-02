@@ -9,7 +9,13 @@ internal sealed class SshTunnel(SshConnection<SshClient> jumpConnection, Forward
 
     public void Dispose()
     {
-        forwardedPort.Dispose();
-        jumpConnection.Dispose();
+        try
+        {
+            forwardedPort.Dispose();
+        }
+        finally
+        {
+            jumpConnection.Dispose();
+        }
     }
 }

@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using DTech.Core.Connections;
 
 namespace DTech.Core.Terminal.Sessions;
@@ -22,11 +23,13 @@ public sealed class ManagedTerminalSession
 
     public TerminalSessionDescriptor Descriptor { get; }
 
+    public string CommandHistoryNonce { get; } = CreateCommandHistoryNonce();
+
     public bool IsAttached => Volatile.Read(ref _attached) == 1;
 
     public bool IsClosed => Volatile.Read(ref _closed) == 1;
 
-    public string? CloseReason => Volatile.Read(ref _closeReason);
+    public string? CloseReason => Volatile.Read(ref _closeReason) ?? _session.Failure?.Message;
 
     public CancellationToken Closing => _closing.Token;
 
@@ -99,5 +102,11 @@ public sealed class ManagedTerminalSession
         Volatile.Write(ref _closeReason, reason);
         await _closing.CancelAsync();
         await _session.DisposeAsync();
+    }
+
+    private static string CreateCommandHistoryNonce()
+    {
+        var bytes = RandomNumberGenerator.GetBytes(32);
+        return Convert.ToHexStringLower(bytes);
     }
 }
