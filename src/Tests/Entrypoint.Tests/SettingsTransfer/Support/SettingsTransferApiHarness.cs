@@ -19,12 +19,14 @@ internal sealed class SettingsTransferApiHarness : IAsyncDisposable
     };
 
     private readonly TestContext _testContext;
+    private readonly Action<IServiceCollection>? _configureServices;
     private HttpClient _client = null!;
     private AuthenticatedSession _session = null!;
 
-    private SettingsTransferApiHarness(TestContext testContext)
+    private SettingsTransferApiHarness(TestContext testContext, Action<IServiceCollection>? configureServices)
     {
         _testContext = testContext;
+        _configureServices = configureServices;
         Factory = new TermForgeApplicationFactory(FastKeyDerivation) { ConfigureServices = ReplaceServices };
     }
 
@@ -43,9 +45,9 @@ internal sealed class SettingsTransferApiHarness : IAsyncDisposable
         }
     }
 
-    public static async Task<SettingsTransferApiHarness> StartAsync(TestContext testContext)
+    public static async Task<SettingsTransferApiHarness> StartAsync(TestContext testContext, Action<IServiceCollection>? configureServices = null)
     {
-        var harness = new SettingsTransferApiHarness(testContext);
+        var harness = new SettingsTransferApiHarness(testContext, configureServices);
         harness._client = harness.Factory.CreateClientWithoutCookies();
         harness._session = await SessionBootstrapper.AuthenticateAsync(harness.Factory, harness._client, testContext.CancellationToken);
         return harness;
@@ -117,6 +119,9 @@ internal sealed class SettingsTransferApiHarness : IAsyncDisposable
     private void ReplaceServices(IServiceCollection services)
     {
         services.RemoveAll<ICredentialStore>();
-        services.AddSingleton<ICredentialStore>(CredentialStore);
+        services.RemoveAll<IUncoordinatedCredentialStore>();
+        services.AddSingleton<IUncoordinatedCredentialStore>(CredentialStore);
+        services.AddSingleton<ICredentialStore, CoordinatedCredentialStore>();
+        _configureServices?.Invoke(services);
     }
 }

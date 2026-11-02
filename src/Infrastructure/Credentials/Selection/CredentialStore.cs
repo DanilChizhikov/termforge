@@ -2,7 +2,7 @@ using DTech.Core.Credentials;
 
 namespace DTech.Credentials.Selection;
 
-public sealed class CredentialStore(CredentialBackendSelector selector) : ICredentialStore
+public sealed class CredentialStore(CredentialBackendSelector selector) : IUncoordinatedCredentialStore
 {
     public async Task<CredentialResult> Store(CredentialKey key, Secret secret, CancellationToken cancellationToken)
     {

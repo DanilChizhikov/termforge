@@ -31,7 +31,9 @@ public static class CredentialStoreServiceCollectionExtensions
         services.AddSingleton<VaultFile>();
         services.AddSingleton<EncryptedVault>();
         services.AddSingleton<CredentialBackendSelector>();
-        services.AddSingleton<ICredentialStore, CredentialStore>();
+        services.AddSingleton<CredentialMutationCoordinator>();
+        services.AddSingleton<IUncoordinatedCredentialStore, CredentialStore>();
+        services.AddSingleton<ICredentialStore, CoordinatedCredentialStore>();
         services.AddSingleton<ICredentialVault, CredentialVaultGate>();
         services.AddSingleton<ICredentialStoreStatusProvider, CredentialStoreStatusProvider>();
         return services;

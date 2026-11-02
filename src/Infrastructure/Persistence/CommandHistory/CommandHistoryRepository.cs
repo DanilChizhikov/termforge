@@ -16,6 +16,71 @@ public sealed class CommandHistoryRepository(TermForgeDbContext context) : IComm
         context.Entry(entity).State = EntityState.Detached;
     }
 
+    public async Task<int> ImportPinnedAsync(IReadOnlyList<CommandHistoryEntry> entries, CancellationToken cancellationToken)
+    {
+        if (entries.Count == 0)
+        {
+            return 0;
+        }
+
+        var connectionIds = entries.Select(entry => entry.ConnectionId).Distinct().ToArray();
+        var commands = entries.Select(entry => entry.Command).Distinct(StringComparer.Ordinal).ToArray();
+        var existing = await context.Set<CommandHistoryEntity>()
+            .Where(entry => connectionIds.Contains(entry.ConnectionId) && commands.Contains(entry.Command))
+            .OrderByDescending(entry => entry.IsPinned)
+            .ThenByDescending(entry => entry.ExecutedAt)
+            .ToListAsync(cancellationToken);
+        var byCommand = new Dictionary<(Guid, string), CommandHistoryEntity>();
+        for (var i = 0; i < existing.Count; i++)
+        {
+            var entity = existing[i];
+            var key = (entity.ConnectionId, entity.Command);
+            byCommand.TryAdd(key, entity);
+        }
+
+        var additions = new List<CommandHistoryEntity>();
+        var changed = 0;
+        for (var i = 0; i < entries.Count; i++)
+        {
+            var entry = entries[i];
+            var key = (entry.ConnectionId, entry.Command);
+            if (byCommand.TryGetValue(key, out var current))
+            {
+                if (!current.IsPinned)
+                {
+                    current.IsPinned = true;
+                    changed++;
+                }
+
+                continue;
+            }
+
+            var pinned = entry with { IsPinned = true };
+            var added = CommandHistoryMapper.ToEntity(pinned);
+            additions.Add(added);
+            byCommand.Add(key, added);
+            changed++;
+        }
+
+        if (changed > 0)
+        {
+            context.Set<CommandHistoryEntity>().AddRange(additions);
+            await context.SaveChangesAsync(cancellationToken);
+        }
+
+        for (var i = 0; i < existing.Count; i++)
+        {
+            context.Entry(existing[i]).State = EntityState.Detached;
+        }
+
+        for (var i = 0; i < additions.Count; i++)
+        {
+            context.Entry(additions[i]).State = EntityState.Detached;
+        }
+
+        return changed;
+    }
+
     public async Task<IReadOnlyList<CommandHistoryEntry>> ListAsync(CommandHistoryQuery query, CancellationToken cancellationToken)
     {
         var entries = context.Set<CommandHistoryEntity>()

@@ -22,12 +22,17 @@ public sealed class TerminalRecordingSettingsService(ITerminalRecordingSettingsS
         }
 
         await store.SaveAsync(settings, cancellationToken);
+        await ApplyRuntimeAsync(settings, cancellationToken);
+        return TerminalRecordingResult<TerminalRecordingSettings>.Success(settings);
+    }
+
+    public async Task ApplyRuntimeAsync(TerminalRecordingSettings settings, CancellationToken cancellationToken)
+    {
         if (!settings.Enabled)
         {
             await registry.StopAllAsync(TerminalRecordingEndReason.RecordingDisabled);
         }
 
         await retention.PruneAsync(settings, cancellationToken);
-        return TerminalRecordingResult<TerminalRecordingSettings>.Success(settings);
     }
 }
