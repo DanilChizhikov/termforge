@@ -19,7 +19,7 @@ public static class LoadAverageParser
         for (var i = 0; i < RequiredValueCount; i++)
         {
             var normalized = fields[i].Replace(',', '.');
-            if (!double.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) || value < 0)
+            if (!double.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) || !double.IsFinite(value) || value < 0)
             {
                 return MetricReading<LoadAverage>.Unavailable(UnreadableReason);
             }

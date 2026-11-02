@@ -1,8 +1,10 @@
 using DTech.Core.CommandHistory;
 using DTech.Core.Operations;
+using DTech.Core.SettingsTransfer.Import;
 using DTech.Persistence.CommandHistory;
 using DTech.Persistence.Database;
 using DTech.Persistence.Operations;
+using DTech.Persistence.SettingsTransfer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,6 +27,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IOperationMaintenance, OperationMaintenance>();
         services.AddScoped<ICommandHistoryRepository, CommandHistoryRepository>();
         services.AddScoped<ICommandExclusionPatternStore, CommandExclusionPatternStore>();
+        services.AddScoped<ISettingsImportTransaction, SettingsImportTransaction>();
         return services;
     }
 

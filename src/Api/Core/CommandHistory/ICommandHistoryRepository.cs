@@ -4,6 +4,8 @@ public interface ICommandHistoryRepository
 {
     Task AddAsync(CommandHistoryEntry entry, CancellationToken cancellationToken);
 
+    Task<int> ImportPinnedAsync(IReadOnlyList<CommandHistoryEntry> entries, CancellationToken cancellationToken);
+
     Task<IReadOnlyList<CommandHistoryEntry>> ListAsync(CommandHistoryQuery query, CancellationToken cancellationToken);
 
     Task<bool> SetPinnedAsync(Guid id, bool isPinned, CancellationToken cancellationToken);

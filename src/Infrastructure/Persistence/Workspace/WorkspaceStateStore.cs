@@ -35,7 +35,9 @@ public sealed class WorkspaceStateStore(TermForgeDbContext context, TimeProvider
     public async Task SaveAsync(StoredWorkspaceDocument document, IReadOnlyList<WorkspaceEditorDraft> drafts, CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = context.Database.CurrentTransaction is null
+            ? await context.Database.BeginTransactionAsync(cancellationToken)
+            : null;
         await context.Set<WorkspaceEditorDraftEntity>().ExecuteDeleteAsync(cancellationToken);
         await context.Set<WorkspaceStateEntity>()
             .Where(state => state.Id == DefaultStateId)
@@ -57,7 +59,10 @@ public sealed class WorkspaceStateStore(TermForgeDbContext context, TimeProvider
 
         context.Set<WorkspaceEditorDraftEntity>().AddRange(draftEntities);
         await context.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        if (transaction is not null)
+        {
+            await transaction.CommitAsync(cancellationToken);
+        }
         context.ChangeTracker.Clear();
     }
 

@@ -13,6 +13,19 @@ public sealed class SettingsImportPreparer(SettingsImportLoader loader, ISavedCo
         }
 
         var import = loaded.Value;
+        try
+        {
+            return await PrepareAsync(request, import, cancellationToken);
+        }
+        catch
+        {
+            import.Dispose();
+            throw;
+        }
+    }
+
+    private async Task<SettingsTransferResult<PreparedSettingsImport>> PrepareAsync(SettingsImportRequest request, LoadedSettingsImport import, CancellationToken cancellationToken)
+    {
         var document = import.Document;
         var options = request.Options;
         var sectionsInFile = document.IncludedSections();

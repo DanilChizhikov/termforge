@@ -31,10 +31,19 @@ public static class CredentialStoreServiceCollectionExtensions
         services.AddSingleton<VaultFile>();
         services.AddSingleton<EncryptedVault>();
         services.AddSingleton<CredentialBackendSelector>();
-        services.AddSingleton<ICredentialStore, CredentialStore>();
+        services.AddSingleton<CredentialMutationCoordinator>();
+        services.AddSingleton<IUncoordinatedCredentialStore, CredentialBackendStore>();
+        services.AddSingleton<CoordinatedCredentialStore>();
+        services.AddSingleton<ICredentialStore>(CreateCredentialStore);
         services.AddSingleton<ICredentialVault, CredentialVaultGate>();
         services.AddSingleton<ICredentialStoreStatusProvider, CredentialStoreStatusProvider>();
         return services;
+    }
+
+    private static CredentialStore CreateCredentialStore(IServiceProvider services)
+    {
+        var store = services.GetRequiredService<CoordinatedCredentialStore>();
+        return new CredentialStore(store);
     }
 
     private static IOperatingSystemCredentialStore CreateOperatingSystemStore(IServiceProvider serviceProvider)

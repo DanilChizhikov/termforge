@@ -41,6 +41,7 @@ public sealed class CapabilityDiagnosticsService
 
     public async Task<SavedConnectionResult<CapabilityReport>> RefreshAsync(Guid connectionId, CancellationToken cancellationToken)
     {
+        var generation = _cache.Generation;
         var all = await _repository.ListAsync(cancellationToken);
         var connection = JumpHostGuard.Find(all, connectionId);
         if (connection is null)
@@ -59,7 +60,7 @@ public sealed class CapabilityDiagnosticsService
         var report = await CollectAsync(connectionId, target.Value, cancellationToken);
         if (report.State == CapabilityReportState.Completed)
         {
-            _cache.Store(report);
+            _cache.Store(report, generation);
         }
 
         return SavedConnectionResult<CapabilityReport>.Success(report);
