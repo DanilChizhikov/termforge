@@ -16,6 +16,7 @@ public static class SshTransportServiceCollectionExtensions
     public static IServiceCollection AddSshTransport(this IServiceCollection services)
     {
         services.TryAddSingleton<IHostKeyTrustPrompt, RejectingHostKeyTrustPrompt>();
+        services.TryAddSingleton(SshConnectionHealthOptions.Default);
         services.AddSingleton<SshAuthenticationFactory>();
         services.AddSingleton<SshHopConnector>();
         services.AddSingleton<SshClientConnector>();

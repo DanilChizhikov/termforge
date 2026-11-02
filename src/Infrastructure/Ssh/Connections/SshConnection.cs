@@ -1,13 +1,27 @@
+using DTech.Core.Connections;
 using Renci.SshNet;
 
 namespace DTech.Ssh.Connections;
 
-internal sealed class SshConnection<TClient>(TClient client, IReadOnlyList<IDisposable> dependencies) : IDisposable
+internal sealed class SshConnection<TClient> : IDisposable
     where TClient : BaseClient
 {
+    private readonly IReadOnlyList<IDisposable> _dependencies;
+    private readonly SshConnectionHealth _health;
     private int _disposed;
 
-    public TClient Client { get; } = client;
+    public SshConnection(TClient client, IReadOnlyList<IDisposable> dependencies, SshConnectionHealthOptions healthOptions)
+    {
+        Client = client;
+        _dependencies = dependencies;
+        _health = new SshConnectionHealth(client, healthOptions);
+    }
+
+    public TClient Client { get; }
+
+    public CancellationToken Closed => _health.Closed;
+
+    public SshError? Failure => _health.Failure;
 
     public void Dispose()
     {
@@ -16,11 +30,6 @@ internal sealed class SshConnection<TClient>(TClient client, IReadOnlyList<IDisp
             return;
         }
 
-        Client.Dispose();
-        for (var i = 0; i < dependencies.Count; i++)
-        {
-            var dependency = dependencies[i];
-            dependency.Dispose();
-        }
+        SshResourceCleanup.Dispose(_health, _dependencies);
     }
 }
