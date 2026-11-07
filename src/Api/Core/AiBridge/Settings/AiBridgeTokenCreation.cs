@@ -8,9 +8,3 @@ public sealed class AiBridgeTokenCreation
 
     public AiBridgeTokenCreationError? Error { get; init; }
 }
-
-public enum AiBridgeTokenCreationError
-{
-    InvalidName,
-    DuplicateName,
-}
