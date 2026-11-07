@@ -16,7 +16,7 @@ public sealed class AiBridgeSettingsServiceTests
     public void Initialize()
     {
         _store = new InMemoryAiBridgeSettingsStore();
-        _service = new AiBridgeSettingsService(_store, new SequentialTokenGenerator());
+        _service = new AiBridgeSettingsService(_store);
     }
 
     [TestMethod]
@@ -27,62 +27,27 @@ public sealed class AiBridgeSettingsServiceTests
         settings.Should().Be(AiBridgeSettings.Default);
         settings.Enabled.Should().BeFalse();
         settings.RequireApproval.Should().BeTrue();
-        settings.HasToken.Should().BeFalse();
     }
 
     [TestMethod]
-    public async Task RegenerateToken_StoresOnlyTheHash()
+    public async Task Update_PersistsPreferences()
     {
-        var token = await _service.RegenerateTokenAsync(TestContext.CancellationToken);
+        var preferences = new AiBridgePreferences(true, false);
+        var updated = await _service.UpdateAsync(preferences, TestContext.CancellationToken);
 
-        token.Should().Be("token-1");
-        _store.Stored!.TokenHash.Should().Be(AiBridgeTokenHasher.Hash(token));
-        _store.Stored.TokenHash.Should().NotContain(token);
+        updated.Should().Be(new AiBridgeSettings(true, false));
+        _store.Stored.Should().Be(updated);
     }
 
     [TestMethod]
-    public async Task RegenerateToken_InvalidatesThePreviousToken()
+    public async Task Update_CanDisableBridgeAndRestoreApprovals()
     {
-        await _service.UpdateAsync(new AiBridgePreferences(true, true), TestContext.CancellationToken);
-        var first = await _service.RegenerateTokenAsync(TestContext.CancellationToken);
-        var second = await _service.RegenerateTokenAsync(TestContext.CancellationToken);
+        var enabled = new AiBridgePreferences(true, false);
+        await _service.UpdateAsync(enabled, TestContext.CancellationToken);
+        var disabled = new AiBridgePreferences(false, true);
+        await _service.UpdateAsync(disabled, TestContext.CancellationToken);
 
-        (await _service.AcceptsTokenAsync(first, TestContext.CancellationToken)).Should().BeFalse();
-        (await _service.AcceptsTokenAsync(second, TestContext.CancellationToken)).Should().BeTrue();
-    }
-
-    [TestMethod]
-    public async Task AcceptsToken_WhenBridgeDisabled_ReturnsFalse()
-    {
-        var token = await _service.RegenerateTokenAsync(TestContext.CancellationToken);
-
-        var accepted = await _service.AcceptsTokenAsync(token, TestContext.CancellationToken);
-
-        accepted.Should().BeFalse();
-    }
-
-    [TestMethod]
-    public async Task Update_KeepsTheTokenHash()
-    {
-        await _service.RegenerateTokenAsync(TestContext.CancellationToken);
-        var hash = _store.Stored!.TokenHash;
-
-        var updated = await _service.UpdateAsync(new AiBridgePreferences(true, false), TestContext.CancellationToken);
-
-        updated.Should().Be(new AiBridgeSettings(true, false, hash));
-    }
-
-    [TestMethod]
-    [DataRow(null)]
-    [DataRow("")]
-    [DataRow("wrong")]
-    public async Task AcceptsToken_WithWrongToken_ReturnsFalse(string? candidate)
-    {
-        await _service.UpdateAsync(new AiBridgePreferences(true, true), TestContext.CancellationToken);
-        await _service.RegenerateTokenAsync(TestContext.CancellationToken);
-
-        var accepted = await _service.AcceptsTokenAsync(candidate, TestContext.CancellationToken);
-
-        accepted.Should().BeFalse();
+        var loaded = await _service.GetAsync(TestContext.CancellationToken);
+        loaded.Should().Be(AiBridgeSettings.Default);
     }
 }

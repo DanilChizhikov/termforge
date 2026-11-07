@@ -48,11 +48,12 @@ public sealed class ShutdownAdmissionApiTests
         await using var factory = new TermForgeApplicationFactory();
         using var client = factory.CreateClientWithoutCookies();
         var session = await SessionBootstrapper.AuthenticateAsync(factory, client, TestContext.CancellationToken);
-        using var tokenResponse = await TestRequest.Post("/api/ai-bridge/token")
+        var tokenRequest = new { name = "Shutdown test" };
+        using var tokenResponse = await TestRequest.Post("/api/ai-bridge/tokens").WithJson(tokenRequest)
             .WithOrigin(TermForgeApplicationFactory.ApplicationOrigin)
             .WithSession(session).WithCsrfToken(session.CsrfToken)
             .SendAsync(client, TestContext.CancellationToken);
-        tokenResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        tokenResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var tokenBody = await tokenResponse.Content.ReadFromJsonAsync<JsonElement>(TestContext.CancellationToken);
         var token = tokenBody.GetProperty("token").GetString();
         using var settingsRequest = new HttpRequestMessage(HttpMethod.Put, "/api/ai-bridge/settings");

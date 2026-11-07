@@ -2,15 +2,15 @@ using DTech.Core.AiBridge.Settings;
 
 namespace DTech.Persistence.Settings;
 
-internal sealed record AiBridgeSettingsDocument(bool Enabled, bool RequireApproval, string? TokenHash)
+internal sealed record AiBridgeSettingsDocument(bool Enabled, bool RequireApproval)
 {
     public static AiBridgeSettingsDocument From(AiBridgeSettings settings)
     {
-        return new AiBridgeSettingsDocument(settings.Enabled, settings.RequireApproval, settings.TokenHash);
+        return new AiBridgeSettingsDocument(settings.Enabled, settings.RequireApproval);
     }
 
     public AiBridgeSettings ToSettings()
     {
-        return new AiBridgeSettings(Enabled, RequireApproval, TokenHash);
+        return new AiBridgeSettings(Enabled, RequireApproval);
     }
 }

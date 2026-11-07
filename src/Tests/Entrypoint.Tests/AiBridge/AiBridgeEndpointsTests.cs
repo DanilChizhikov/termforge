@@ -3,7 +3,9 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using DTech.Core.AiBridge.Settings;
 using DTech.Core.Diagnostics;
+using DTech.Core.Operations;
 using DTech.Entrypoint.Tests.Docker.Support;
 using DTech.Entrypoint.Tests.Infrastructure;
 using FluentAssertions;
@@ -69,7 +71,7 @@ public sealed class AiBridgeEndpointsTests
     [TestMethod]
     public async Task Mcp_WhenBridgeDisabled_IsNotFound()
     {
-        var token = await RegenerateTokenAsync();
+        var token = await CreateTokenAsync();
 
         using var response = await PostMcpAsync(token, null);
 
@@ -79,7 +81,7 @@ public sealed class AiBridgeEndpointsTests
     [TestMethod]
     public async Task Mcp_WithoutToken_IsUnauthorized()
     {
-        await RegenerateTokenAsync();
+        await CreateTokenAsync();
         await UpdateSettingsAsync(true, true);
 
         using var response = await PostMcpAsync(null, null);
@@ -89,10 +91,14 @@ public sealed class AiBridgeEndpointsTests
     }
 
     [TestMethod]
-    public async Task Mcp_WithReplacedToken_IsUnauthorized()
+    public async Task Mcp_WithRevokedToken_IsUnauthorized()
     {
-        var oldToken = await RegenerateTokenAsync();
-        await RegenerateTokenAsync();
+        var oldToken = await CreateTokenAsync();
+        using var listed = await SendAsync(HttpMethod.Get, "/api/ai-bridge/tokens", null);
+        var tokens = await ReadJsonAsync(listed);
+        var id = tokens[0].GetProperty("id").GetGuid();
+        using var revoked = await SendAsync(HttpMethod.Delete, $"/api/ai-bridge/tokens/{id}", null);
+        revoked.StatusCode.Should().Be(HttpStatusCode.NoContent);
         await UpdateSettingsAsync(true, true);
 
         using var response = await PostMcpAsync(oldToken, null);
@@ -103,7 +109,7 @@ public sealed class AiBridgeEndpointsTests
     [TestMethod]
     public async Task Mcp_FromAnotherOrigin_IsForbidden()
     {
-        var token = await RegenerateTokenAsync();
+        var token = await CreateTokenAsync();
         await UpdateSettingsAsync(true, true);
 
         using var response = await PostMcpAsync(token, "http://evil.example");
@@ -114,7 +120,7 @@ public sealed class AiBridgeEndpointsTests
     [TestMethod]
     public async Task Mcp_WithToken_ListsTheBridgeTools()
     {
-        var token = await RegenerateTokenAsync();
+        var token = await CreateTokenAsync();
         await UpdateSettingsAsync(true, true);
         await using var mcp = await ConnectMcpAsync(token);
 
@@ -137,7 +143,7 @@ public sealed class AiBridgeEndpointsTests
     [TestMethod]
     public async Task ListServers_ReturnsOnlyServersWithAiAccess()
     {
-        var token = await RegenerateTokenAsync();
+        var token = await CreateTokenAsync();
         await UpdateSettingsAsync(true, true);
         var open = await CreateConnectionAsync("web", true);
         await CreateConnectionAsync("private", false);
@@ -154,7 +160,7 @@ public sealed class AiBridgeEndpointsTests
     [TestMethod]
     public async Task RunCommand_WithApprovalsOff_ReturnsTheOutput()
     {
-        var token = await RegenerateTokenAsync();
+        var token = await CreateTokenAsync();
         await UpdateSettingsAsync(true, false);
         var serverId = await CreateConnectionAsync("web", true);
         _runner.Respond("uptime", 0, "up 3 days\n");
@@ -173,7 +179,7 @@ public sealed class AiBridgeEndpointsTests
     [TestMethod]
     public async Task RunCommand_WaitsForApprovalInTheBrowser()
     {
-        var token = await RegenerateTokenAsync();
+        var token = await CreateTokenAsync();
         await UpdateSettingsAsync(true, true);
         var serverId = await CreateConnectionAsync("web", true);
         _runner.Respond("uptime", 0, "up\n");
@@ -198,7 +204,7 @@ public sealed class AiBridgeEndpointsTests
     [TestMethod]
     public async Task RunCommand_DeniedInTheBrowser_ReturnsAnError()
     {
-        var token = await RegenerateTokenAsync();
+        var token = await CreateTokenAsync();
         await UpdateSettingsAsync(true, true);
         var serverId = await CreateConnectionAsync("web", true);
         await using var mcp = await ConnectMcpAsync(token);
@@ -218,7 +224,7 @@ public sealed class AiBridgeEndpointsTests
     [TestMethod]
     public async Task RunCommand_OnServerWithoutAiAccess_ReturnsAnError()
     {
-        var token = await RegenerateTokenAsync();
+        var token = await CreateTokenAsync();
         await UpdateSettingsAsync(true, false);
         var serverId = await CreateConnectionAsync("private", false);
         await using var mcp = await ConnectMcpAsync(token);
@@ -248,6 +254,195 @@ public sealed class AiBridgeEndpointsTests
 
         var body = await ReadJsonAsync(response);
         body.GetProperty("aiAccess").GetBoolean().Should().BeTrue();
+    }
+
+    [TestMethod]
+    public async Task Tokens_CreateListAndRevoke_AreIndependentAndNeverDiscloseHashes()
+    {
+        var first = await CreateNamedTokenAsync(" First ");
+        var second = await CreateNamedTokenAsync("Second");
+        var firstSecret = first.GetProperty("token").GetString()!;
+        var secondSecret = second.GetProperty("token").GetString()!;
+        first.GetProperty("name").GetString().Should().Be("First");
+        await UpdateSettingsAsync(true, true);
+
+        await using (var mcp = await ConnectMcpAsync(firstSecret))
+        {
+            var tools = await mcp.ListToolsAsync(cancellationToken: TestContext.CancellationToken);
+            tools.Should().NotBeEmpty();
+        }
+
+        using var listed = await SendAsync(HttpMethod.Get, "/api/ai-bridge/tokens", null);
+        var list = await ReadJsonAsync(listed);
+        list.GetArrayLength().Should().Be(2);
+        for (var i = 0; i < list.GetArrayLength(); i++)
+        {
+            list[i].EnumerateObject().Select(property => property.Name).Should().BeEquivalentTo("id", "name", "createdAt");
+        }
+
+        var id = first.GetProperty("id").GetGuid();
+        using var revoked = await SendAsync(HttpMethod.Delete, $"/api/ai-bridge/tokens/{id}", null);
+        revoked.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        using var rejected = await PostMcpAsync(firstSecret, null);
+        rejected.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        await using var remaining = await ConnectMcpAsync(secondSecret);
+        var remainingTools = await remaining.ListToolsAsync(cancellationToken: TestContext.CancellationToken);
+        remainingTools.Should().NotBeEmpty();
+        using var settings = await SendAsync(HttpMethod.Get, "/api/ai-bridge/settings", null);
+        var settingsBody = await ReadJsonAsync(settings);
+        settingsBody.GetProperty("hasToken").GetBoolean().Should().BeTrue();
+        var secondId = second.GetProperty("id").GetGuid();
+        using var lastRevoked = await SendAsync(HttpMethod.Delete, $"/api/ai-bridge/tokens/{secondId}", null);
+        lastRevoked.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        using var emptySettings = await SendAsync(HttpMethod.Get, "/api/ai-bridge/settings", null);
+        var emptySettingsBody = await ReadJsonAsync(emptySettings);
+        emptySettingsBody.GetProperty("hasToken").GetBoolean().Should().BeFalse();
+    }
+
+    [TestMethod]
+    [DataRow(null)]
+    [DataRow("")]
+    [DataRow("   ")]
+    public async Task Tokens_InvalidName_IsBadRequest(string? name)
+    {
+        var request = new { name };
+        using var response = await SendAsync(HttpMethod.Post, "/api/ai-bridge/tokens", request);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [TestMethod]
+    public async Task Tokens_LongName_IsBadRequest()
+    {
+        var request = new { name = new string('x', 101) };
+        using var response = await SendAsync(HttpMethod.Post, "/api/ai-bridge/tokens", request);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [TestMethod]
+    public async Task Tokens_DuplicateName_IsConflict()
+    {
+        await CreateNamedTokenAsync("Agent");
+        var request = new { name = " agent " };
+        using var response = await SendAsync(HttpMethod.Post, "/api/ai-bridge/tokens", request);
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [TestMethod]
+    public async Task Tokens_UnknownId_IsNotFound()
+    {
+        var id = Guid.NewGuid();
+        using var response = await SendAsync(HttpMethod.Delete, $"/api/ai-bridge/tokens/{id}", null);
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [TestMethod]
+    [DataRow("GET")]
+    [DataRow("POST")]
+    [DataRow("DELETE")]
+    public async Task Tokens_WithoutSession_IsUnauthorized(string verb)
+    {
+        var path = verb == "DELETE" ? "/api/ai-bridge/tokens/00000000-0000-0000-0000-000000000001" : "/api/ai-bridge/tokens";
+        var method = new HttpMethod(verb);
+        using var request = new HttpRequestMessage(method, path);
+        request.Headers.Add("Origin", TermForgeApplicationFactory.ApplicationOrigin);
+        var body = new { name = "Agent" };
+        request.Content = JsonContent.Create(body);
+
+        using var response = await _client.SendAsync(request, TestContext.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [TestMethod]
+    [DataRow("POST", false)]
+    [DataRow("DELETE", false)]
+    [DataRow("POST", true)]
+    [DataRow("DELETE", true)]
+    public async Task Tokens_WithoutCsrfOrWithForeignOrigin_IsForbidden(string verb, bool foreignOrigin)
+    {
+        var path = verb == "DELETE" ? "/api/ai-bridge/tokens/00000000-0000-0000-0000-000000000001" : "/api/ai-bridge/tokens";
+        var method = new HttpMethod(verb);
+        using var request = new HttpRequestMessage(method, path);
+        var origin = foreignOrigin ? "http://evil.example" : TermForgeApplicationFactory.ApplicationOrigin;
+        request.Headers.Add("Origin", origin);
+        request.Headers.Add("Cookie", _session.CookieHeader);
+        if (foreignOrigin) request.Headers.Add("X-CSRF-Token", _session.CsrfToken);
+        var body = new { name = "Agent" };
+        request.Content = JsonContent.Create(body);
+
+        using var response = await _client.SendAsync(request, TestContext.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [TestMethod]
+    public async Task Revocation_DoesNotCancelAnAlreadyPendingApproval()
+    {
+        var created = await CreateNamedTokenAsync("Agent");
+        var token = created.GetProperty("token").GetString()!;
+        var tokenId = created.GetProperty("id").GetGuid();
+        await UpdateSettingsAsync(true, true);
+        var server = await CreateConnectionAsync("web", true);
+        _runner.Respond("uptime", 0, "up\n");
+        await using var mcp = await ConnectMcpAsync(token);
+        var arguments = new Dictionary<string, object?> { ["serverId"] = server, ["command"] = "uptime" };
+        var call = mcp.CallToolAsync("run_command", arguments, cancellationToken: TestContext.CancellationToken).AsTask();
+        var approval = await WaitForApprovalAsync();
+
+        using var revoked = await SendAsync(HttpMethod.Delete, $"/api/ai-bridge/tokens/{tokenId}", null);
+        revoked.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        var approvalId = approval.GetProperty("id").GetGuid();
+        var decision = new { approve = true };
+        using var approved = await SendAsync(HttpMethod.Post, $"/api/ai-bridge/approvals/{approvalId}", decision);
+        approved.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        var result = await call;
+
+        result.IsError.Should().NotBe(true);
+        _runner.ExecutedCommands.Should().Contain("uptime");
+        using var rejected = await PostMcpAsync(token, null);
+        rejected.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [TestMethod]
+    public async Task TokenLifecycle_DoesNotWriteSecretsOrHashesToLogsOrJournal()
+    {
+        var created = await CreateNamedTokenAsync("Agent");
+        var token = created.GetProperty("token").GetString()!;
+        var hash = AiBridgeTokenHasher.Hash(token);
+        var id = created.GetProperty("id").GetGuid();
+        await UpdateSettingsAsync(true, false);
+        await using (var mcp = await ConnectMcpAsync(token))
+        {
+            await mcp.ListToolsAsync(cancellationToken: TestContext.CancellationToken);
+        }
+
+        var wrong = $"invalid-{token}";
+        using var invalid = await PostMcpAsync(wrong, null);
+        invalid.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        var duplicate = new { name = "agent" };
+        using var conflict = await SendAsync(HttpMethod.Post, "/api/ai-bridge/tokens", duplicate);
+        conflict.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        using var revoked = await SendAsync(HttpMethod.Delete, $"/api/ai-bridge/tokens/{id}", null);
+        revoked.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        using var rejected = await PostMcpAsync(token, null);
+        rejected.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        var logs = string.Join('\n', _factory.Logs.Messages);
+        logs.Should().NotContain(token).And.NotContain(hash).And.NotContain(wrong);
+        using var scope = _factory.Services.CreateScope();
+        var operations = scope.ServiceProvider.GetRequiredService<IOperationRepository>();
+        var query = OperationQuery.Unfiltered;
+        var journal = await operations.Query(query, TestContext.CancellationToken);
+        var journalJson = JsonSerializer.Serialize(journal);
+        journalJson.Should().NotContain(token).And.NotContain(hash).And.NotContain(wrong);
+    }
+
+    private async Task<JsonElement> CreateNamedTokenAsync(string name)
+    {
+        var request = new { name };
+        using var response = await SendAsync(HttpMethod.Post, "/api/ai-bridge/tokens", request);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.CacheControl!.NoStore.Should().BeTrue();
+        return await ReadJsonAsync(response);
     }
 
     private void ReplaceServices(IServiceCollection services)
@@ -302,10 +497,12 @@ public sealed class AiBridgeEndpointsTests
         throw new AssertFailedException("No approval request appeared.");
     }
 
-    private async Task<string> RegenerateTokenAsync()
+    private async Task<string> CreateTokenAsync()
     {
-        using var response = await SendAsync(HttpMethod.Post, "/api/ai-bridge/token", null);
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var name = Guid.NewGuid().ToString();
+        var request = new { name };
+        using var response = await SendAsync(HttpMethod.Post, "/api/ai-bridge/tokens", request);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
         var body = await ReadJsonAsync(response);
         return body.GetProperty("token").GetString()!;
     }
