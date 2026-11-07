@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using DTech.Core.Updates;
 using DTech.Entrypoint.Updates;
+using DTech.Entrypoint.Updates.Installation;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
@@ -27,6 +28,8 @@ public static class UpdateCheckServiceCollectionExtensions
         });
         services.TryAddSingleton<IUpdateChecker>(CreateChecker);
         services.AddHostedService<UpdateCheckStartupService>();
+        services.AddSingleton<UpdateInstallation>();
+        services.AddSingleton<UpdateInstaller>();
         return services;
     }
 

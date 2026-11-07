@@ -19,6 +19,8 @@ internal sealed class GracefulShutdown
 
     public TimeSpan Timeout => _timeout;
 
+    public bool HasFailures { get; private set; }
+
     public Task<ShutdownOutcome> RunAsync()
     {
         lock (_gate)
@@ -62,6 +64,7 @@ internal sealed class GracefulShutdown
         }
         catch (Exception exception)
         {
+            HasFailures = true;
             _logger.LogError(exception, $"Shutdown stage {step.Stage} failed: {exception.GetType().Name}");
             return !token.IsCancellationRequested;
         }

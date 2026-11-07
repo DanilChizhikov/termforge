@@ -11,6 +11,7 @@ internal sealed class ApplicationExitCoordinator : IDisposable
     private CancellationTokenSource? _waiting;
     private long _requestVersion;
     private long _startedVersion;
+    private bool _ownsWaiting;
 
     public ApplicationExitCoordinator(
         WorkAdmissionGate gate,
@@ -38,6 +39,10 @@ internal sealed class ApplicationExitCoordinator : IDisposable
         lock (_sync)
         {
             requestVersion = 0;
+            if (_gate.State == ApplicationExitState.WaitingForTransfers && !_ownsWaiting)
+            {
+                return false;
+            }
             var waitForTransfers = policy == ExitTransferPolicy.WaitForTransfers && _transferWatcher.HasActiveTransfers();
             if (waitForTransfers)
             {
@@ -56,6 +61,7 @@ internal sealed class ApplicationExitCoordinator : IDisposable
                 _waiting?.Cancel();
             }
 
+            _ownsWaiting = waitForTransfers;
             requestVersion = ++_requestVersion;
             return true;
         }
@@ -100,12 +106,13 @@ internal sealed class ApplicationExitCoordinator : IDisposable
     {
         lock (_sync)
         {
-            if (!_gate.TryReopen())
+            if (!_ownsWaiting || !_gate.TryReopen())
             {
                 return false;
             }
 
             _waiting?.Cancel();
+            _ownsWaiting = false;
             _logger.LogInformation("Pending application exit was cancelled");
             return true;
         }

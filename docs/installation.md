@@ -73,7 +73,19 @@ Private keys stay where they are. TermForge stores only their paths.
 
 ## Update
 
-TermForge checks GitHub releases at start and shows a notice when a newer version exists. It never updates itself. To update, exit TermForge, unpack the new archive and start the new binary. Your data stays in the folders above. If you changed `appsettings.json`, copy your changes into the new folder.
+TermForge checks GitHub releases at start and shows a notice when a newer version exists. In Settings → Updates, choose **Install update** to prepare the latest stable package for your current platform. The download is checked against the release manifest before any installed files change. Only published packages support in-app installation; SDK and development launches explain why installation is unavailable.
+
+Before restart, review active transfers, terminals and unsaved files. Choose to wait for transfers, cancel them and restart, or cancel the update. Waiting pauses new work and can be cancelled. Keep the confirmation dialog open while waiting; the browser saves the latest drafts again before requesting restart. A failed draft save blocks restart. Terminal processes close; their tabs and editor drafts return through workspace restoration.
+
+Writable published installations allow one application process per installation directory. The application and updater coordinate with file locks so a second process cannot write data while a snapshot or restoration is running.
+
+After shutdown, TermForge backs up the database, encrypted vault, recordings and application configuration using their configured paths. Private keys and passwords in the system credential store stay in place. Custom `appsettings*.json`, launch arguments and working directory are preserved. The installation directory and its parent must be writable, with enough space for staging and backups. Symbolic links and junctions in managed paths are rejected.
+
+One previous application version and its data snapshot are retained until the next successful update. **Roll back** warns that changes since that snapshot will be lost and offers to keep a separate copy of current data (enabled by default). Backups live in a private `.termforge-updates-<installation-id>` directory beside the installation. Explicitly retained current-data copies are not automatically pruned.
+
+If startup or migration fails, the previous application opens a restricted recovery page without running migrations or normal services. Data stays as it is until you choose **Restore and restart**. Recovery can also keep a copy of current data. Use the new private browser launch link to authenticate after each restart. Do not remove the backup directory while an update or recovery is pending. If an interrupted file replacement prevents the executable from starting, run the retained `helper/TermForge` (`TermForge.exe` on Windows) with `--update-worker <installation-directory> <operation-id>` using the pending operation directory name as its id; keep the original backup directory in place.
+
+Manual installation remains available: exit TermForge, unpack the new archive and start the new binary. Your external data stays in place; copy your configuration changes into the new folder. See [update-artifacts.md](update-artifacts.md) for integrity verification and its trust boundary.
 
 ## Uninstall
 
