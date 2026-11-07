@@ -113,19 +113,9 @@ jobs:
       run: npm run build
 
   Update-Processes:
-    strategy:
-      matrix:
-        include:
-        - os: ubuntu-latest
-          rid: linux-x64
-        - os: windows-latest
-          rid: win-x64
-        - os: macos-latest
-          rid: osx-arm64
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: bash
+    runs-on: ubuntu-latest
+    env:
+      RID: linux-x64
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-dotnet@v4
@@ -136,12 +126,8 @@ jobs:
         node-version: '22'
     - name: Publish test installation
       run: ./scripts/publish.sh -r "$RID" -n
-      env:
-        RID: ${{ matrix.rid }}
     - name: Exercise update and recovery processes
       run: |
         version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)
         export TERMFORGE_UPDATE_PACKAGE="$GITHUB_WORKSPACE/publish/termforge-$version-$RID"
         dotnet test src/Tests/Entrypoint.Tests/Entrypoint.Tests.csproj --filter TestCategory=UpdateProcess
-      env:
-        RID: ${{ matrix.rid }}

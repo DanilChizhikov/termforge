@@ -12,7 +12,7 @@ internal static class UpdateProcess
         try
         {
             using var process = Process.GetProcessById(id);
-            return !process.HasExited && process.StartTime.ToUniversalTime().Ticks == startTicks;
+            return !process.HasExited && Math.Abs(process.StartTime.ToUniversalTime().Ticks - startTicks) < TimeSpan.TicksPerSecond;
         }
         catch (ArgumentException) { return false; }
         catch (InvalidOperationException) { return false; }
