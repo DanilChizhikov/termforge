@@ -24,7 +24,7 @@ example:
 ---
 script: publish.sh
 
-description: Builds the frontend once, then publishes a self-contained TermForge for each runtime identifier into `publish/termforge-<version>-<rid>` and packs it into `.zip` (win-*) or `.tar.gz`. Fails when the bundled frontend is missing from a build.
+description: Builds the frontend once, then publishes a self-contained single-file TermForge for each runtime identifier into `publish/termforge-<version>-<rid>` and packs it into `.zip` (win-*) or `.tar.gz`. Native libraries extract at runtime; `wwwroot` and configuration remain external. Fails when the bundled frontend is missing from a build.
 
 Options:
 
@@ -50,7 +50,7 @@ example:
 ---
 script: smoke-test.sh
 
-description: Starts a published TermForge with a temporary database, captures the private launch file through a fake browser command, exchanges its token and checks that the file is deleted. Checks authenticated and cookie-only `GET /api/session`, the bundled frontend and credential status, then requests exit through `POST /api/lifecycle/exit` and expects exit code 0.
+description: Starts a published single-file TermForge with a temporary database, captures the private launch file through a fake browser command, exchanges its token and checks that the file is deleted. Checks authenticated and cookie-only `GET /api/session`, the bundled frontend, credential status and the executable's credential helper protocol without accessing a credential, then requests exit through `POST /api/lifecycle/exit` and expects exit code 0.
 
 Options:
 

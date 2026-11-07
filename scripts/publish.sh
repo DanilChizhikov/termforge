@@ -71,7 +71,9 @@ publish_runtime() {
   echo "==> Publishing $runtime_identifier into $target_dir"
   rm -rf "$target_dir"
   dotnet publish "$ENTRYPOINT_PROJECT" -c Release -r "$runtime_identifier" --self-contained true --nologo \
-    -o "$target_dir" -p:Version="$version" -p:BuildNumber="$build_number"
+    -o "$target_dir" -p:Version="$version" -p:BuildNumber="$build_number" \
+    -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+    -p:PublishTrimmed=false -p:DebugType=None -p:DebugSymbols=false
   if [[ ! -f "$target_dir/wwwroot/index.html" ]]; then
     echo "error: $target_dir/wwwroot/index.html is missing, the frontend is not included" >&2
     exit 1
