@@ -1,5 +1,7 @@
 # Installation
 
+Published packages contain one self-contained executable, the `wwwroot` interface and configuration files. Keep these together. No separate .NET installation is required. Native libraries are bundled and extracted by .NET at startup, so the runtime extraction directory must be writable and permit loading libraries. `DOTNET_BUNDLE_EXTRACT_BASE_DIR` can select another extraction directory. User data remains in the configured data directory, outside the executable; replacing a package does not migrate or delete that data.
+
 TermForge ships as a self-contained archive for each operating system and CPU. The archive includes the .NET runtime and the web UI, so you do not need to install .NET or Node.js.
 
 ## Pick an archive

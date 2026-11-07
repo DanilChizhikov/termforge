@@ -171,6 +171,20 @@ report_credential_store() {
   echo "==> Credential store: $status_json"
 }
 
+check_single_file_helper() {
+  local binary request header status
+  binary="$(find_binary)"
+  [[ ! -f "$publish_dir/TermForge.dll" ]] || fail "published application is not single-file"
+  request='{"Operation":0,"Key":"","TimeoutMilliseconds":1}'
+  header="$(printf '\\%03o' "${#request}")"
+  status=0
+  { printf "$header\\0\\0\\0\\0\\0\\0\\0"; printf '%s' "$request"; } | \
+    "$binary" --credential-helper > "$work_dir/helper-response.bin" || status=$?
+  [[ "$status" == "0" ]] || fail "published credential helper exited with $status"
+  [[ $(wc -c < "$work_dir/helper-response.bin") -gt 8 ]] || fail "published credential helper returned no protocol response"
+  echo "==> Single-file credential helper answered"
+}
+
 request_exit() {
   local status
   status="$(api_request -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' \
@@ -207,6 +221,7 @@ create_browser_session
 read_csrf_token
 check_frontend
 report_credential_store
+check_single_file_helper
 request_exit
 wait_for_exit
 echo "==> Smoke test passed"
