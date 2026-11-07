@@ -73,10 +73,16 @@ public sealed class AiBridgeTokenMiddlewareTests
     private static ServiceProvider CreateServices()
     {
         var store = Substitute.For<IAiBridgeSettingsStore>();
-        store.LoadAsync(Arg.Any<CancellationToken>()).Returns(new AiBridgeSettings(true, true, AiBridgeTokenHasher.Hash(Token)));
+        store.LoadAsync(Arg.Any<CancellationToken>()).Returns(new AiBridgeSettings(true, true));
         var generator = Substitute.For<IAiBridgeTokenGenerator>();
+        var repository = Substitute.For<IAiBridgeTokenRepository>();
+        var hash = AiBridgeTokenHasher.Hash(Token);
+        repository.ListHashesAsync(Arg.Any<CancellationToken>()).Returns(new[] { hash });
+        var settings = new AiBridgeSettingsService(store);
+        var tokens = new AiBridgeTokenService(repository, generator, TimeProvider.System);
         return new ServiceCollection()
-            .AddSingleton(new AiBridgeSettingsService(store, generator))
+            .AddSingleton(settings)
+            .AddSingleton(tokens)
             .BuildServiceProvider();
     }
 }

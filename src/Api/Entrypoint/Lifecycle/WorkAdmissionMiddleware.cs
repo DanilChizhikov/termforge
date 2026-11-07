@@ -11,6 +11,8 @@ internal sealed class WorkAdmissionMiddleware(RequestDelegate next, WorkAdmissio
         ApplicationLifecycleExtensions.LifecyclePath,
         SecurityPaths.Session,
         WorkspaceEndpoints.Route,
+        "/api/updates/install",
+        "/api/updates/cancel",
     ];
 
     public Task InvokeAsync(HttpContext context)

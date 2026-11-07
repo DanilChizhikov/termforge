@@ -10,6 +10,8 @@ import { WorkspaceTabs } from './WorkspaceTabs';
 
 vi.mock('./MainWorkspace', () => ({ MainWorkspace: () => <p>main workspace</p> }));
 vi.mock('./editor/EditorDocumentView', () => ({ EditorDocumentView: () => <p>editor document</p> }));
+vi.mock('./ServerDiagnostics', () => ({ ServerDiagnostics: () => <p>server diagnostics panel</p> }));
+vi.mock('./NetworkDiagnosticPanel', () => ({ NetworkDiagnosticPanel: () => <p>network diagnostics panel</p> }));
 
 const CONNECTION: SavedConnection = {
   id: 'c1',
@@ -59,6 +61,19 @@ afterEach(() => {
 });
 
 describe('WorkspaceTabs', () => {
+  it('opens network checks separately from server diagnostics without selecting a server', async () => {
+    const user = userEvent.setup();
+    selectServer(null);
+    render(<WorkspaceTabs />);
+
+    await user.click(screen.getByRole('tab', { name: 'Diagnostics' }));
+    expect(screen.getByText('server diagnostics panel')).toBeVisible();
+    expect(screen.queryByText('network diagnostics panel')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Network diagnostics' }));
+    expect(screen.getByText('network diagnostics panel')).toBeVisible();
+    expect(screen.queryByText('server diagnostics panel')).not.toBeInTheDocument();
+  });
+
   it('names server tools after the selected server and counts failed operations', async () => {
     render(<WorkspaceTabs />);
 

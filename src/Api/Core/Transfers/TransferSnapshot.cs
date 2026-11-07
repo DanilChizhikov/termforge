@@ -21,4 +21,6 @@ public sealed record TransferSnapshot
     public long PartialBytes { get; init; }
 
     public bool HasPartial { get; init; }
+
+    public TransferVerification? Verification { get; init; }
 }

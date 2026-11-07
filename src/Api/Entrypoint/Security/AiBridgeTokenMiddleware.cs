@@ -34,7 +34,8 @@ internal sealed class AiBridgeTokenMiddleware(RequestDelegate next, ILogger<AiBr
         }
 
         var token = ReadBearerToken(context.Request);
-        if (!AiBridgeTokenHasher.Matches(settings.TokenHash, token))
+        var tokenService = context.RequestServices.GetRequiredService<AiBridgeTokenService>();
+        if (!await tokenService.AcceptsAsync(token, context.RequestAborted))
         {
             logger.LogWarning("Rejected AI bridge request without a valid token");
             context.Response.Headers[HeaderNames.WWWAuthenticate] = "Bearer";

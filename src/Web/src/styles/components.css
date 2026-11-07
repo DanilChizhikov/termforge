@@ -1,3 +1,28 @@
+.browser-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+}
+
+.browser-source {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.browser-source > .field {
+  flex: 1;
+  min-width: 0;
+}
+
+.browser-pane > .file-pane {
+  flex: 1;
+  min-height: 0;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;

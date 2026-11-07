@@ -5,6 +5,7 @@ import type { StatusTone } from './statusTone';
 const KIND_LABELS: Record<string, string> = {
   'transfer.upload': 'Upload',
   'transfer.download': 'Download',
+  'transfer.remoteToRemote': 'Server copy',
   'docker.start': 'Docker',
   'docker.stop': 'Docker',
   'docker.restart': 'Docker',
@@ -68,7 +69,8 @@ function describeTransfer(details: Record<string, string>): string | null {
   const target = details.targetDirectory ?? (details.target === undefined ? '' : parentDirectoryOf(details.target));
   const files = details.files === undefined ? '' : ` (${details.files.split('/').pop() ?? details.files} files)`;
   const directory = target.endsWith('/') || target === '' ? target : `${target}/`;
-  return `${baseName(source)}${files} → ${directory}`;
+  const server = details.targetServer ? `${details.targetServer}:` : '';
+  return `${baseName(source)}${files} → ${server}${directory}`;
 }
 
 export function describeOperationDetails(operation: OperationRecord): string {

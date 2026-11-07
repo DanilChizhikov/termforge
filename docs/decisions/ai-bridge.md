@@ -12,9 +12,14 @@ The bridge is off by default and every server has its own `AiAccess` flag (colum
   - 403 for a client that is not on a loopback address, even in network access mode;
   - 404 while the bridge is off;
   - 401 with `WWW-Authenticate: Bearer` without a valid token.
-- The token is 32 random bytes (base64url), generated in Settings → AI bridge. Only its SHA-256 hash is stored (`app_settings` key `ai_bridge.settings`), and it is compared in constant time. The UI shows the token once, together with the `claude mcp add` command. Generating a new token invalidates the old one.
+- Each agent can have a named access token, generated in Settings → AI bridge from 32 random bytes (base64url). Names are trimmed, required, limited to 100 characters and unique without regard to case. All tokens share server access and approval settings.
+- Tokens are independent rows in `ai_bridge_tokens`, containing an ID, name, normalized name, SHA-256 hash and UTC creation time. Separate inserts and deletes avoid overwriting other tokens or bridge preferences during concurrent requests. Only the hash is persisted; authentication hashes the candidate once and compares hashes in constant time on every request, without an authentication cache.
+- The UI shows the secret once, together with the `claude mcp add` command. Closing the secret panel or leaving the view discards it. The secret cannot be retrieved again; if the creation response is lost, revoke the entry and create another token.
+- Revoking a token blocks subsequent requests with 401 and leaves other tokens working. Already accepted operations, including those waiting for approval, continue. Revoking the last token leaves the bridge settings intact.
+- The database migration transfers the existing token hash to `Default` without changing the token or preferences, then removes the legacy hash from `ai_bridge.settings`. A revoked token is never recreated at startup.
+- Management uses the authenticated browser API: `GET /api/ai-bridge/tokens` lists only IDs, names and creation times; `POST /api/ai-bridge/tokens` accepts `{ name }` and returns the secret once with `Cache-Control: no-store`; `DELETE /api/ai-bridge/tokens/{id}` revokes one token. The old `POST /api/ai-bridge/token` replacement endpoint has been removed. Invalid names return 400, duplicate names 409 and unknown revocations 404.
 - The CSRF check skips `/mcp`. The origin check still applies: a request with a foreign `Origin` header gets 403, so a web page cannot drive the bridge through the user's browser.
-- The bridge settings and the token are not part of settings export. The `AiAccess` flag travels with each exported server.
+- The bridge settings and tokens are not part of settings export. The `AiAccess` flag travels with each exported server. Token values and hashes are excluded from logs and the operation journal.
 
 ## Tools
 

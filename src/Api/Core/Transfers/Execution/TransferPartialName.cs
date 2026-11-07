@@ -23,6 +23,7 @@ public static class TransferPartialName
         var modifiedTicks = identity.SourceModifiedUtc.Ticks.ToString(CultureInfo.InvariantCulture);
         var size = identity.SourceSize.ToString(CultureInfo.InvariantCulture);
         var material = $"{identity.Direction}|{identity.ConnectionId}|{identity.SourcePath}|{identity.TargetPath}|{size}|{modifiedTicks}";
+        if (identity.TargetConnectionId is not null) material += $"|{identity.TargetConnectionId}";
         var bytes = Encoding.UTF8.GetBytes(material);
         var hash = SHA256.HashData(bytes);
         var hex = Convert.ToHexStringLower(hash);

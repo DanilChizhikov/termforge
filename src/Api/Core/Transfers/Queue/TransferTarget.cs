@@ -4,17 +4,19 @@ public readonly record struct TransferTarget(TransferRequest Request, string Pat
 {
     public bool Matches(TransferTarget other)
     {
-        if (Request.Direction != other.Request.Direction)
+        var local = Request.Direction == TransferDirection.Download;
+        var otherLocal = other.Request.Direction == TransferDirection.Download;
+        if (local != otherLocal)
         {
             return false;
         }
 
-        if (Request.Direction == TransferDirection.Upload && Request.ConnectionId != other.Request.ConnectionId)
+        if (!local && Request.DestinationConnectionId != other.Request.DestinationConnectionId)
         {
             return false;
         }
 
-        var comparison = Request.Direction == TransferDirection.Download && !OperatingSystem.IsLinux()
+        var comparison = local && !OperatingSystem.IsLinux()
             ? StringComparison.OrdinalIgnoreCase
             : StringComparison.Ordinal;
         return string.Equals(Path, other.Path, comparison);

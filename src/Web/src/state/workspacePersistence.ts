@@ -38,6 +38,7 @@ export interface WorkspaceAutosaveOptions {
 
 interface AutosaveController {
   flush: () => Promise<void>;
+  flushStrict: () => Promise<void>;
 }
 
 let warning: WorkspaceWarning | null = null;
@@ -199,7 +200,24 @@ export function startWorkspaceAutosave(options: WorkspaceAutosaveOptions = {}): 
     subscribeEditorDrafts(schedule),
   ];
   window.addEventListener('pagehide', flushOnHide);
-  const controller: AutosaveController = { flush };
+  const flushStrict = (): Promise<void> => {
+    if (autosavePaused) {
+      return Promise.reject(new Error('Workspace saving is paused. Finish the current operation before updating.'));
+    }
+    if (timer !== null) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    const snapshot = buildWorkspaceSnapshot();
+    const serialized = JSON.stringify(snapshot);
+    const saving = pending.then(() => saveWorkspace(snapshot, client)).then(() => {
+      lastSaved = serialized;
+      markWorkspaceSaved(new Date());
+    });
+    pending = saving.catch(() => undefined);
+    return saving;
+  };
+  const controller: AutosaveController = { flush, flushStrict };
   autosave = controller;
 
   return () => {
@@ -225,4 +243,11 @@ export function resumeWorkspaceAutosave(): void {
 
 export function flushWorkspaceState(): Promise<void> {
   return autosave?.flush() ?? Promise.resolve();
+}
+
+export function flushWorkspaceStateStrict(): Promise<void> {
+  if (autosave === null) {
+    return Promise.reject(new Error('Workspace persistence is not ready. Restart was cancelled to protect your drafts.'));
+  }
+  return autosave.flushStrict();
 }

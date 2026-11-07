@@ -1,6 +1,8 @@
 # File browsing
 
-The lower region of the workspace has two panes: the local filesystem and the filesystem of the selected server (over SFTP). Each pane has roots (local only), Up, Refresh, breadcrumbs, sortable columns, single and multiple selection (Ctrl/Cmd click), New folder, Rename and Delete. Double click opens a directory. The current path of each pane is kept in UI state (one path per server for the remote pane). Transfers and search are separate tasks.
+The lower region of the workspace has two independent panes. Each source selector offers the local machine and saved SFTP servers; initially the left pane is local and the right pane uses the selected server, if any. Sidebar selection does not change either pane. Each pane has its own current directory, roots (local only), Refresh, breadcrumbs, sortable columns, single and multiple selection (Ctrl/Cmd click), New folder, Rename and Delete. Double click opens a directory.
+
+Select files or directories and use the transfer button, or drag them into the other pane. Uploads, downloads and server-to-server copies share the transfer queue, progress, cancellation, overwrite confirmation and retry. Local-to-local copying is not offered. Read-only servers can be sources but cannot receive files. Server-to-server copies stream through TermForge without a complete local temporary file.
 
 ## API
 

@@ -99,6 +99,7 @@ describe('workspace tabs', () => {
       'Terminals & files',
       'Docker',
       'Diagnostics',
+      'Network diagnostics',
       'Journal',
     ]);
   });

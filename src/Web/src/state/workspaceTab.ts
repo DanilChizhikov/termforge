@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from 'react';
 
-export type WorkspaceTabId = 'workspace' | 'editor' | 'docker' | 'diagnostics' | 'history';
+export type WorkspaceTabId = 'workspace' | 'editor' | 'docker' | 'diagnostics' | 'network-diagnostics' | 'history';
 
-const WORKSPACE_TAB_IDS: readonly string[] = ['workspace', 'editor', 'docker', 'diagnostics', 'history'];
+const WORKSPACE_TAB_IDS: readonly string[] = ['workspace', 'editor', 'docker', 'diagnostics', 'network-diagnostics', 'history'];
 
 export function isWorkspaceTabId(value: string): value is WorkspaceTabId {
   return WORKSPACE_TAB_IDS.includes(value);

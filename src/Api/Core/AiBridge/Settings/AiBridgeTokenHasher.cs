@@ -12,14 +12,8 @@ public static class AiBridgeTokenHasher
         return Convert.ToHexStringLower(hash);
     }
 
-    public static bool Matches(string? expectedHash, string? candidateToken)
+    public static bool HashesMatch(string expectedHash, string candidateHash)
     {
-        if (string.IsNullOrEmpty(expectedHash) || string.IsNullOrEmpty(candidateToken))
-        {
-            return false;
-        }
-
-        var candidateHash = Hash(candidateToken);
         var expectedBytes = Encoding.ASCII.GetBytes(expectedHash);
         var candidateBytes = Encoding.ASCII.GetBytes(candidateHash);
         return CryptographicOperations.FixedTimeEquals(expectedBytes, candidateBytes);

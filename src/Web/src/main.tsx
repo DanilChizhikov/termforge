@@ -13,6 +13,7 @@ import './styles/docker.css';
 import './styles/settings.css';
 import './styles/recording.css';
 import './styles/exit.css';
+import './styles/network.css';
 
 const container = document.getElementById('root');
 if (container === null) {

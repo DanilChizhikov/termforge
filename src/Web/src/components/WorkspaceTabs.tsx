@@ -13,6 +13,7 @@ import { ContainerIcon, ListIcon, PulseIcon, TerminalIcon, type IconProps } from
 import { MainWorkspace } from './MainWorkspace';
 import { OperationHistory } from './OperationHistory';
 import { ServerDiagnostics } from './ServerDiagnostics';
+import { NetworkDiagnosticPanel } from './NetworkDiagnosticPanel';
 
 type ToolTabId = Exclude<WorkspaceTabId, 'editor'>;
 
@@ -86,6 +87,7 @@ export function WorkspaceTabs() {
         <EditorFileTabs editorActive={activeId === 'editor'} />
         <ToolTab id="docker" title="Docker" context={serverName} activeId={activeId} Icon={ContainerIcon} />
         <ToolTab id="diagnostics" title="Diagnostics" context={serverName} activeId={activeId} Icon={PulseIcon} />
+        <ToolTab id="network-diagnostics" title="Network diagnostics" activeId={activeId} Icon={PulseIcon} />
         <ToolTab id="history" title="Journal" activeId={activeId} Icon={ListIcon}>
           {failedToday === 0 ? null : (
             <>
@@ -107,6 +109,9 @@ export function WorkspaceTabs() {
       </ToolPanel>
       <ToolPanel id="diagnostics" activeId={activeId}>
         {activeId === 'diagnostics' ? <ServerDiagnostics /> : null}
+      </ToolPanel>
+      <ToolPanel id="network-diagnostics" activeId={activeId}>
+        {activeId === 'network-diagnostics' ? <NetworkDiagnosticPanel /> : null}
       </ToolPanel>
       <ToolPanel id="history" activeId={activeId}>
         {activeId === 'history' ? <OperationHistory /> : null}

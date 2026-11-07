@@ -36,7 +36,7 @@ public sealed class OperationMaintenance(TermForgeDbContext context) : IOperatio
             {
                 var operation = interrupted[i];
                 var retryable = retryableKinds.Contains(operation.Kind);
-                if (operation.Kind is TransferOperationKinds.Upload or TransferOperationKinds.Download)
+                if (operation.Kind is TransferOperationKinds.Upload or TransferOperationKinds.Download or TransferOperationKinds.RemoteToRemote)
                 {
                     retryable &= TransferOperationDetails.TryRead(operation) is not null;
                 }

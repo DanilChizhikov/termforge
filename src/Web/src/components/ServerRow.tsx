@@ -4,6 +4,7 @@ import { AiAccessBadge } from './AiAccessBadge';
 import { ReadOnlyBadge } from './ReadOnlyBadge';
 import { describeServerStatus, type ServerStatus } from './serverStatus';
 import { statusDotClass } from './statusTone';
+import { openNetworkDiagnostics } from '../state/networkDiagnostics';
 
 export interface ServerRowProps {
   connection: SavedConnection;
@@ -59,6 +60,7 @@ export function ServerRow({ connection, status, sessionCount, selected, onSelect
       </div>
       {detail === null ? null : <div className="form-error server-detail">{detail}</div>}
       <div className="server-actions">
+        {status !== null && status !== 'testing' && status.state !== 'Connected' ? <button type="button" className="btn btn-xs btn-ghost" onClick={() => openNetworkDiagnostics(connection.id)}>Network diagnostics</button> : null}
         <button type="button" className="btn btn-xs btn-ghost" aria-label={`Test ${connection.name}`} onClick={onTest}>
           Test
         </button>

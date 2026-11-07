@@ -8,6 +8,8 @@ public sealed class TransferJob
     private readonly CancellationTokenSource _cancellation = new();
     private readonly CancellationToken _cancellationToken;
     private readonly List<string> _partialPaths = [];
+    private IReadOnlyList<TransferSourceVersion> _sourceVersions = [];
+    private TransferVerification? _verification;
     private bool _processingFinished;
     private int _cancelCalls;
     private OperationStatus _status = OperationStatus.Queued;
@@ -119,7 +121,7 @@ public sealed class TransferJob
         lock (_gate)
         {
             var paths = _partialPaths.ToArray();
-            return new TransferRecoveryState(Request, TargetPath, paths) { PartialBytes = _partialBytes };
+            return new TransferRecoveryState(Request, TargetPath, paths) { PartialBytes = _partialBytes, SourceVersions = _sourceVersions };
         }
     }
 
@@ -131,6 +133,24 @@ public sealed class TransferJob
             {
                 AddPartialPath(paths[i]);
             }
+        }
+    }
+
+    public void RestoreSourceVersions(IReadOnlyList<TransferSourceVersion> versions)
+    {
+        lock (_gate) { _sourceVersions = versions; }
+    }
+
+    public bool CheckSourceVersions(IReadOnlyList<DTech.Core.Transfers.Execution.TransferItem> items)
+    {
+        var versions = items.Where(item => !item.IsDirectory)
+            .Select(item => new TransferSourceVersion(item.SourcePath, item.Size, item.ModifiedUtc))
+            .OrderBy(item => item.Path, StringComparer.Ordinal).ToArray();
+        lock (_gate)
+        {
+            if (ResumeExisting && _sourceVersions.Count > 0 && !_sourceVersions.SequenceEqual(versions)) return false;
+            _sourceVersions = versions;
+            return true;
         }
     }
 
@@ -227,6 +247,7 @@ public sealed class TransferJob
     {
         lock (_gate)
         {
+            _verification = null;
             AddPartialPath(partialPath);
             _partialPath = partialPath;
             _currentFileBytes = offset;
@@ -243,10 +264,31 @@ public sealed class TransferJob
         }
     }
 
+    public void BeginVerification(long totalBytes)
+    {
+        lock (_gate)
+        {
+            _verification = new TransferVerification(0, totalBytes);
+            _version++;
+        }
+    }
+
+    public void ReportVerification(long bytes)
+    {
+        lock (_gate)
+        {
+            if (_verification is not { } verification) return;
+            var checkedBytes = Math.Clamp(bytes, 0, verification.TotalBytes);
+            _verification = verification with { CheckedBytes = checkedBytes };
+            _version++;
+        }
+    }
+
     public void CompleteFile(long size)
     {
         lock (_gate)
         {
+            _verification = null;
             _completedBytes += size;
             _currentFileBytes = 0;
             _completedFiles++;
@@ -274,6 +316,7 @@ public sealed class TransferJob
     {
         lock (_gate)
         {
+            _verification = null;
             _status = OperationStatus.Succeeded;
             _bytesPerSecond = 0;
             _remainingSeconds = null;
@@ -286,6 +329,7 @@ public sealed class TransferJob
     {
         lock (_gate)
         {
+            _verification = null;
             _status = OperationStatus.Failed;
             _error = failure.Error;
             _retryable = failure.Retryable;
@@ -306,6 +350,7 @@ public sealed class TransferJob
     {
         lock (_gate)
         {
+            _verification = null;
             _status = OperationStatus.Cancelled;
             _retryable = true;
             _partialPath = null;
@@ -364,6 +409,7 @@ public sealed class TransferJob
                 Retryable = _retryable || _status == OperationStatus.Cancelled,
                 PartialBytes = _partialBytes,
                 HasPartial = _partialPaths.Count > 0,
+                Verification = _verification,
             };
         }
     }

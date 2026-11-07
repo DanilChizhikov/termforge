@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getConnection, type ReconnectMode } from '../api/connections';
 import { RefreshIcon } from './icons/Icons';
+import { openNetworkDiagnostics } from '../state/networkDiagnostics';
 
 export interface ReconnectBarProps {
   connectionId: string;
@@ -57,6 +58,7 @@ export function ReconnectBar({ connectionId, reason, wasConnected, onReconnect }
           Reconnect
         </button>
       ) : null}
+      <button type="button" className="btn btn-sm" onClick={() => openNetworkDiagnostics(connectionId)}>Network diagnostics</button>
     </p>
   );
 }

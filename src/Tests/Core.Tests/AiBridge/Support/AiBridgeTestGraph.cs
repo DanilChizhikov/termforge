@@ -13,8 +13,8 @@ internal sealed class AiBridgeTestGraph
     public AiBridgeTestGraph()
     {
         Docker = new DockerTestGraph();
-        SettingsStore = new InMemoryAiBridgeSettingsStore { Stored = new AiBridgeSettings(true, true, null) };
-        Settings = new AiBridgeSettingsService(SettingsStore, new SequentialTokenGenerator());
+        SettingsStore = new InMemoryAiBridgeSettingsStore { Stored = new AiBridgeSettings(true, true) };
+        Settings = new AiBridgeSettingsService(SettingsStore);
         Notifier = new ScriptedApprovalNotifier { Answer = AiApprovalOutcome.Approved };
         Broker = new AiApprovalBroker(new AiApprovalTimeout(TimeSpan.FromSeconds(5)), Notifier, TimeProvider.System);
         Notifier.Broker = Broker;
