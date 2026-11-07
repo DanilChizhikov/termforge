@@ -6,6 +6,35 @@
   overflow: auto;
 }
 
+.update-install-dialog {
+  width: min(640px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  overflow: auto;
+  color: var(--text-primary);
+}
+
+.update-install-dialog::backdrop {
+  background: var(--surface-overlay);
+}
+
+.update-attention {
+  display: grid;
+  gap: 8px;
+  padding-left: 20px;
+  overflow-wrap: anywhere;
+}
+
+.update-retain {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.update-install-dialog .dialog-footer {
+  flex-wrap: wrap;
+}
+
 .settings-nav {
   display: flex;
   flex: 1 1 220px;

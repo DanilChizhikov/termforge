@@ -108,7 +108,7 @@ Settings → Import & export writes servers with their saved passwords, preferen
 
 ### Updates
 
-At start TermForge checks the releases of this repository and shows a notice when a newer version exists. It never downloads or installs anything. To update, unpack the new archive and start it; your data stays where it was.
+At start TermForge checks the releases of this repository and shows a notice when a newer version exists. Choose Install update in Settings to download and verify the latest stable package, review pending work, back up local data and restart. One previous version is kept for rollback. Installation is never automatic. See [installation](docs/installation.md#update) for recovery and manual updates.
 
 ## Configuration
 
