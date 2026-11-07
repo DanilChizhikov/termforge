@@ -1,6 +1,14 @@
-# Network diagnostics API
+# Network diagnostics
 
-Diagnostics run manually from the local machine and selected saved Linux SSH points. No checks start automatically after a connection failure. The UI is tracked separately in #95.
+Diagnostics run manually from the local machine and selected saved Linux SSH points. No checks start automatically after a connection failure.
+
+## Interface
+
+Open the Diagnostics workspace tab to choose a saved target or custom address, domain, URL, ports and ranges, protocols and up to eight measurement points. Each point has an explicit РФ / Вне РФ category. Connection test failures and disconnected terminals offer a Network diagnostics button that fills the saved target without starting checks.
+
+The form, progress and current results remain available when switching tabs or settings until another test starts or the application closes. Results show each point, category, protocol, port, outcome, detail and duration in pages of 100. Progress uses realtime events with periodic refresh and reconnect recovery. Cancel stops pending probes and retains collected results. Full scans require a separate confirmation, including when the complete range was typed manually.
+
+Optional remote actions are prepared separately. Select an SSH measurement point and review the exact server, packages, command, privileges and warning before confirming installation or a privileged UDP check. Read-only servers can run ordinary checks but cannot perform these actions. A sudo password stays only in the current confirmation input and is cleared on submission or cancellation. Copying and exporting reports are not provided.
 
 ## Requests and results
 

@@ -1,0 +1,69 @@
+.diagnostics-workspace {
+  overflow: auto;
+  min-height: 0;
+}
+
+.network-diagnostics {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow: visible;
+}
+
+.network-form,
+.network-fields,
+.network-results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.network-fields {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  padding: 12px;
+}
+
+.network-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 12px;
+}
+
+.network-choices,
+.network-point {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.network-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.network-point {
+  justify-content: space-between;
+}
+
+.network-table-scroll {
+  overflow: auto;
+}
+
+.network-table-scroll td {
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  min-width: 80px;
+}
+
+.network-command {
+  max-width: 100%;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: var(--text-mono) var(--font-mono);
+}
