@@ -23,6 +23,13 @@ function makeDataTransfer(): DataTransfer {
 }
 
 describe('filePaneTransfer', () => {
+  it('rejects a drag after the source server changed', () => {
+    const dataTransfer = makeDataTransfer();
+    writeDraggedPaths(dataTransfer, { origin: 'pane:left:server-a', paths: ['/a'] });
+    expect(readDraggedPaths(dataTransfer, 'pane:left:server-b')).toBeNull();
+    expect(readDraggedPaths(dataTransfer, 'pane:left:server-a')).toEqual({ origin: 'pane:left:server-a', paths: ['/a'] });
+  });
+
   it('round-trips dragged paths for the matching origin', () => {
     const dataTransfer = makeDataTransfer();
 

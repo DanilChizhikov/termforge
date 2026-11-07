@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 import type { IconProps } from './icons/Icons';
 
-export type DragOrigin = 'local' | 'remote';
+export type DragOrigin = 'local' | 'remote' | `pane:${string}`;
 
 export interface FilePaneTransfer {
   label: string;
@@ -43,7 +43,7 @@ export function readDraggedPaths(dataTransfer: DataTransfer, origin: DragOrigin)
   }
   try {
     const parsed = JSON.parse(raw) as Partial<DraggedPaths>;
-    const validOrigin = parsed.origin === 'local' || parsed.origin === 'remote';
+    const validOrigin = parsed.origin === origin;
     if (!validOrigin || !Array.isArray(parsed.paths)) {
       return null;
     }
