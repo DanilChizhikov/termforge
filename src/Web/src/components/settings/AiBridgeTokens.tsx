@@ -105,7 +105,7 @@ export function AiBridgeTokens() {
               </button>
             </div>
           ))}
-          <form className="settings-row" onSubmit={(event) => void create(event)}>
+          <form className="settings-row ai-bridge-token-form" onSubmit={(event) => void create(event)}>
             <label className="field settings-row-text" htmlFor="ai-bridge-token-name">
               <span className="field-label">Token name</span>
               <input id="ai-bridge-token-name" className="input" value={name} onChange={(event) => setName(event.target.value)} maxLength={100} required disabled={busy} />
