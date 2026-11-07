@@ -117,15 +117,16 @@ export function OperationHistory() {
   }, []);
 
   const retry = useCallback((operation: OperationRecord) => {
-    if (operation.kind === 'transfer.upload' || operation.kind === 'transfer.download') {
-      const { connectionId, source, targetDirectory } = operation.details;
+    if (operation.kind === 'transfer.upload' || operation.kind === 'transfer.download' || operation.kind === 'transfer.remoteToRemote') {
+      const { connectionId, targetConnectionId, source, targetDirectory } = operation.details;
       if (!connectionId || !source || !targetDirectory) {
         setError('The operation does not describe a transfer.');
         return;
       }
       void requestTransferRetry(operation.id, {
         connectionId,
-        direction: operation.kind === 'transfer.upload' ? 'upload' : 'download',
+        targetConnectionId,
+        direction: operation.kind === 'transfer.remoteToRemote' ? 'remoteToRemote' : operation.kind === 'transfer.upload' ? 'upload' : 'download',
         sourcePaths: [source],
         targetDirectory,
         overwrite: false,

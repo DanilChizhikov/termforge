@@ -27,7 +27,17 @@ SFTP uploads and downloads are explicit operations executed by an in-process que
 
 The transfer panel sits under the file panes. Upload/Download buttons send the pane selection to the folder open in the other pane; rows can be dragged between panes. Finished transfers refresh the receiving pane.
 
-## Known limitations
+## Server-to-server transfers
+
+`POST /api/transfers` also accepts `direction: "remoteToRemote"` with the source `connectionId` and a required `targetConnectionId`. The queue, cancellation, progress, journal and retry APIs are shared with uploads and downloads. Snapshots identify both servers; the journal kind is `transfer.remoteToRemote`.
+
+Each job opens two independent SFTP clients and relays data through four bounded 64 KiB chunks. No complete local temporary file is created. Destination reservations are shared with uploads. A read-only source is allowed; destination writes, commits and cleanup are guarded by its current access mode. Overwrite confirmations belong to the destination server.
+
+Recovery stores the source file list, sizes and modification times. Resuming checks these against a fresh plan and compares SHA-256 of the source prefix with the complete destination partial. Completed files are skipped only after content verification. Hashing uses bounded memory and currently reads the source through SFTP in full, even for a short prefix. A mismatch requires an explicit new request with `restart: true`; it never silently accepts a same-sized file. Existing upload/download recovery remains compatible.
+
+The source metadata is checked before and after copying and immediately before commit. Concurrent source writes that preserve metadata cannot be excluded without a server-side snapshot. Copying a path into itself or its descendants on the same saved connection is rejected for normalized paths; aliases and server-side symbolic links can refer to the same underlying location and are not canonicalized.
+
+## Existing limitations
 
 - Work is not automatically resumed on restart. Old rows without exact recovery metadata cannot expose unknown partials for discard; no filesystem scan or path guessing is performed.
 - A crash before a checkpoint completes cannot leave a newly written partial from that file, but a crash during commit may leave a recorded path whose file no longer exists; discard treats missing files as already cleaned.

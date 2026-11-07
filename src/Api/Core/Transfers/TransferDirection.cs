@@ -4,4 +4,5 @@ public enum TransferDirection
 {
     Upload,
     Download,
+    RemoteToRemote,
 }

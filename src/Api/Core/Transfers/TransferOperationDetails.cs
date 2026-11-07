@@ -7,6 +7,8 @@ public static class TransferOperationDetails
 {
     public const string ConnectionIdKey = "connectionId";
     public const string DirectionKey = "direction";
+    public const string TargetConnectionIdKey = "targetConnectionId";
+    public const string TargetServerKey = "targetServer";
     public const string SourceKey = "source";
     public const string TargetDirectoryKey = "targetDirectory";
     public const string TargetKey = "target";
@@ -18,7 +20,7 @@ public static class TransferOperationDetails
 
     public static Dictionary<string, string> Describe(TransferRequest request, string targetPath)
     {
-        return new Dictionary<string, string>(StringComparer.Ordinal)
+        var details = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             [ConnectionIdKey] = request.ConnectionId.ToString(),
             [DirectionKey] = request.Direction.ToString(),
@@ -27,6 +29,12 @@ public static class TransferOperationDetails
             [TargetKey] = targetPath,
             [OverwriteKey] = request.Overwrite ? "true" : "false",
         };
+        if (request.TargetConnectionId is { } targetId)
+        {
+            details[TargetConnectionIdKey] = targetId.ToString();
+            details[TargetServerKey] = request.TargetServerName ?? string.Empty;
+        }
+        return details;
     }
 
     public static Dictionary<string, string> Summarize(TransferProgress progress)
@@ -64,6 +72,9 @@ public static class TransferOperationDetails
         }
 
         details.TryGetValue(OverwriteKey, out var overwriteText);
+        Guid? targetConnectionId = details.TryGetValue(TargetConnectionIdKey, out var targetText) && Guid.TryParse(targetText, out var targetId) ? targetId : null;
+        if (direction == TransferDirection.RemoteToRemote && targetConnectionId is null) return null;
+        details.TryGetValue(TargetServerKey, out var targetServerName);
         return new TransferRequest
         {
             ConnectionId = connectionId,
@@ -72,6 +83,8 @@ public static class TransferOperationDetails
             SourcePath = source!,
             TargetDirectory = targetDirectory!,
             Overwrite = overwriteText == "true",
+            TargetConnectionId = targetConnectionId,
+            TargetServerName = targetServerName,
         };
     }
 

@@ -53,6 +53,7 @@ internal sealed class OperationRecoveryService
 
         var job = new TransferJob(operation.Id, state.Request, state.TargetPath);
         job.RestorePartials(state.PartialPaths);
+        job.RestoreSourceVersions(state.SourceVersions);
         if (operation.Status == OperationStatus.Succeeded)
         {
             job.Succeed();

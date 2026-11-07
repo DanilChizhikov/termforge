@@ -8,6 +8,10 @@ public sealed record TransferResponse
 
     public required Guid ConnectionId { get; init; }
 
+    public Guid? TargetConnectionId { get; init; }
+
+    public string? TargetServer { get; init; }
+
     public required string Server { get; init; }
 
     public required string Direction { get; init; }
@@ -47,8 +51,10 @@ public sealed record TransferResponse
         {
             Id = snapshot.Id,
             ConnectionId = snapshot.Request.ConnectionId,
+            TargetConnectionId = snapshot.Request.TargetConnectionId,
+            TargetServer = snapshot.Request.TargetServerName,
             Server = snapshot.Request.ServerName,
-            Direction = snapshot.Request.Direction.ToString().ToLowerInvariant(),
+            Direction = snapshot.Request.Direction == TransferDirection.RemoteToRemote ? "remoteToRemote" : snapshot.Request.Direction.ToString().ToLowerInvariant(),
             SourcePath = snapshot.Request.SourcePath,
             TargetPath = snapshot.TargetPath,
             TargetDirectory = snapshot.Request.TargetDirectory,

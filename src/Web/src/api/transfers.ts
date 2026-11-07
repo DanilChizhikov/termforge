@@ -1,13 +1,15 @@
 import { ApiError, apiClient, type ApiClient } from './client';
 import { requestConfirmationToken } from './confirmations';
 
-export type TransferDirection = 'upload' | 'download';
+export type TransferDirection = 'upload' | 'download' | 'remoteToRemote';
 
 export type TransferStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
 
 export interface TransferRecord {
   id: string;
   connectionId: string;
+  targetConnectionId?: string;
+  targetServer?: string;
   server: string;
   direction: TransferDirection;
   sourcePath: string;
@@ -28,6 +30,8 @@ export interface TransferRecord {
 
 export interface TransferStartRequest {
   connectionId: string;
+  targetConnectionId?: string | undefined;
+  restart?: boolean;
   direction: TransferDirection;
   sourcePaths: string[];
   targetDirectory: string;
@@ -71,10 +75,10 @@ async function withOverwriteConfirmation(
   request: TransferStartRequest,
   client: ApiClient,
 ): Promise<TransferStartRequest & { confirmationToken?: string }> {
-  if (!request.overwrite || request.direction !== 'upload') {
+  if (!request.overwrite || request.direction === 'download') {
     return request;
   }
-  const scope = { operation: 'TransferOverwrite' as const, connectionId: request.connectionId, target: request.targetDirectory };
+  const scope = { operation: 'TransferOverwrite' as const, connectionId: request.targetConnectionId ?? request.connectionId, target: request.targetDirectory };
   const confirmationToken = await requestConfirmationToken(scope, client);
   return { ...request, confirmationToken };
 }

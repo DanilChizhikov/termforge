@@ -20,15 +20,15 @@ internal sealed class TransferRetryConfirmationIssuer(IOperationJournal journal,
         }
 
         var request = TransferOperationDetails.TryRead(operation);
-        if (operation.Kind is not (TransferOperationKinds.Upload or TransferOperationKinds.Download) || request is null)
+        if (operation.Kind is not (TransferOperationKinds.Upload or TransferOperationKinds.Download or TransferOperationKinds.RemoteToRemote) || request is null)
         {
             throw new OperationException(OperationFailure.InvalidRequest, "The operation does not describe a transfer.");
         }
 
-        var dangerousOperation = request.Direction == TransferDirection.Upload
+        var dangerousOperation = request.Direction != TransferDirection.Download
             ? DangerousOperation.TransferOverwrite
             : DangerousOperation.LocalTransferOverwrite;
-        var scope = new ConfirmationScope(dangerousOperation, request.ConnectionId, request.TargetDirectory);
+        var scope = new ConfirmationScope(dangerousOperation, request.DestinationConnectionId, request.TargetDirectory);
         var issued = await issuer.IssueAsync(scope, cancellationToken);
         if (issued.Status == ConfirmationIssueStatus.ConnectionNotFound)
         {

@@ -8,6 +8,7 @@ public sealed class TransferJob
     private readonly CancellationTokenSource _cancellation = new();
     private readonly CancellationToken _cancellationToken;
     private readonly List<string> _partialPaths = [];
+    private IReadOnlyList<TransferSourceVersion> _sourceVersions = [];
     private bool _processingFinished;
     private int _cancelCalls;
     private OperationStatus _status = OperationStatus.Queued;
@@ -119,7 +120,7 @@ public sealed class TransferJob
         lock (_gate)
         {
             var paths = _partialPaths.ToArray();
-            return new TransferRecoveryState(Request, TargetPath, paths) { PartialBytes = _partialBytes };
+            return new TransferRecoveryState(Request, TargetPath, paths) { PartialBytes = _partialBytes, SourceVersions = _sourceVersions };
         }
     }
 
@@ -131,6 +132,24 @@ public sealed class TransferJob
             {
                 AddPartialPath(paths[i]);
             }
+        }
+    }
+
+    public void RestoreSourceVersions(IReadOnlyList<TransferSourceVersion> versions)
+    {
+        lock (_gate) { _sourceVersions = versions; }
+    }
+
+    public bool CheckSourceVersions(IReadOnlyList<DTech.Core.Transfers.Execution.TransferItem> items)
+    {
+        var versions = items.Where(item => !item.IsDirectory)
+            .Select(item => new TransferSourceVersion(item.SourcePath, item.Size, item.ModifiedUtc))
+            .OrderBy(item => item.Path, StringComparer.Ordinal).ToArray();
+        lock (_gate)
+        {
+            if (ResumeExisting && _sourceVersions.Count > 0 && !_sourceVersions.SequenceEqual(versions)) return false;
+            _sourceVersions = versions;
+            return true;
         }
     }
 

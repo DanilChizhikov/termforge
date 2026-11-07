@@ -35,6 +35,12 @@ public sealed class TransferEnqueuer
             return TransferEnqueueResult.Failed(invalid);
         }
 
+        if (!Enum.IsDefined(batch.Direction) || (batch.Direction == TransferDirection.RemoteToRemote && (batch.TargetConnectionId is null || batch.TargetConnectionId == Guid.Empty)))
+        {
+            var invalid = FileError.Invalid("A remote transfer requires a destination connection.");
+            return TransferEnqueueResult.Failed(invalid);
+        }
+
         var denied = await CheckBeforeInspectionAsync(batch, cancellationToken);
         if (denied is not null)
         {
@@ -73,7 +79,7 @@ public sealed class TransferEnqueuer
             return TransferEnqueueResult.Failed(unreadable);
         }
 
-        request = request with { Overwrite = options.Overwrite };
+        request = request with { Overwrite = options.Overwrite, Restart = false };
         var batch = new TransferBatchRequest
         {
             ConnectionId = request.ConnectionId,
@@ -83,6 +89,8 @@ public sealed class TransferEnqueuer
             TargetDirectory = request.TargetDirectory,
             Overwrite = options.Overwrite,
             ConfirmationToken = options.ConfirmationToken,
+            TargetConnectionId = request.TargetConnectionId,
+            TargetServerName = request.TargetServerName,
         };
         var denied = await CheckBeforeInspectionAsync(batch, cancellationToken);
         if (denied is not null)
@@ -98,7 +106,7 @@ public sealed class TransferEnqueuer
         }
 
         var recovery = TransferRecoveryState.TryRead(operation);
-        var candidate = inspected.Value[0] with { ResumeExisting = true, PartialPaths = recovery?.PartialPaths ?? [] };
+        var candidate = inspected.Value[0] with { ResumeExisting = true, PartialPaths = recovery?.PartialPaths ?? [], SourceVersions = recovery?.SourceVersions ?? [] };
         TransferCandidate[] candidates = [candidate];
         var conflicts = FindConflicts(candidates, request.Overwrite);
         if (conflicts.Count > 0)
@@ -122,12 +130,12 @@ public sealed class TransferEnqueuer
 
     private async Task<FileError?> CheckBeforeInspectionAsync(TransferBatchRequest batch, CancellationToken cancellationToken)
     {
-        if (batch.Direction != TransferDirection.Upload)
+        if (batch.Direction == TransferDirection.Download)
         {
             return null;
         }
 
-        if (await _writeGate.IsReadOnlyAsync(batch.ConnectionId, cancellationToken))
+        if (await _writeGate.IsReadOnlyAsync(batch.DestinationConnectionId, cancellationToken))
         {
             return FileError.ReadOnlyServer();
         }
@@ -139,12 +147,12 @@ public sealed class TransferEnqueuer
 
     private async Task<FileError?> CheckUploadAsync(TransferBatchRequest batch, CancellationToken cancellationToken)
     {
-        if (batch.Direction != TransferDirection.Upload)
+        if (batch.Direction == TransferDirection.Download)
         {
             return null;
         }
 
-        var writeIntent = new WriteIntent(batch.ConnectionId);
+        var writeIntent = new WriteIntent(batch.DestinationConnectionId);
         if (batch.Overwrite)
         {
             writeIntent = writeIntent with
@@ -177,6 +185,9 @@ public sealed class TransferEnqueuer
                 SourcePath = batch.SourcePaths[i],
                 TargetDirectory = batch.TargetDirectory,
                 Overwrite = batch.Overwrite,
+                Restart = batch.Restart,
+                TargetConnectionId = batch.TargetConnectionId,
+                TargetServerName = batch.TargetServerName,
             };
             requests.Add(request);
         }
@@ -206,20 +217,19 @@ public sealed class TransferEnqueuer
 
     private async Task<FileResult<IReadOnlyList<TransferCandidate>>> InspectAsync(IReadOnlyList<TransferRequest> requests, CancellationToken cancellationToken)
     {
-        var connectionId = requests[0].ConnectionId;
-        var opened = await _opener.OpenAsync(connectionId, cancellationToken);
+        var opened = await TransferConnections.OpenAsync(_opener, requests[0], cancellationToken);
         if (!opened.IsSuccess)
         {
             return FileResult<IReadOnlyList<TransferCandidate>>.Failure(opened.Error);
         }
 
-        await using var client = opened.Value;
+        await using var connections = opened.Value;
         var candidates = new List<TransferCandidate>(requests.Count);
         for (var i = 0; i < requests.Count; i++)
         {
             var request = requests[i];
             var strategy = _strategies.For(request.Direction);
-            var context = new TransferContext(client, request);
+            var context = connections.Context(request);
             var inspection = await strategy.InspectAsync(context, cancellationToken);
             if (!inspection.IsSuccess)
             {
@@ -276,6 +286,7 @@ public sealed class TransferEnqueuer
                 var job = new TransferJob(id, candidate.Request, targetPath) { ResumeExisting = candidate.ResumeExisting };
                 jobs.Add(job);
                 job.RestorePartials(candidate.PartialPaths);
+                job.RestoreSourceVersions(candidate.SourceVersions);
                 await _journal.CheckpointAsync(job, cancellationToken);
             }
 
@@ -326,5 +337,7 @@ public sealed class TransferEnqueuer
         public bool ResumeExisting { get; init; }
 
         public IReadOnlyList<string> PartialPaths { get; init; } = [];
+
+        public IReadOnlyList<TransferSourceVersion> SourceVersions { get; init; } = [];
     }
 }

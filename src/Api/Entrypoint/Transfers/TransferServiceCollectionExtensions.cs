@@ -27,6 +27,9 @@ public static class TransferServiceCollectionExtensions
         services.AddSingleton<RemoteTransferPlanner>();
         services.AddSingleton<ITransferStrategy, UploadTransferStrategy>();
         services.AddSingleton<ITransferStrategy, DownloadTransferStrategy>();
+        services.AddSingleton<UploadTransferStrategy>();
+        services.AddSingleton<RemoteTransferVerifier>();
+        services.AddSingleton<ITransferStrategy, RemoteToRemoteTransferStrategy>();
         services.AddSingleton<TransferStrategySelector>();
         services.AddSingleton<TransferFileCopier>();
         services.AddSingleton<TransferExecutor>();
@@ -37,6 +40,7 @@ public static class TransferServiceCollectionExtensions
         services.AddScoped<TransferRetryConfirmationIssuer>();
         services.AddSingleton<IOperationRetryHandler>(CreateUploadRetryHandler);
         services.AddSingleton<IOperationRetryHandler>(CreateDownloadRetryHandler);
+        services.AddSingleton<IOperationRetryHandler>(CreateRemoteRetryHandler);
         services.AddSingleton<TransferQueueHostedService>();
         services.AddHostedService(ResolveQueueService);
         services.AddSingleton<IShutdownStep, TransferCancellationShutdownStep>();
@@ -59,5 +63,11 @@ public static class TransferServiceCollectionExtensions
     {
         var enqueuer = provider.GetRequiredService<TransferEnqueuer>();
         return new TransferRetryHandler(TransferOperationKinds.Download, enqueuer);
+    }
+
+    private static TransferRetryHandler CreateRemoteRetryHandler(IServiceProvider provider)
+    {
+        var enqueuer = provider.GetRequiredService<TransferEnqueuer>();
+        return new TransferRetryHandler(TransferOperationKinds.RemoteToRemote, enqueuer);
     }
 }

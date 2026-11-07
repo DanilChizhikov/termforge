@@ -6,6 +6,8 @@ public sealed record TransferPartialIdentity
 
     public required Guid ConnectionId { get; init; }
 
+    public Guid? TargetConnectionId { get; init; }
+
     public required string SourcePath { get; init; }
 
     public required string TargetPath { get; init; }

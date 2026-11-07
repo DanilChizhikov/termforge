@@ -8,10 +8,10 @@ public sealed class TransferExecutor(ITransferConnectionOpener opener, TransferS
     public async Task<TransferOutcome> RunAsync(TransferJob job)
     {
         var cancellationToken = job.CancellationToken;
-        FileResult<IRemoteFileClient> opened;
+        FileResult<TransferConnections> opened;
         try
         {
-            opened = await opener.OpenAsync(job.Request.ConnectionId, cancellationToken);
+            opened = await TransferConnections.OpenAsync(opener, job.Request, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -23,9 +23,9 @@ public sealed class TransferExecutor(ITransferConnectionOpener opener, TransferS
             return cancellationToken.IsCancellationRequested ? TransferOutcome.Cancelled : CreateFailure(job, opened.Error);
         }
 
-        await using var client = opened.Value;
+        await using var connections = opened.Value;
         var strategy = strategies.For(job.Request.Direction);
-        var context = new TransferContext(client, job.Request);
+        var context = connections.Context(job.Request);
         var file = new TransferFileContext(strategy, context, job);
         var result = await TransferSafelyAsync(file, cancellationToken);
         if (result.IsSuccess)
@@ -58,6 +58,10 @@ public sealed class TransferExecutor(ITransferConnectionOpener opener, TransferS
         }
 
         var plan = planned.Value;
+        if (file.Context.Request.Direction == TransferDirection.RemoteToRemote && !file.Job.CheckSourceVersions(plan.Items))
+        {
+            return RemoteTransferVerifier.RestartRequired();
+        }
         file.Job.Plan(plan.TotalBytes, plan.FileCount);
         for (var i = 0; i < plan.Items.Count; i++)
         {
