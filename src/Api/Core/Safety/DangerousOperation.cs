@@ -12,4 +12,6 @@ public enum DangerousOperation
     FileRollback,
     TransferOverwrite,
     LocalTransferOverwrite,
+    NetworkFullScan,
+    NetworkRemoteAction,
 }
