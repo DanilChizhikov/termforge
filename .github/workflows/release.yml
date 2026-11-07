@@ -129,6 +129,28 @@ jobs:
         pattern: termforge-*
         merge-multiple: true
 
+    - name: Generate integrity manifest
+      run: |
+        python3 - <<'PY'
+        import hashlib
+        import json
+        import os
+        from pathlib import Path
+
+        version = os.environ['VERSION']
+        packages = []
+        for rid in ['linux-x64', 'linux-arm64', 'win-x64', 'win-arm64', 'osx-x64', 'osx-arm64']:
+            extension = 'zip' if rid.startswith('win-') else 'tar.gz'
+            path = Path('dist') / f'termforge-{version}-{rid}.{extension}'
+            with path.open('rb') as source:
+                digest = hashlib.file_digest(source, 'sha256').hexdigest()
+            packages.append({'rid': rid, 'fileName': path.name, 'size': path.stat().st_size, 'sha256': digest})
+        manifest = {'schemaVersion': 1, 'version': version, 'packages': packages}
+        Path('dist/release-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+        PY
+      env:
+        VERSION: ${{ needs.Version.outputs.version }}
+
     - name: Create release
       run: |
         gh release create "$VERSION" dist/* \
