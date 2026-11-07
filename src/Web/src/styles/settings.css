@@ -434,3 +434,12 @@
   font-size: var(--text-dense);
   user-select: all;
 }
+
+.ai-bridge-token-info {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ai-bridge-token-form {
+  align-items: flex-end;
+}

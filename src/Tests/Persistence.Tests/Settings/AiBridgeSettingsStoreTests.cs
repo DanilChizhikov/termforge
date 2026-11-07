@@ -26,7 +26,7 @@ public sealed class AiBridgeSettingsStoreTests
     {
         using var database = new TemporaryDatabase();
         await database.MigrateAsync();
-        var first = new AiBridgeSettings(true, true, "abc123");
+        var first = new AiBridgeSettings(true, true);
         var second = first with { Enabled = false, RequireApproval = false };
 
         using (var context = database.CreateContext())

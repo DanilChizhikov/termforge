@@ -27,6 +27,8 @@ public static class AiBridgeServiceCollectionExtensions
         services.AddSingleton<IAiBridgeTokenGenerator, RandomAiBridgeTokenGenerator>();
         services.AddScoped<IAiBridgeSettingsStore, AiBridgeSettingsStore>();
         services.AddScoped<AiBridgeSettingsService>();
+        services.AddScoped<IAiBridgeTokenRepository, AiBridgeTokenRepository>();
+        services.AddScoped<AiBridgeTokenService>();
         services.AddScoped<AiServerAccessPolicy>();
         services.AddScoped<AiActionGate>();
         services.AddScoped<AiOperationRecorder>();

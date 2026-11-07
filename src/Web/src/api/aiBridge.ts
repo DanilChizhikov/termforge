@@ -9,7 +9,13 @@ export interface AiBridgeSettings {
   mcpUrl: string;
 }
 
-export interface AiBridgeToken {
+export interface AiBridgeTokenInfo {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface AiBridgeToken extends AiBridgeTokenInfo {
   token: string;
   mcpUrl: string;
 }
@@ -45,8 +51,16 @@ export function updateAiBridgeSettings(
   return client.put<AiBridgeSettings>(`${BRIDGE_PATH}/settings`, settings);
 }
 
-export function regenerateAiBridgeToken(client: ApiClient = apiClient): Promise<AiBridgeToken> {
-  return client.post<AiBridgeToken>(`${BRIDGE_PATH}/token`);
+export function listAiBridgeTokens(client: ApiClient = apiClient): Promise<AiBridgeTokenInfo[]> {
+  return client.get<AiBridgeTokenInfo[]>(`${BRIDGE_PATH}/tokens`);
+}
+
+export function createAiBridgeToken(name: string, client: ApiClient = apiClient): Promise<AiBridgeToken> {
+  return client.post<AiBridgeToken>(`${BRIDGE_PATH}/tokens`, { name });
+}
+
+export function revokeAiBridgeToken(id: string, client: ApiClient = apiClient): Promise<void> {
+  return client.delete<void>(`${BRIDGE_PATH}/tokens/${encodeURIComponent(id)}`);
 }
 
 export function listAiApprovals(client: ApiClient = apiClient): Promise<AiApproval[]> {
