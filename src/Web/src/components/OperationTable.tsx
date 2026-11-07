@@ -39,10 +39,12 @@ export function OperationTable({ operations, onRetry, onDiscard }: OperationTabl
                 {formatClockWithSeconds(operation.createdAt)}
               </td>
               <td>{describeOperationKind(operation.kind)}</td>
-              <td className="cell-mono">{operation.server ?? 'local'}</td>
+              <td className="cell-mono operation-server">{operation.server ?? 'local'}</td>
               <td className="operation-details">
-                {details === '' ? null : <code>{details}</code>}
-                {operation.error === null ? null : <span className="operation-error">{operation.error}</span>}
+                <div className="operation-details-content">
+                  {details === '' ? null : <code>{details}</code>}
+                  {operation.error === null ? null : <span className="operation-error">{operation.error}</span>}
+                </div>
               </td>
               <td data-testid={`status-${operation.id}`}>
                 <span className={statusTextClass(tone)}>
