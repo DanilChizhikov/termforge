@@ -23,7 +23,7 @@ public sealed class RemoteTransferVerifier
     {
         var before = await CheckSourceAsync(context, copy.Item, cancellationToken);
         if (!before.IsSuccess) return before;
-        using var source = new PrefixHashStream(copy.Offset);
+        using var source = new PrefixHashStream(copy.Offset, copy.Progress, 0);
         var read = new RemoteReadRequest(copy.Item.SourcePath, source, 0);
         var sourceResult = await context.Client.ReadFileAsync(read, cancellationToken);
         if (!sourceResult.IsSuccess)
@@ -32,7 +32,7 @@ public sealed class RemoteTransferVerifier
             return FileResult.Failure(error);
         }
 
-        using var target = new PrefixHashStream(copy.Offset);
+        using var target = new PrefixHashStream(copy.Offset, copy.Progress, copy.Item.Size);
         var targetRead = new RemoteReadRequest(copy.PartialPath, target, 0);
         var targetResult = await context.TargetClient!.ReadFileAsync(targetRead, cancellationToken);
         if (!targetResult.IsSuccess)
@@ -57,7 +57,7 @@ public sealed class RemoteTransferVerifier
         return FileResult.Failure(error);
     }
 
-    private sealed class PrefixHashStream(long limit) : Stream
+    private sealed class PrefixHashStream(long limit, IProgress<long>? progress, long initialBytes) : Stream
     {
         private readonly IncrementalHash _hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         public long Bytes { get; private set; }
@@ -77,6 +77,7 @@ public sealed class RemoteTransferVerifier
             var count = (int)Math.Min(buffer.Length, Math.Max(0, limit - Bytes));
             _hash.AppendData(buffer[..count]);
             Bytes += buffer.Length;
+            progress?.Report(initialBytes + Bytes);
         }
         public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
         {

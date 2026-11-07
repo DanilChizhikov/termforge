@@ -44,6 +44,8 @@ public sealed record TransferResponse
 
     public long PartialBytes { get; init; }
 
+    public TransferVerification? Verification { get; init; }
+
     public static TransferResponse From(TransferSnapshot snapshot)
     {
         var progress = snapshot.Progress;
@@ -69,6 +71,7 @@ public sealed record TransferResponse
             Error = snapshot.Error,
             Retryable = snapshot.Retryable,
             PartialBytes = snapshot.PartialBytes,
+            Verification = snapshot.Verification,
         };
     }
 }

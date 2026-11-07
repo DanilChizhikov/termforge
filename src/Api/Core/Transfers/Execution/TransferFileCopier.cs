@@ -1,4 +1,5 @@
 using DTech.Core.Files;
+using DTech.Core.Transfers.Queue;
 
 namespace DTech.Core.Transfers.Execution;
 
@@ -22,6 +23,7 @@ public sealed class TransferFileCopier(ITransferJournal? journal = null)
                 if (context.Request.Direction == TransferDirection.RemoteToRemote)
                 {
                     var verificationCopy = new TransferCopy(item, item.TargetPath, item.Size);
+                    verificationCopy = WithVerificationProgress(job, verificationCopy);
                     var verifier = new RemoteTransferVerifier();
                     var verified = await verifier.VerifyAsync(context, verificationCopy, cancellationToken);
                     if (!verified.IsSuccess) return verified;
@@ -49,6 +51,7 @@ public sealed class TransferFileCopier(ITransferJournal? journal = null)
         if (context.Request.Direction == TransferDirection.RemoteToRemote && offset > 0)
         {
             var verificationCopy = new TransferCopy(item, partialPath, offset);
+            verificationCopy = WithVerificationProgress(job, verificationCopy);
             var verifier = new RemoteTransferVerifier();
             var verified = await verifier.VerifyAsync(context, verificationCopy, cancellationToken);
             if (!verified.IsSuccess) return verified;
@@ -112,4 +115,12 @@ public sealed class TransferFileCopier(ITransferJournal? journal = null)
     }
 
     private readonly record struct PartialCandidate(string Path, long SourceSize);
+
+    private static TransferCopy WithVerificationProgress(TransferJob job, TransferCopy copy)
+    {
+        var total = checked(copy.Item.Size + copy.Offset);
+        job.BeginVerification(total);
+        var progress = new TransferVerificationProgress(job);
+        return copy with { Progress = progress };
+    }
 }
