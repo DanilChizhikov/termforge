@@ -1,18 +1,16 @@
-.diagnostics-workspace {
-  overflow: auto;
-  min-height: 0;
-}
-
 .network-diagnostics {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  overflow: visible;
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  container: network-diagnostics / inline-size;
 }
 
 .network-form,
-.network-fields,
-.network-results {
+.network-fields {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -20,19 +18,22 @@
 }
 
 .network-fields {
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-panel);
-  padding: 12px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.network-fields > legend {
+  padding: 0 0 12px;
 }
 
 .network-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 
-.network-choices,
-.network-point {
+.network-choices {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -47,17 +48,27 @@
 }
 
 .network-point {
-  justify-content: space-between;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.network-point:last-child {
+  border-bottom: 0;
 }
 
 .network-table-scroll {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .network-table-scroll td {
-  vertical-align: top;
+  vertical-align: middle;
   overflow-wrap: anywhere;
-  min-width: 80px;
 }
 
 .network-command {
@@ -66,4 +77,245 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font: var(--text-mono) var(--font-mono);
+}
+
+.network-workspace {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  flex: 1;
+  gap: 20px;
+  min-height: 0;
+}
+
+.network-settings {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 12px 4px 4px;
+  scrollbar-gutter: stable;
+}
+
+.network-settings-section {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 16px;
+}
+
+.network-settings-section > .network-fields {
+  margin-top: 8px;
+}
+
+.network-settings > .network-disclosure {
+  margin-top: 16px;
+}
+
+.network-section-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.network-point-identity {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.network-point-category {
+  width: 170px;
+  max-width: 100%;
+}
+
+.network-protocols {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 8px;
+}
+
+.network-disclosure > summary {
+  min-height: 32px;
+  padding: 6px 0;
+  color: var(--text-secondary);
+}
+
+.network-disclosure[open] > summary {
+  margin-bottom: 12px;
+}
+
+.network-results {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background: var(--surface-card);
+}
+
+.network-results-empty {
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 20px;
+  text-align: center;
+}
+
+.network-results-header {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.network-results-header h3 {
+  font-size: var(--text-body);
+  overflow-wrap: anywhere;
+}
+
+.network-results-header code {
+  margin-left: 8px;
+  color: var(--text-secondary);
+  font-size: var(--text-mono);
+  font-weight: 400;
+}
+
+.network-results-header [role='status'] {
+  color: var(--text-secondary);
+  font-size: var(--text-small);
+}
+
+.network-table {
+  min-width: 760px;
+  table-layout: fixed;
+}
+
+.network-column-point { width: 110px; }
+.network-column-category { width: 112px; }
+.network-column-check { width: 58px; }
+.network-column-port { width: 56px; }
+.network-column-result { width: 130px; }
+.network-column-time { width: 80px; }
+
+.network-outcome {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.network-outcome .status-dot {
+  flex: none;
+}
+
+.network-detail-preview {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font: var(--text-mono) var(--font-mono);
+}
+
+.network-detail-button {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.network-elapsed {
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font: var(--text-small) var(--font-mono);
+}
+
+.network-pagination {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-chrome);
+  color: var(--text-secondary);
+  font-size: var(--text-small);
+}
+
+.network-dialog {
+  width: min(800px, 100%);
+  overflow: hidden;
+}
+
+.network-dialog > .dialog-header,
+.network-dialog > .dialog-footer {
+  flex: none;
+}
+
+.network-picker-body,
+.network-details-body {
+  min-height: 0;
+  overflow: auto;
+}
+
+.network-point-list {
+  height: 310px;
+  flex: 0 1 310px;
+  min-height: 100px;
+  overflow: auto;
+  padding: 4px;
+  scrollbar-gutter: stable;
+}
+
+.network-picker-point {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 62px;
+  padding: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.network-picker-point:has(input:checked) {
+  background: var(--surface-selected);
+}
+
+.network-picker-point:has(input:disabled) {
+  color: var(--text-muted);
+}
+
+.network-detail-output {
+  flex: none;
+  padding: 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-canvas);
+  line-height: 1.7;
+}
+
+@container network-diagnostics (max-width: 800px) {
+  .network-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(160px, 2fr) minmax(220px, 3fr);
+  }
+}
+
+@media (max-height: 600px) {
+  .network-diagnostics {
+    overflow: auto;
+  }
+
+  .network-workspace {
+    flex: none;
+    min-height: 480px;
+  }
 }

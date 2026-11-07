@@ -87,6 +87,7 @@ export function WorkspaceTabs() {
         <EditorFileTabs editorActive={activeId === 'editor'} />
         <ToolTab id="docker" title="Docker" context={serverName} activeId={activeId} Icon={ContainerIcon} />
         <ToolTab id="diagnostics" title="Diagnostics" context={serverName} activeId={activeId} Icon={PulseIcon} />
+        <ToolTab id="network-diagnostics" title="Network diagnostics" activeId={activeId} Icon={PulseIcon} />
         <ToolTab id="history" title="Journal" activeId={activeId} Icon={ListIcon}>
           {failedToday === 0 ? null : (
             <>
@@ -107,7 +108,10 @@ export function WorkspaceTabs() {
         <DockerWorkspace active={activeId === 'docker'} />
       </ToolPanel>
       <ToolPanel id="diagnostics" activeId={activeId}>
-        {activeId === 'diagnostics' ? <div className="diagnostics-workspace"><NetworkDiagnosticPanel /><ServerDiagnostics /></div> : null}
+        {activeId === 'diagnostics' ? <ServerDiagnostics /> : null}
+      </ToolPanel>
+      <ToolPanel id="network-diagnostics" activeId={activeId}>
+        {activeId === 'network-diagnostics' ? <NetworkDiagnosticPanel /> : null}
       </ToolPanel>
       <ToolPanel id="history" activeId={activeId}>
         {activeId === 'history' ? <OperationHistory /> : null}

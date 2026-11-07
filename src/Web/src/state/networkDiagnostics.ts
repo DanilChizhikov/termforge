@@ -45,7 +45,7 @@ export const resetNetworkDiagnostics = () => { refreshVersion++; state = initial
 export function openNetworkDiagnostics(connectionId: string) {
   updateDiagnosticDraft({ targetConnectionId: connectionId });
   showAppView('workspace');
-  activateWorkspaceTab('diagnostics');
+  activateWorkspaceTab('network-diagnostics');
 }
 
 export async function runNetworkDiagnostic(confirmed = false) {

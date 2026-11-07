@@ -100,6 +100,13 @@ afterEach(() => {
 });
 
 describe('restoring the workspace', () => {
+  it('restores and saves the separate network diagnostics view', () => {
+    applyWorkspaceRestore({ ...RESTORE, state: { ...RESTORE.state, activeView: 'network-diagnostics' } });
+
+    expect(getActiveWorkspaceTab()).toBe('network-diagnostics');
+    expect(buildWorkspaceSnapshot().state.activeView).toBe('network-diagnostics');
+  });
+
   it('applies the saved selection, paths, layout, terminals, editor tabs and drafts', () => {
     applyWorkspaceRestore(RESTORE);
 
