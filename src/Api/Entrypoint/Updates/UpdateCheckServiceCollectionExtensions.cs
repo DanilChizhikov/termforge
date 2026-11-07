@@ -20,6 +20,11 @@ public static class UpdateCheckServiceCollectionExtensions
         services.TryAddSingleton<ICurrentVersionProvider, AssemblyVersionProvider>();
         services.AddHttpClient<IReleaseSource, GitHubReleaseSource>(ConfigureClient)
             .ConfigurePrimaryHttpMessageHandler(CreateHandler);
+        services.AddHttpClient<VerifiedReleaseDownloader>(client =>
+        {
+            client.Timeout = TimeSpan.FromMinutes(10);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("TermForge");
+        });
         services.TryAddSingleton<IUpdateChecker>(CreateChecker);
         services.AddHostedService<UpdateCheckStartupService>();
         return services;
