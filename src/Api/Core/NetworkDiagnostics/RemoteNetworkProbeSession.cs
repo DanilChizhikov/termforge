@@ -32,7 +32,7 @@ public sealed class RemoteNetworkProbeSession(IRemoteCommandRunner runner) : INe
         if (!result.IsSuccess)
         {
             var timedOut = result.Error!.Message.Contains("timed out", StringComparison.OrdinalIgnoreCase);
-            return new NetworkProbeOutcome(timedOut ? NetworkProbeOutcome.NoResponse : NetworkProbeOutcome.Error, RemoteText.Sanitize(result.Error.Message, 1000));
+            return new NetworkProbeOutcome(timedOut ? NetworkProbeOutcome.NoResponse : NetworkProbeOutcome.Error, NetworkDiagnosticText.Format(result.Error.Message, 1000));
         }
         return RemoteNetworkCommands.Parse(probe, result.Value);
     }

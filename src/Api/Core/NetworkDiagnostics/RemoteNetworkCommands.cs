@@ -48,7 +48,7 @@ public static class RemoteNetworkCommands
         if (probe.Protocol == "udp")
         {
             if (result.ExitCode != 0 && !string.IsNullOrWhiteSpace(result.StandardError))
-                return new NetworkProbeOutcome(NetworkProbeOutcome.Error, RemoteText.Sanitize(result.StandardError, 1000));
+                return new NetworkProbeOutcome(NetworkProbeOutcome.Error, NetworkDiagnosticText.Format(result.StandardError, 1000));
             return string.IsNullOrEmpty(result.StandardOutput)
                 ? new NetworkProbeOutcome(NetworkProbeOutcome.NoResponse, "No UDP reply was received. An open port and a filtered port cannot be distinguished from silence.")
                 : new NetworkProbeOutcome(NetworkProbeOutcome.Responded, "The remote point received UDP data.");
@@ -56,7 +56,7 @@ public static class RemoteNetworkCommands
         if (result.ExitCode != 0)
         {
             var status = probe.Protocol is "tcp" or "ssh" && string.IsNullOrWhiteSpace(text) ? NetworkProbeOutcome.NoResponse : NetworkProbeOutcome.Error;
-            return new NetworkProbeOutcome(status, RemoteText.Sanitize(text, 1000));
+            return new NetworkProbeOutcome(status, NetworkDiagnosticText.Format(text, 1000));
         }
         if (probe.Protocol == "http")
         {
@@ -72,8 +72,8 @@ public static class RemoteNetworkCommands
                 : new NetworkProbeOutcome(NetworkProbeOutcome.Responded, "SSH key exchange completed; host key collected without login. This check does not establish host trust.");
         }
         if (probe.Protocol == "route" && result.StandardOutput.Contains('*'))
-            return new NetworkProbeOutcome(NetworkProbeOutcome.NoResponse, RemoteText.Sanitize(result.StandardOutput, 2000));
+            return new NetworkProbeOutcome(NetworkProbeOutcome.NoResponse, NetworkDiagnosticText.Format(result.StandardOutput, 2000));
         return new NetworkProbeOutcome(NetworkProbeOutcome.Responded, probe.Protocol == "tls"
-            ? "TLS handshake and certificate validation succeeded." : RemoteText.Sanitize(text, 2000));
+            ? "TLS handshake and certificate validation succeeded." : NetworkDiagnosticText.Format(text, 2000));
     }
 }

@@ -33,6 +33,8 @@ The response is 202 with the run ID and progress snapshot. `GET /api/network-dia
 
 Results identify the point, its category, protocol, port, duration, and an outcome: `responded`, `refused`, `noResponse`, `error`, `unavailable`. A failed or unavailable check does not stop other checks. Silence from UDP is inconclusive. Neither a timeout nor a regional difference establishes filtering by a particular organization.
 
+Remote command details preserve line breaks, normalize CRLF and CR to LF, and remove other control characters. Existing detail limits remain 1,000 characters for errors and 2,000 for ordinary command output; text shortened at these limits ends with `[Output truncated]`. Output exceeding the command runner's separate limit remains an error. Previously collected flattened or truncated output cannot be reconstructed.
+
 Two runs execute at a time, with up to eight waiting. Each point shares a limit of 16 concurrent probes and 50 new probes per second across runs. Remote points use at most four SSH exec channels per run. Socket checks time out after three seconds; HTTP and local route checks after ten seconds. SSH key scanning uses a three-second network timeout with two additional seconds for process completion. Remote command cleanup also allows a small additional timeout. Cancelling a run stops its work; it does not delete collected results.
 
 ## Full port scans
