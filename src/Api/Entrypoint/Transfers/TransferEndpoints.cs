@@ -30,15 +30,28 @@ public static class TransferEndpoints
 
     private static async Task<IResult> Create(CreateTransfersBody body, ISavedConnectionRepository connections, TransferEnqueuer enqueuer, CancellationToken cancellationToken)
     {
-        if (body.ConnectionId is not { } connectionId || !Enum.TryParse<TransferDirection>(body.Direction, true, out var direction) || string.IsNullOrWhiteSpace(body.TargetDirectory))
+        if (body.ConnectionId is not { } connectionId || !Enum.TryParse<TransferDirection>(body.Direction, true, out var direction) || !Enum.IsDefined(direction) || string.IsNullOrWhiteSpace(body.TargetDirectory))
         {
-            return TransferErrorResults.Invalid("connectionId, direction (upload or download) and targetDirectory are required.");
+            return TransferErrorResults.Invalid("connectionId, direction (upload, download or remoteToRemote) and targetDirectory are required.");
         }
 
         var connection = await connections.FindAsync(connectionId, cancellationToken);
         if (connection is null)
         {
             return TransferErrorResults.Invalid($"Saved connection {connectionId} was not found.");
+        }
+
+        SavedConnection? targetConnection = null;
+        if (direction == TransferDirection.RemoteToRemote)
+        {
+            if (body.TargetConnectionId is not { } targetId || (targetConnection = await connections.FindAsync(targetId, cancellationToken)) is null)
+            {
+                return TransferErrorResults.Invalid("A saved targetConnectionId is required for remoteToRemote.");
+            }
+        }
+        else if (body.TargetConnectionId is not null)
+        {
+            return TransferErrorResults.Invalid("targetConnectionId is only supported for remoteToRemote.");
         }
 
         var batch = new TransferBatchRequest
@@ -50,6 +63,9 @@ public static class TransferEndpoints
             TargetDirectory = body.TargetDirectory,
             Overwrite = body.Overwrite,
             ConfirmationToken = body.ConfirmationToken,
+            TargetConnectionId = targetConnection?.Id,
+            TargetServerName = targetConnection?.Details.Name,
+            Restart = body.Restart,
         };
         var result = await enqueuer.EnqueueAsync(batch, cancellationToken);
         if (result.Error is not null)

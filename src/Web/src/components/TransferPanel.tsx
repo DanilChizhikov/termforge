@@ -18,6 +18,7 @@ import {
   dismissTransferError,
   reportTransferError,
   requestTransferRetry,
+  requestTransfers,
   useTransfersState,
 } from '../state/transfers';
 import { activateWorkspaceTab } from '../state/workspaceTab';
@@ -54,6 +55,9 @@ function summarize(transfers: readonly TransferRecord[]): string {
 
 function describeRoute(transfer: TransferRecord): string {
   const folderSuffix = transfer.totalFiles > 1 ? '/' : '';
+  if (transfer.direction === 'remoteToRemote') {
+    return `${transfer.server}:${baseName(transfer.sourcePath)}${folderSuffix} → ${transfer.targetServer ?? transfer.targetConnectionId}:${parentDirectoryOf(transfer.targetPath)}`;
+  }
   return `${baseName(transfer.sourcePath)}${folderSuffix} → ${parentDirectoryOf(transfer.targetPath)}`;
 }
 
@@ -74,7 +78,7 @@ function TransferCard({ transfer }: { transfer: TransferRecord }) {
       <div className="transfer-card-header">
         <span className={directionClassName(transfer)}>
           {transfer.direction === 'upload' ? <ArrowUpIcon size={13} /> : <ArrowDownIcon size={13} />}
-          <span className="visually-hidden">{transfer.direction === 'upload' ? 'Upload' : 'Download'}</span>
+          <span className="visually-hidden">{transfer.direction === 'remoteToRemote' ? 'Server copy' : transfer.direction === 'upload' ? 'Upload' : 'Download'}</span>
         </span>
         <code className="transfer-route" title={`${transfer.sourcePath} → ${transfer.targetPath}`}>
           {describeRoute(transfer)}
@@ -91,6 +95,7 @@ function TransferCard({ transfer }: { transfer: TransferRecord }) {
         {resumable && (
           <button type="button" className="btn btn-xs btn-safe" onClick={() => run(() => requestTransferRetry(transfer.id, {
             connectionId: transfer.connectionId,
+            targetConnectionId: transfer.targetConnectionId,
             direction: transfer.direction,
             sourcePaths: [transfer.sourcePath],
             targetDirectory: transfer.targetDirectory ?? parentDirectoryOf(transfer.targetPath),
@@ -102,6 +107,19 @@ function TransferCard({ transfer }: { transfer: TransferRecord }) {
         {!isActive(transfer) && (transfer.hasPartial ?? transfer.partialBytes > 0) && (
           <button type="button" className="btn btn-xs btn-danger-link" onClick={() => run(() => discardTransfer(transfer.id))}>
             Discard partial
+          </button>
+        )}
+        {!isActive(transfer) && transfer.direction === 'remoteToRemote' && transfer.status !== 'succeeded' && (
+          <button type="button" className="btn btn-xs" onClick={() => run(() => requestTransfers({
+            restart: true,
+            connectionId: transfer.connectionId,
+            targetConnectionId: transfer.targetConnectionId,
+            direction: transfer.direction,
+            sourcePaths: [transfer.sourcePath],
+            targetDirectory: transfer.targetDirectory ?? parentDirectoryOf(transfer.targetPath),
+            overwrite: false,
+          }))}>
+            Start again
           </button>
         )}
       </div>

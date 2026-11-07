@@ -1,13 +1,15 @@
 import { ApiError, apiClient, type ApiClient } from './client';
 import { requestConfirmationToken } from './confirmations';
 
-export type TransferDirection = 'upload' | 'download';
+export type TransferDirection = 'upload' | 'download' | 'remoteToRemote';
 
 export type TransferStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
 
 export interface TransferRecord {
   id: string;
   connectionId: string;
+  targetConnectionId?: string;
+  targetServer?: string;
   server: string;
   direction: TransferDirection;
   sourcePath: string;
@@ -24,10 +26,13 @@ export interface TransferRecord {
   retryable: boolean;
   partialBytes: number;
   hasPartial?: boolean;
+  verification?: { checkedBytes: number; totalBytes: number } | null;
 }
 
 export interface TransferStartRequest {
   connectionId: string;
+  targetConnectionId?: string | undefined;
+  restart?: boolean;
   direction: TransferDirection;
   sourcePaths: string[];
   targetDirectory: string;
@@ -71,10 +76,10 @@ async function withOverwriteConfirmation(
   request: TransferStartRequest,
   client: ApiClient,
 ): Promise<TransferStartRequest & { confirmationToken?: string }> {
-  if (!request.overwrite || request.direction !== 'upload') {
+  if (!request.overwrite || request.direction === 'download') {
     return request;
   }
-  const scope = { operation: 'TransferOverwrite' as const, connectionId: request.connectionId, target: request.targetDirectory };
+  const scope = { operation: 'TransferOverwrite' as const, connectionId: request.targetConnectionId ?? request.connectionId, target: request.targetDirectory };
   const confirmationToken = await requestConfirmationToken(scope, client);
   return { ...request, confirmationToken };
 }
@@ -144,6 +149,10 @@ export function formatDuration(seconds: number): string {
 }
 
 export function percentOf(transfer: TransferRecord): number {
+  if (transfer.verification != null) {
+    const { checkedBytes, totalBytes } = transfer.verification;
+    return totalBytes <= 0 ? 0 : Math.min(100, Math.round((checkedBytes / totalBytes) * 100));
+  }
   if (transfer.totalBytes <= 0) {
     return transfer.status === 'succeeded' ? 100 : 0;
   }
@@ -151,6 +160,9 @@ export function percentOf(transfer: TransferRecord): number {
 }
 
 export function describeAmount(transfer: TransferRecord): string {
+  if (transfer.verification != null) {
+    return `Checking contents: ${formatBytes(transfer.verification.checkedBytes)} of ${formatBytes(transfer.verification.totalBytes)}`;
+  }
   if (transfer.totalFiles > 1) {
     return `${transfer.completedFiles} of ${transfer.totalFiles} files`;
   }
@@ -164,7 +176,7 @@ export function parentDirectoryOf(path: string): string {
 }
 
 export function describeRate(transfer: TransferRecord): string {
-  if (transfer.status !== 'running' || transfer.bytesPerSecond <= 0) {
+  if (transfer.verification != null || transfer.status !== 'running' || transfer.bytesPerSecond <= 0) {
     return '';
   }
   const rate = `${formatBytes(transfer.bytesPerSecond)}/s`;

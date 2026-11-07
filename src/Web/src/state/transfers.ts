@@ -101,8 +101,8 @@ export async function requestTransferRetry(id: string, request: TransferStartReq
       if (confirmationById) {
         options.confirmationToken = await requestTransferRetryConfirmation(id);
       } else {
-        const operation = request.direction === 'upload' ? 'TransferOverwrite' : 'LocalTransferOverwrite';
-        const scope = { operation, connectionId: request.connectionId, target: request.targetDirectory } as const;
+        const operation = request.direction === 'download' ? 'LocalTransferOverwrite' : 'TransferOverwrite';
+        const scope = { operation, connectionId: request.targetConnectionId ?? request.connectionId, target: request.targetDirectory } as const;
         options.confirmationToken = await requestConfirmationToken(scope);
       }
     }

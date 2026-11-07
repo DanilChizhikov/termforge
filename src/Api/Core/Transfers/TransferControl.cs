@@ -139,13 +139,13 @@ public sealed class TransferControl
             return DeleteLocalPartials(recovery.PartialPaths);
         }
 
-        if (_writeGate is not null && await _writeGate.IsReadOnlyAsync(job.Request.ConnectionId, cancellationToken))
+        if (_writeGate is not null && await _writeGate.IsReadOnlyAsync(job.Request.DestinationConnectionId, cancellationToken))
         {
             var readOnly = FileError.ReadOnlyServer();
             return FileResult.Failure(readOnly);
         }
 
-        var opened = await _opener.OpenAsync(job.Request.ConnectionId, cancellationToken);
+        var opened = await _opener.OpenAsync(job.Request.DestinationConnectionId, cancellationToken);
         if (!opened.IsSuccess)
         {
             return FileResult.Failure(opened.Error);
@@ -153,7 +153,7 @@ public sealed class TransferControl
 
         await using var client = opened.Value;
         var strategy = _strategies.For(job.Request.Direction);
-        var context = new TransferContext(client, job.Request);
+        var context = new TransferContext(client, job.Request) { TargetClient = client };
         for (var i = 0; i < recovery.PartialPaths.Count; i++)
         {
             var deleted = await strategy.DeletePartialAsync(context, recovery.PartialPaths[i], cancellationToken);
