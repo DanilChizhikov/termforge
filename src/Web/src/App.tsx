@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { Group, Panel, Separator } from 'react-resizable-panels';
+import { installGlobalShortcuts, type GlobalShortcutBinding } from './keyboard/globalShortcuts';
 import { AppHeader } from './components/AppHeader';
 import { CollapsibleRegion } from './components/CollapsibleRegion';
 import { AiApprovalPrompt } from './components/AiApprovalPrompt';
@@ -12,10 +14,14 @@ import { useAppView } from './state/appView';
 import { useConnections } from './state/connections';
 import { usePersistentLayout } from './state/workspaceLayout';
 
+const globalShortcuts: readonly GlobalShortcutBinding[] = [];
+
 export function App() {
   const view = useAppView();
   useConnections();
   const layout = usePersistentLayout('app-layout');
+
+  useEffect(() => installGlobalShortcuts(globalShortcuts), []);
 
   return (
     <div className="app">
