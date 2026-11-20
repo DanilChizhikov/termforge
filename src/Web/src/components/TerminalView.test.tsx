@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TerminalSession } from '../api/terminals';
 import { selectServer } from '../state/selectedServer';
+import { dockPointer, measure } from '../test/DockingPointer';
 import { renderInWorkspace } from '../test/FloatingTestWorkspace';
 import { TerminalView } from './TerminalView';
 import { TerminalWorkspace } from './TerminalWorkspace';
@@ -215,6 +216,27 @@ async function renderFloatingTerminal() {
 
 describe('floating terminal sessions', () => {
   afterEach(() => { selectServer(null); });
+
+  it('keeps one terminal, WebSocket and PTY when its tab is dragged into a workspace split', async () => {
+    const { id, terminal, container, socket } = await renderFloatingTerminal();
+    const floating = screen.getByRole('region', { name: 'web #1' });
+    fireEvent.click(within(floating).getByRole('button', { name: 'Dock' }));
+    const tab = screen.getByRole('tab', { name: /web #1/ });
+    measure(tab.closest('[role="tablist"]')!, { x: 280, y: 125, width: 240, height: 36 });
+    const pointer = dockPointer(container);
+    pointer.down(tab, 340, 145);
+    pointer.move(530, 44);
+    pointer.up(530, 44);
+
+    expect(terminal.closest('.workspace-dock-split')).toBeInTheDocument();
+    expect(screen.getByTestId('terminal-view')).toBe(terminal);
+    expect(terminal.closest('[data-workspace-panel-content]')).toHaveAttribute('data-workspace-panel-content', id);
+    expect(mocks.FakeTerminal.instances).toHaveLength(1);
+    expect(mocks.FakeWebSocket.instances).toEqual([socket]);
+    expect(socket.closed).toBe(false);
+    expect(mocks.openTerminal).toHaveBeenCalledOnce();
+    expect(mocks.closeTerminal).not.toHaveBeenCalled();
+  });
 
   it('keeps the terminal, WebSocket and PTY across dock and detach, and confirms an allocated session before closing', async () => {
     HTMLDialogElement.prototype.showModal = function () { this.open = true; this.querySelector('button')?.focus(); };

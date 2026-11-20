@@ -28,7 +28,7 @@ export function FloatingWindow({ panelId, title, Icon, rect, bodyRef, onDock, on
 
   useLayoutEffect(() => preview(rect), [preview, rect]);
 
-  const begin = (event: PointerEvent, direction: FloatingDirection) => {
+  const begin = (event: PointerEvent<HTMLElement>, direction: FloatingDirection) => {
     startGesture?.(event, { panelId, direction, rect, preview });
   };
 

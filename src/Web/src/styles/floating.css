@@ -12,8 +12,103 @@
 
 .workspace-panel-slot,
 .workspace-panel-host,
+.workspace-tiled-host,
+.workspace-canvas > .workspace-dock-layout,
 .docker-containers-section {
   display: contents;
+}
+
+.workspace-dock-layout,
+.workspace-dock-tile,
+.workspace-dock-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.region-body > .workspace-dock-layout {
+  min-height: 100%;
+}
+
+.terminal-body > .workspace-dock-layout {
+  flex: 0 0 280px;
+  border-left: 1px solid var(--border-faint);
+}
+
+.main-workspace > .workspace-dock-layout {
+  flex: none;
+  max-height: 40%;
+}
+
+.workspace-dock-header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-height: 32px;
+  padding: 2px 6px;
+  border-bottom: 1px solid var(--border-faint);
+  background: var(--surface-chrome);
+}
+
+.workspace-dock-layout[data-dock-collapsed] .workspace-dock-header {
+  display: none;
+}
+
+.workspace-dock-tabs {
+  display: flex;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.workspace-dock-tabs .workspace-tab[aria-selected="true"] {
+  background: var(--surface-selected);
+}
+
+.workspace-dock-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-dock-body {
+  overflow: auto;
+}
+
+.workspace-dock-body .history-panel,
+.workspace-dock-body .transfer-panel {
+  flex: 1;
+  max-height: none;
+}
+
+.workspace-dock-split > [data-panel] {
+  display: flex;
+  flex-direction: column;
+}
+
+[data-dock-tab],
+.workspace-dock-tabs .workspace-tab {
+  touch-action: none;
+  user-select: none;
+}
+
+.workspace-dock-overlay {
+  position: absolute;
+  z-index: 3;
+  border: 1px solid var(--status-info);
+  border-radius: var(--radius-panel);
+  background: var(--status-info-soft);
+  pointer-events: none;
+}
+
+.workspace-dock-overlay-ghost {
+  border-style: dashed;
 }
 
 .floating-window {

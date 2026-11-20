@@ -1,10 +1,13 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EditorDocument, SaveConflict, SavedFile } from '../../api/editor';
 import { editorFileKey, openEditorFile, resetEditorFiles } from '../../state/editorFiles';
+import { dockPointer, measure, measureTile } from '../../test/DockingPointer';
 import { EditorHarness } from '../../test/EditorHarness';
 import { renderInWorkspace } from '../../test/FloatingTestWorkspace';
+import { FileIcon } from '../icons/Icons';
+import { MovablePanel } from '../workspace/MovablePanel';
 
 vi.mock('./CodeEditor', () => ({
   default: ({ value, label, onChange }: { value: string; label: string; onChange: (text: string) => void }) => (
@@ -110,6 +113,34 @@ async function openAndEdit(text: string) {
 }
 
 describe('EditorWorkspace', () => {
+  it('retains its draft, selection and path when drag-out joins another tile as a tab', async () => {
+    const view = renderInWorkspace(
+      <>
+        <div role="tablist" aria-label="Open files"><EditorHarness /></div>
+        <MovablePanel id="destination" title="Destination" Icon={FileIcon}>Destination content</MovablePanel>
+      </>,
+    );
+    act(() => openEditorFile(CONNECTION_ID, PATH));
+    const editor = await screen.findByLabelText<HTMLTextAreaElement>(`Editing ${PATH}`);
+    fireEvent.change(editor, { target: { value: 'name: local draft' } });
+    editor.setSelectionRange(6, 11);
+    measure(screen.getByRole('tablist', { name: 'Open files' }), { x: 120, y: 100, width: 300, height: 40 });
+    const target = measureTile(view.container, 'destination', { x: 500, y: 250, width: 440, height: 400 });
+    const pointer = dockPointer(view.container);
+    pointer.down(screen.getByRole('tab', { name: /app.yml/ }), 150, 120);
+    pointer.move(700, 275);
+    pointer.up(700, 275);
+
+    const tabs = within(screen.getByRole('tablist', { name: 'Docked panels' }));
+    fireEvent.click(tabs.getByRole('tab', { name: 'Destination' }));
+    expect(editor).not.toBeVisible();
+    fireEvent.click(tabs.getByRole('tab', { name: 'app.yml' }));
+    expect(target).toContainElement(editor);
+    expect(screen.getByLabelText(`Editing ${PATH}`)).toBe(editor);
+    expect(editor).toHaveValue('name: local draft');
+    expect([editor.selectionStart, editor.selectionEnd]).toEqual([6, 11]);
+  });
+
   it('retains the same editor, draft and cursor when detached and docked', async () => {
     const user = userEvent.setup();
     const view = renderInWorkspace(<EditorHarness />);

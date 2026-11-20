@@ -3,6 +3,7 @@ import { requestEditorFileClose } from '../../state/editorClose';
 import { activateEditorFile, useEditorFiles } from '../../state/editorFiles';
 import { activateWorkspaceTab } from '../../state/workspaceTab';
 import { CloseIcon, FileIcon } from '../icons/Icons';
+import { useDockTab } from '../workspace/useDockTab';
 
 export interface EditorFileTabsProps {
   editorActive: boolean;
@@ -11,6 +12,7 @@ export interface EditorFileTabsProps {
 export function EditorFileTabs({ editorActive }: EditorFileTabsProps) {
   const { files, activeKey } = useEditorFiles();
   const connections = useConnectionsSnapshot();
+  const dockTab = useDockTab();
 
   return (
     <>
@@ -26,6 +28,7 @@ export function EditorFileTabs({ editorActive }: EditorFileTabsProps) {
               aria-selected={selected}
               aria-controls={`panel-${file.key}`}
               className="workspace-tab"
+              {...dockTab(file.key)}
               title={file.path}
               onClick={() => {
                 activateEditorFile(file.key);
