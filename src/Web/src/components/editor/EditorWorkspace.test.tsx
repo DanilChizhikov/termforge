@@ -2,8 +2,9 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EditorDocument, SaveConflict, SavedFile } from '../../api/editor';
-import { openEditorFile, resetEditorFiles } from '../../state/editorFiles';
+import { editorFileKey, openEditorFile, resetEditorFiles } from '../../state/editorFiles';
 import { EditorHarness } from '../../test/EditorHarness';
+import { renderInWorkspace } from '../../test/FloatingTestWorkspace';
 
 vi.mock('./CodeEditor', () => ({
   default: ({ value, label, onChange }: { value: string; label: string; onChange: (text: string) => void }) => (
@@ -109,6 +110,30 @@ async function openAndEdit(text: string) {
 }
 
 describe('EditorWorkspace', () => {
+  it('retains the same editor, draft and cursor when detached and docked', async () => {
+    const user = userEvent.setup();
+    const view = renderInWorkspace(<EditorHarness />);
+    act(() => openEditorFile(CONNECTION_ID, PATH));
+    const editor = await screen.findByLabelText<HTMLTextAreaElement>(`Editing ${PATH}`);
+    await user.clear(editor);
+    await user.type(editor, 'name: my draft');
+    editor.setSelectionRange(6, 8);
+    view.detach(editorFileKey(CONNECTION_ID, PATH));
+
+    const floating = screen.getByRole('region', { name: 'app.yml' });
+    expect(floating).toContainElement(editor);
+    await user.click(within(floating).getByRole('button', { name: 'Close floating window' }));
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Keep editing' }));
+    await user.click(within(floating).getByRole('button', { name: 'Dock' }));
+
+    expect(screen.getByLabelText(`Editing ${PATH}`)).toBe(editor);
+    expect(editor).toHaveValue('name: my draft');
+    expect([editor.selectionStart, editor.selectionEnd]).toEqual([6, 8]);
+    expect(screen.getByText('Unsaved changes')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Close app.yml' }));
+    await user.click(screen.getByRole('button', { name: 'Discard and close' }));
+  });
+
   it('shows an empty state when nothing is open', () => {
     render(<EditorHarness />);
 

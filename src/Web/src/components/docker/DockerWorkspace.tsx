@@ -6,6 +6,9 @@ import { useSelectedServerId } from '../../state/selectedServer';
 import { EmptyState } from '../EmptyState';
 import { LoadingState } from '../LoadingState';
 import { CheckIcon, RefreshArcIcon } from '../icons/Icons';
+import { useWorkspacePanels } from '../workspace/WorkspacePanelProvider';
+import { DOCKER_LOGS_PANEL_ID } from './ContainerLogs';
+import { DOCKER_SHELL_PANEL_ID } from './ContainerShellPanel';
 import { ContainersPanel } from './ContainersPanel';
 import { AVAILABILITY_TITLES, availabilityTone, isProblem, isRunning, type ContainerFilter } from './dockerStatus';
 import { ImagesPanel } from './ImagesPanel';
@@ -39,6 +42,11 @@ export function DockerWorkspace({ active }: { active: boolean }) {
 }
 
 function DockerView({ serverId }: { serverId: string }) {
+  const placements = useWorkspacePanels()?.placements;
+  const detailsFloating = placements?.get(DOCKER_SHELL_PANEL_ID)?.mode === 'floating'
+    || placements?.get(DOCKER_LOGS_PANEL_ID)?.mode === 'floating';
+  const [keepContainers, setKeepContainers] = useState(detailsFloating);
+  if (detailsFloating && !keepContainers) setKeepContainers(true);
   const connection = useConnection(serverId);
   const readOnly = connection?.readOnly ?? false;
   const [state, setState] = useState<OverviewState>({ overview: null, error: null, isLoading: true });
@@ -136,8 +144,10 @@ function DockerView({ serverId }: { serverId: string }) {
         </p>
       ) : null}
       {overview !== null && !isAvailable ? <UnavailableCallout overview={overview} /> : null}
-      {overview !== null && isAvailable && section === 'containers' ? (
-        <ContainersPanel serverId={serverId} overview={overview} filter={filter} readOnly={readOnly} onChanged={refresh} />
+      {overview !== null && isAvailable && (section === 'containers' || detailsFloating || keepContainers) ? (
+        <div className="docker-containers-section" hidden={section !== 'containers'}>
+          <ContainersPanel serverId={serverId} overview={overview} filter={filter} readOnly={readOnly} onChanged={refresh} />
+        </div>
       ) : null}
       {overview !== null && isAvailable && section === 'images' ? (
         <ImagesPanel

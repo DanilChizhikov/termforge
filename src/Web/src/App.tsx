@@ -10,6 +10,10 @@ import { SessionBanner } from './components/SessionBanner';
 import { SettingsView } from './components/settings/SettingsView';
 import { WorkspaceRestoreNotice } from './components/WorkspaceRestoreNotice';
 import { WorkspaceTabs } from './components/WorkspaceTabs';
+import { ListIcon } from './components/icons/Icons';
+import { MovablePanel } from './components/workspace/MovablePanel';
+import { WorkspaceCanvas } from './components/workspace/WorkspaceCanvas';
+import { WorkspacePanelProvider } from './components/workspace/WorkspacePanelProvider';
 import { useAppView } from './state/appView';
 import { useConnections } from './state/connections';
 import { usePersistentLayout } from './state/workspaceLayout';
@@ -28,17 +32,21 @@ export function App() {
       <AppHeader />
       <SessionBanner />
       <WorkspaceRestoreNotice />
-      <div className="app-view" hidden={view !== 'workspace'}>
-        <Group orientation="horizontal" id="app-layout" className="group" {...layout}>
-          <CollapsibleRegion id="servers" title="Servers" defaultSize="264px" minSize="200px" collapsedLayout="content">
-            <ServerSidebar />
-          </CollapsibleRegion>
-          <Separator className="separator separator-vertical" aria-label="Resize panels" />
-          <Panel id="main" minSize="30%">
-            <WorkspaceTabs />
-          </Panel>
-        </Group>
-      </div>
+      <WorkspacePanelProvider>
+        <WorkspaceCanvas hidden={view !== 'workspace'}>
+          <Group orientation="horizontal" id="app-layout" className="group" {...layout}>
+            <CollapsibleRegion id="servers" title="Servers" defaultSize="264px" minSize="200px" collapsedLayout="content">
+              <MovablePanel id="servers" title="Servers" Icon={ListIcon}>
+                <ServerSidebar />
+              </MovablePanel>
+            </CollapsibleRegion>
+            <Separator className="separator separator-vertical" aria-label="Resize panels" />
+            <Panel id="main" minSize="30%">
+              <WorkspaceTabs />
+            </Panel>
+          </Group>
+        </WorkspaceCanvas>
+      </WorkspacePanelProvider>
       {view === 'settings' ? <SettingsView /> : null}
       <HostKeyPrompt />
       <AiApprovalPrompt />

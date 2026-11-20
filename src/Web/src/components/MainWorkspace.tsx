@@ -4,6 +4,8 @@ import { CollapsibleRegion } from './CollapsibleRegion';
 import { TerminalWorkspace } from './TerminalWorkspace';
 import { DualFileBrowser } from './DualFileBrowser';
 import { TransferPanel } from './TransferPanel';
+import { ArrowUpIcon } from './icons/Icons';
+import { MovablePanel } from './workspace/MovablePanel';
 
 export function MainWorkspace() {
   const mainLayout = usePersistentLayout('main-workspace');
@@ -20,7 +22,9 @@ export function MainWorkspace() {
           </section>
         </Panel>
       </Group>
-      <TransferPanel />
+      <MovablePanel id="transfers" title="Transfers" Icon={ArrowUpIcon}>
+        <TransferPanel />
+      </MovablePanel>
     </div>
   );
 }

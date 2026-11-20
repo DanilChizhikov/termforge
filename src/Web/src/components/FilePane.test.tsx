@@ -4,7 +4,10 @@ import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api/client';
 import type { DirectoryListing, FileEntry, FileSource } from '../api/files';
+import { renderInWorkspace } from '../test/FloatingTestWorkspace';
 import { FilePane } from './FilePane';
+import { FolderIcon } from './icons/Icons';
+import { MovablePanel } from './workspace/MovablePanel';
 
 function entry(overrides: Partial<FileEntry>): FileEntry {
   return {
@@ -77,6 +80,31 @@ describe('FilePane', () => {
 
   beforeEach(() => {
     source = makeSource();
+  });
+
+  it('retains its directory and selected row across detach and dock', async () => {
+    const user = userEvent.setup();
+    const { detach } = renderInWorkspace(
+      <MovablePanel id="files" title="Files" Icon={FolderIcon}>
+        <Harness source={source} initialPath="/home" />
+      </MovablePanel>,
+    );
+    await user.dblClick(await screen.findByText('docs'));
+    const name = await screen.findByText('readme.md');
+    await user.click(name);
+    const row = name.closest('tr');
+    const listing = vi.mocked(source.list).mock.calls.length;
+
+    detach('files');
+    const floating = screen.getByRole('region', { name: 'Files' });
+    expect(floating).toContainElement(name);
+    expect(row).toHaveAttribute('aria-selected', 'true');
+    await user.click(within(floating).getByRole('button', { name: 'Dock' }));
+
+    expect(screen.getByText('readme.md')).toBe(name);
+    expect(row).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('navigation', { name: 'Breadcrumbs' })).toHaveTextContent('docs');
+    expect(source.list).toHaveBeenCalledTimes(listing);
   });
 
   it('lists the default location and reports the resolved path', async () => {

@@ -13,7 +13,8 @@ import { CollapsibleRegion, RegionToggle } from './CollapsibleRegion';
 import { EmptyState } from './EmptyState';
 import { FilePane } from './FilePane';
 import type { FilePaneTransfer } from './filePaneTransfer';
-import { ArrowLeftIcon, ArrowRightIcon } from './icons/Icons';
+import { ArrowLeftIcon, ArrowRightIcon, FolderIcon } from './icons/Icons';
+import { MovablePanel } from './workspace/MovablePanel';
 
 export interface BrowserLocation {
   source: string | null;
@@ -42,14 +43,20 @@ export function DualFileBrowser() {
   const layout = usePersistentLayout('file-panes');
   const [left, setLeft] = useState(() => initialLocation('local'));
   const [right, setRight] = useState(() => initialLocation(getSelectedServerId()));
+  const leftTitle = left.source === 'local' ? 'Local' : 'Left files';
+  const rightTitle = right.source === 'local' ? 'Right files' : 'Remote';
   return (
     <Group orientation="horizontal" id="file-panes" className="group" {...layout}>
-      <CollapsibleRegion id="local-files" title={left.source === 'local' ? 'Local' : 'Left files'} defaultSize="50%" minSize="15%" collapsedLayout="rail">
-        <BrowserPane id="left" location={left} target={right} onChange={setLeft} />
+      <CollapsibleRegion id="local-files" title={leftTitle} defaultSize="50%" minSize="15%" collapsedLayout="rail" keepMounted>
+        <MovablePanel id="local-files" title={leftTitle} Icon={FolderIcon}>
+          <BrowserPane id="left" location={left} target={right} onChange={setLeft} />
+        </MovablePanel>
       </CollapsibleRegion>
       <Separator className="separator separator-vertical" aria-label="Resize panels" />
-      <CollapsibleRegion id="remote-files" title={right.source === 'local' ? 'Right files' : 'Remote'} defaultSize="50%" minSize="15%" collapsedLayout="rail">
-        <BrowserPane id="right" location={right} target={left} onChange={setRight} />
+      <CollapsibleRegion id="remote-files" title={rightTitle} defaultSize="50%" minSize="15%" collapsedLayout="rail" keepMounted>
+        <MovablePanel id="remote-files" title={rightTitle} Icon={FolderIcon}>
+          <BrowserPane id="right" location={right} target={left} onChange={setRight} />
+        </MovablePanel>
       </CollapsibleRegion>
     </Group>
   );
