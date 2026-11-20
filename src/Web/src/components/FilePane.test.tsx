@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api/client';
 import type { DirectoryListing, FileEntry, FileSource } from '../api/files';
+import { dockPointer } from '../test/DockingPointer';
 import { renderInWorkspace } from '../test/FloatingTestWorkspace';
 import { FilePane } from './FilePane';
 import { FolderIcon } from './icons/Icons';
@@ -80,6 +81,31 @@ describe('FilePane', () => {
 
   beforeEach(() => {
     source = makeSource();
+  });
+
+  it('keeps the loaded path and selection when docked into a workspace split', async () => {
+    const user = userEvent.setup();
+    const view = renderInWorkspace(
+      <MovablePanel id="files" title="Files" Icon={FolderIcon}>
+        <Harness source={source} initialPath="/home" />
+      </MovablePanel>,
+    );
+    await user.dblClick(await screen.findByText('docs'));
+    const name = await screen.findByText('readme.md');
+    await user.click(name);
+    const listing = vi.mocked(source.list).mock.calls.length;
+
+    await user.click(screen.getByRole('button', { name: 'Detach Files' }));
+    const floating = screen.getByRole('region', { name: 'Files' });
+    const pointer = dockPointer(view.container);
+    pointer.down(floating.querySelector('.floating-window-title')!, 350, 410);
+    pointer.move(1045, 450);
+    pointer.up(1045, 450);
+    expect(name.closest('.workspace-dock-split')).toBeInTheDocument();
+    expect(screen.getByText('readme.md')).toBe(name);
+    expect(name.closest('tr')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('navigation', { name: 'Breadcrumbs' })).toHaveTextContent('docs');
+    expect(source.list).toHaveBeenCalledTimes(listing);
   });
 
   it('retains its directory and selected row across detach and dock', async () => {

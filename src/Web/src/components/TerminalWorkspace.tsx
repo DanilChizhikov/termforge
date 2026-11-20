@@ -20,7 +20,8 @@ import { TerminalMetaBar } from './TerminalMetaBar';
 import { TerminalReadOnlyBanner } from './TerminalReadOnlyBanner';
 import { TerminalView, type TerminalHandle } from './TerminalView';
 import { MovablePanel } from './workspace/MovablePanel';
-import { useWorkspacePanels } from './workspace/WorkspacePanelProvider';
+import { useDockTab } from './workspace/useDockTab';
+import { isPanelAway, useWorkspacePanels } from './workspace/WorkspacePanelProvider';
 
 const STATE_LABELS = {
   connecting: 'connecting',
@@ -65,6 +66,7 @@ function terminalTabClassName(tab: TerminalTab, active: boolean): string {
 
 export function TerminalWorkspace() {
   const panels = useWorkspacePanels();
+  const dockTab = useDockTab();
   const selectedServerId = useSelectedServerId();
   const [restored] = useState(getRestoredTerminals);
   const [tabs, dispatch] = useReducer(terminalTabsReducer, restored.tabs);
@@ -180,6 +182,7 @@ export function TerminalWorkspace() {
                         aria-selected={tab.key === visibleKey}
                         aria-controls={`panel-${tab.key}`}
                         className="terminal-tab-button"
+                        {...dockTab(tab.key)}
                         onClick={() => setActiveKey(tab.key)}
                       >
                         <span className={`status-dot status-dot-sm ${stateDot(tab)}`} aria-hidden="true" />
@@ -234,7 +237,8 @@ export function TerminalWorkspace() {
       <div className="terminal-body">
       <div className="terminal-stack">
       {tabs.map((tab) => {
-        const active = tab.key === visibleKey || panels?.placements.get(tab.key)?.mode === 'floating';
+        const selected = tab.key === visibleKey;
+        const active = selected || isPanelAway(panels?.placements.get(tab.key), tab.key);
         const content = (
         <div
           role="tabpanel"
@@ -293,7 +297,7 @@ export function TerminalWorkspace() {
         </div>
         );
         return (
-          <MovablePanel key={tab.key} id={tab.key} title={tabLabel(tab)} Icon={TerminalIcon} onClose={() => requestCloseTab(tab)}>
+          <MovablePanel key={tab.key} id={tab.key} title={tabLabel(tab)} Icon={TerminalIcon} active={selected} onClose={() => requestCloseTab(tab)}>
             {content}
           </MovablePanel>
         );

@@ -4,7 +4,7 @@ import { useEditorFiles } from '../../state/editorFiles';
 import { EmptyState } from '../EmptyState';
 import { FileIcon } from '../icons/Icons';
 import { MovablePanel } from '../workspace/MovablePanel';
-import { useWorkspacePanels } from '../workspace/WorkspacePanelProvider';
+import { isPanelAway, useWorkspacePanels } from '../workspace/WorkspacePanelProvider';
 import { EditorDocumentView } from './EditorDocumentView';
 
 export function EditorWorkspace() {
@@ -30,12 +30,12 @@ export function EditorWorkspace() {
   return (
     <div className="editor-workspace">
       {files.map((file) => (
-        <MovablePanel key={file.key} id={file.key} title={file.name} Icon={FileIcon} onClose={() => requestEditorFileClose(file.key)}>
+        <MovablePanel key={file.key} id={file.key} title={file.name} Icon={FileIcon} active={file.key === activeKey} onClose={() => requestEditorFileClose(file.key)}>
           <div
             role="tabpanel"
             id={`panel-${file.key}`}
             aria-labelledby={`tab-${file.key}`}
-            hidden={file.key !== activeKey && panels?.placements.get(file.key)?.mode !== 'floating'}
+            hidden={file.key !== activeKey && !isPanelAway(panels?.placements.get(file.key), file.key)}
             className="editor-panel"
           >
             <EditorDocumentView file={file} />

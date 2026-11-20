@@ -15,7 +15,8 @@ import { OperationHistory } from './OperationHistory';
 import { ServerDiagnostics } from './ServerDiagnostics';
 import { NetworkDiagnosticPanel } from './NetworkDiagnosticPanel';
 import { MovablePanel } from './workspace/MovablePanel';
-import { usePanelPlacement } from './workspace/WorkspacePanelProvider';
+import { useDockTab } from './workspace/useDockTab';
+import { isPanelAway, usePanelPlacement } from './workspace/WorkspacePanelProvider';
 
 type ToolTabId = Exclude<WorkspaceTabId, 'editor'>;
 
@@ -30,6 +31,7 @@ interface ToolTabProps {
 
 function ToolTab({ id, title, context = null, activeId, Icon, children }: ToolTabProps) {
   const selected = id === activeId;
+  const dockTab = useDockTab();
   return (
     <span className={selected ? 'workspace-tab-item workspace-tab-item-active' : 'workspace-tab-item'}>
       <button
@@ -39,6 +41,7 @@ function ToolTab({ id, title, context = null, activeId, Icon, children }: ToolTa
         aria-selected={selected}
         aria-controls={`panel-${id}`}
         className="workspace-tab"
+        {...dockTab(id)}
         onClick={() => activateWorkspaceTab(id)}
       >
         {selected ? <Icon /> : null}
@@ -83,17 +86,17 @@ interface FloatingToolPanelProps extends Omit<ToolPanelProps, 'children'> {
 }
 
 function FloatingToolPanel({ id, activeId, title, Icon, keepMounted, children }: FloatingToolPanelProps) {
-  const floating = usePanelPlacement(id)?.mode === 'floating';
-  const [wasFloating, setWasFloating] = useState(floating);
-  if (floating && !wasFloating) setWasFloating(true);
-  const visible = id === activeId || floating;
+  const away = isPanelAway(usePanelPlacement(id), id);
+  const [wasAway, setWasAway] = useState(away);
+  if (away && !wasAway) setWasAway(true);
+  const visible = id === activeId || away;
 
   return (
-    <ToolPanel id={id} activeId={activeId}>
-      <MovablePanel id={id} title={title} Icon={Icon}>
-        {visible || wasFloating || keepMounted ? children(visible) : null}
-      </MovablePanel>
-    </ToolPanel>
+    <MovablePanel id={id} title={title} Icon={Icon} active={id === activeId}>
+      <ToolPanel id={id} activeId={visible ? id : activeId}>
+        {visible || wasAway || keepMounted ? children(visible) : null}
+      </ToolPanel>
+    </MovablePanel>
   );
 }
 

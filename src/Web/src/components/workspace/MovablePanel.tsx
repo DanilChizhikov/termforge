@@ -1,8 +1,8 @@
 import { useCallback, useLayoutEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { IconProps } from '../icons/Icons';
+import { DockLayout } from './DockLayout';
 import { FloatingWindow } from './FloatingWindow';
-import { PanelSlot } from './PanelSlot';
 import { useWorkspacePanels } from './WorkspacePanelProvider';
 
 interface MovablePanelProps {
@@ -10,6 +10,7 @@ interface MovablePanelProps {
   slotId?: string;
   title: string;
   Icon: ComponentType<IconProps>;
+  active?: boolean;
   onClose?: () => void;
   children: ReactNode;
 }
@@ -19,9 +20,10 @@ export function MovablePanel(props: MovablePanelProps) {
   return <RegisteredPanel {...props} />;
 }
 
-function RegisteredPanel({ id, slotId = id, title, Icon, onClose, children }: MovablePanelProps) {
+function RegisteredPanel({ id, slotId = id, title, Icon, active = true, onClose, children }: MovablePanelProps) {
   const panels = useWorkspacePanels();
   const registerPanel = panels?.registerPanel;
+  const updateTitle = panels?.updateTitle;
   const placement = panels?.placements.get(id);
   const tiledTarget = placement?.mode === 'tiled' ? panels?.slots.get(placement.slotId) ?? panels?.slots.get(slotId) : undefined;
   const [host] = useState(() => {
@@ -36,6 +38,7 @@ function RegisteredPanel({ id, slotId = id, title, Icon, onClose, children }: Mo
   }, [host]);
 
   useLayoutEffect(() => registerPanel?.(id, slotId), [registerPanel, id, slotId]);
+  useLayoutEffect(() => { updateTitle?.(id, title); }, [id, title, updateTitle]);
   useLayoutEffect(() => { attach(tiledTarget ?? null); }, [attach, tiledTarget]);
   useLayoutEffect(() => () => host.remove(), [host]);
 
@@ -44,7 +47,7 @@ function RegisteredPanel({ id, slotId = id, title, Icon, onClose, children }: Mo
 
   return (
     <>
-      <PanelSlot id={slotId} panelId={id} />
+      <DockLayout origin={{ slotId, panelId: id }} hidden={!active} />
       {createPortal(children, host)}
       {placement?.mode === 'floating' && layer != null ? createPortal(
         <FloatingWindow
