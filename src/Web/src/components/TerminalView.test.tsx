@@ -1,7 +1,10 @@
-import { act, render, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TerminalSession } from '../api/terminals';
+import { selectServer } from '../state/selectedServer';
+import { renderInWorkspace } from '../test/FloatingTestWorkspace';
 import { TerminalView } from './TerminalView';
+import { TerminalWorkspace } from './TerminalWorkspace';
 
 const mocks = vi.hoisted(() => {
   class FakeTerminal {
@@ -193,5 +196,67 @@ describe('TerminalView', () => {
 
     expect(mocks.closeTerminal).toHaveBeenCalledWith('a1b2c3');
     expect(mocks.FakeWebSocket.instances).toHaveLength(0);
+  });
+});
+
+async function renderFloatingTerminal() {
+  selectServer(SESSION.connectionId);
+  mocks.openTerminal.mockResolvedValue(SESSION);
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 401 })));
+  const view = renderInWorkspace(<TerminalWorkspace />);
+  fireEvent.click(screen.getByRole('button', { name: 'New session' }));
+  await waitFor(() => expect(mocks.FakeWebSocket.instances).toHaveLength(1));
+  const panel = screen.getByRole('tabpanel', { name: /web #1/ });
+  const terminal = within(panel).getByTestId('terminal-view');
+  const id = panel.id.slice('panel-'.length);
+  view.detach(id);
+  return { ...view, id, terminal, socket: mocks.FakeWebSocket.instances[0]! };
+}
+
+describe('floating terminal sessions', () => {
+  afterEach(() => { selectServer(null); });
+
+  it('keeps the terminal, WebSocket and PTY across dock and detach, and confirms an allocated session before closing', async () => {
+    HTMLDialogElement.prototype.showModal = function () { this.open = true; this.querySelector('button')?.focus(); };
+    HTMLDialogElement.prototype.close = function () { this.open = false; };
+    const { id, terminal, socket, detach } = await renderFloatingTerminal();
+    let floating = screen.getByRole('region', { name: 'web #1' });
+    expect(floating).toContainElement(terminal);
+    fireEvent.click(within(floating).getByRole('button', { name: 'Dock' }));
+    expect(screen.getByTestId('terminal-view')).toBe(terminal);
+    detach(id);
+    floating = screen.getByRole('region', { name: 'web #1' });
+    expect(floating).toContainElement(terminal);
+    expect(mocks.FakeTerminal.instances).toHaveLength(1);
+    expect(mocks.FakeWebSocket.instances).toEqual([socket]);
+    expect(mocks.openTerminal).toHaveBeenCalledOnce();
+    expect(mocks.closeTerminal).not.toHaveBeenCalled();
+    expect(socket.closed).toBe(false);
+    expect(mocks.FakeTerminal.instances[0]?.disposed).toBe(false);
+
+    const close = within(floating).getByRole('button', { name: 'Close floating window' });
+    fireEvent.click(close);
+    const cancel = within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancel' });
+    expect(cancel).toHaveFocus();
+    fireEvent.click(cancel);
+    expect(floating).toContainElement(terminal);
+    expect(socket.closed).toBe(false);
+    expect(mocks.closeTerminal).not.toHaveBeenCalled();
+
+    fireEvent.click(close);
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Close session' }));
+    expect(terminal).not.toBeInTheDocument();
+    expect(socket.closed).toBe(true);
+    expect(mocks.closeTerminal).toHaveBeenCalledExactlyOnceWith(SESSION.id);
+  });
+
+  it('closes a disconnected terminal without prompting', async () => {
+    const { terminal, socket } = await renderFloatingTerminal();
+    act(() => socket.onclose?.({ reason: 'Remote shell exited' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close floating window' }));
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(terminal).not.toBeInTheDocument();
+    expect(mocks.closeTerminal).toHaveBeenCalledWith(SESSION.id);
   });
 });

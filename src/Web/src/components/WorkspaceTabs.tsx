@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode } from 'react';
+import { useState, type ComponentType, type ReactNode } from 'react';
 import { useConnectionName } from '../state/connections';
 import { useEditorFiles } from '../state/editorFiles';
 import { useFailedOperationsToday } from '../state/failedOperations';
@@ -14,6 +14,8 @@ import { MainWorkspace } from './MainWorkspace';
 import { OperationHistory } from './OperationHistory';
 import { ServerDiagnostics } from './ServerDiagnostics';
 import { NetworkDiagnosticPanel } from './NetworkDiagnosticPanel';
+import { MovablePanel } from './workspace/MovablePanel';
+import { usePanelPlacement } from './workspace/WorkspacePanelProvider';
 
 type ToolTabId = Exclude<WorkspaceTabId, 'editor'>;
 
@@ -73,6 +75,28 @@ function ToolPanel({ id, activeId, children }: ToolPanelProps) {
   );
 }
 
+interface FloatingToolPanelProps extends Omit<ToolPanelProps, 'children'> {
+  title: string;
+  Icon: ComponentType<IconProps>;
+  keepMounted?: boolean;
+  children: (visible: boolean) => ReactNode;
+}
+
+function FloatingToolPanel({ id, activeId, title, Icon, keepMounted, children }: FloatingToolPanelProps) {
+  const floating = usePanelPlacement(id)?.mode === 'floating';
+  const [wasFloating, setWasFloating] = useState(floating);
+  if (floating && !wasFloating) setWasFloating(true);
+  const visible = id === activeId || floating;
+
+  return (
+    <ToolPanel id={id} activeId={activeId}>
+      <MovablePanel id={id} title={title} Icon={Icon}>
+        {visible || wasFloating || keepMounted ? children(visible) : null}
+      </MovablePanel>
+    </ToolPanel>
+  );
+}
+
 export function WorkspaceTabs() {
   const requestedId = useActiveWorkspaceTab();
   const { files } = useEditorFiles();
@@ -104,18 +128,18 @@ export function WorkspaceTabs() {
       <div className="tab-panel" hidden={activeId !== 'editor'}>
         <EditorWorkspace />
       </div>
-      <ToolPanel id="docker" activeId={activeId}>
-        <DockerWorkspace active={activeId === 'docker'} />
-      </ToolPanel>
-      <ToolPanel id="diagnostics" activeId={activeId}>
-        {activeId === 'diagnostics' ? <ServerDiagnostics /> : null}
-      </ToolPanel>
-      <ToolPanel id="network-diagnostics" activeId={activeId}>
-        {activeId === 'network-diagnostics' ? <NetworkDiagnosticPanel /> : null}
-      </ToolPanel>
-      <ToolPanel id="history" activeId={activeId}>
-        {activeId === 'history' ? <OperationHistory /> : null}
-      </ToolPanel>
+      <FloatingToolPanel id="docker" title="Docker" Icon={ContainerIcon} activeId={activeId} keepMounted>
+        {(visible) => <DockerWorkspace active={visible} />}
+      </FloatingToolPanel>
+      <FloatingToolPanel id="diagnostics" title="Diagnostics" Icon={PulseIcon} activeId={activeId}>
+        {() => <ServerDiagnostics />}
+      </FloatingToolPanel>
+      <FloatingToolPanel id="network-diagnostics" title="Network diagnostics" Icon={PulseIcon} activeId={activeId}>
+        {() => <NetworkDiagnosticPanel />}
+      </FloatingToolPanel>
+      <FloatingToolPanel id="history" title="Journal" Icon={ListIcon} activeId={activeId}>
+        {() => <OperationHistory />}
+      </FloatingToolPanel>
       <AppFooter />
     </div>
   );

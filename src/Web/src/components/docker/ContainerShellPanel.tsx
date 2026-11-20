@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { openContainerShell } from '../../api/docker';
 import { closeTerminal, type TerminalSession, type TerminalSize, type TerminalState } from '../../api/terminals';
-import { CloseIcon } from '../icons/Icons';
+import { CloseIcon, TerminalIcon } from '../icons/Icons';
+import { TerminalCloseDialog } from '../TerminalCloseDialog';
 import { TerminalView } from '../TerminalView';
+import { MovablePanel } from '../workspace/MovablePanel';
+import { usePanelPlacement } from '../workspace/WorkspacePanelProvider';
+
+export const DOCKER_SHELL_PANEL_ID = 'docker-shell';
 
 export interface ContainerShellPanelProps {
   connectionId: string;
@@ -11,8 +16,10 @@ export interface ContainerShellPanelProps {
 }
 
 export function ContainerShellPanel({ connectionId, container, onClose }: ContainerShellPanelProps) {
+  const floating = usePanelPlacement(DOCKER_SHELL_PANEL_ID)?.mode === 'floating';
   const [state, setState] = useState<TerminalState>('connecting');
   const [reason, setReason] = useState<string | null>(null);
+  const [closing, setClosing] = useState(false);
   const sessionRef = useRef<string | null>(null);
 
   const open = useCallback(
@@ -39,7 +46,15 @@ export function ContainerShellPanel({ connectionId, container, onClose }: Contai
     [],
   );
 
-  return (
+  const requestClose = () => {
+    if (sessionRef.current !== null && state !== 'disconnected') {
+      setClosing(true);
+    } else {
+      onClose();
+    }
+  };
+
+  const content = (
     <section aria-label={`Shell in ${container}`} className="docker-panel">
       <div className="docker-panel-bar">
         <span className="docker-panel-title">
@@ -51,9 +66,9 @@ export function ContainerShellPanel({ connectionId, container, onClose }: Contai
           <span className={`status-dot status-dot-sm status-dot-${SHELL_TONES[state]}`} aria-hidden="true" />
           {state === 'disconnected' ? (reason ?? 'Disconnected') : SHELL_LABELS[state]}
         </span>
-        <button type="button" className="icon-btn" aria-label="Close shell" onClick={onClose}>
+        {floating ? null : <button type="button" className="icon-btn" aria-label="Close shell" onClick={onClose}>
           <CloseIcon />
-        </button>
+        </button>}
       </div>
       <div className="docker-shell-body">
         <TerminalView
@@ -65,6 +80,15 @@ export function ContainerShellPanel({ connectionId, container, onClose }: Contai
         />
       </div>
     </section>
+  );
+
+  return (
+    <>
+      <MovablePanel id={DOCKER_SHELL_PANEL_ID} title={`Shell · ${container}`} Icon={TerminalIcon} onClose={requestClose}>
+        {content}
+      </MovablePanel>
+      {closing ? <TerminalCloseDialog title={container} onCancel={() => setClosing(false)} onConfirm={onClose} /> : null}
+    </>
   );
 }
 

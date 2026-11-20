@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { containerLogsUrl, LOG_TAIL_OPTIONS, parseLogMessage } from '../../api/docker';
 import { originProofProtocols } from '../../api/originProof';
-import { CloseIcon, SearchIcon, TerminalIcon } from '../icons/Icons';
+import { CloseIcon, ListIcon, SearchIcon, TerminalIcon } from '../icons/Icons';
+import { MovablePanel } from '../workspace/MovablePanel';
+import { usePanelPlacement } from '../workspace/WorkspacePanelProvider';
+
+export const DOCKER_LOGS_PANEL_ID = 'docker-logs';
 
 export interface ContainerLogsProps {
   connectionId: string;
@@ -22,11 +26,12 @@ const DEFAULT_TAIL = 200;
 const CONNECTION_LOST = 'The log stream was interrupted.';
 
 export function ContainerLogs({ connectionId, container, canOpenShell, onOpenShell, onClose }: ContainerLogsProps) {
+  const floating = usePanelPlacement(DOCKER_LOGS_PANEL_ID)?.mode === 'floating';
   const [follow, setFollow] = useState(true);
   const [tail, setTail] = useState(DEFAULT_TAIL);
   const [filter, setFilter] = useState('');
 
-  return (
+  const content = (
     <section aria-label={`Logs of ${container}`} className="docker-panel">
       <div className="docker-panel-bar">
         <span className="docker-panel-title">Logs · {container}</span>
@@ -66,9 +71,9 @@ export function ContainerLogs({ connectionId, container, canOpenShell, onOpenShe
             Open shell in container
           </button>
         ) : null}
-        <button type="button" className="icon-btn" aria-label="Close logs" onClick={onClose}>
+        {floating ? null : <button type="button" className="icon-btn" aria-label="Close logs" onClick={onClose}>
           <CloseIcon />
-        </button>
+        </button>}
       </div>
       <LogStream
         key={`${tail}:${String(follow)}`}
@@ -79,6 +84,12 @@ export function ContainerLogs({ connectionId, container, canOpenShell, onOpenShe
         filter={filter}
       />
     </section>
+  );
+
+  return (
+    <MovablePanel id={DOCKER_LOGS_PANEL_ID} title={`Logs · ${container}`} Icon={ListIcon} onClose={onClose}>
+      {content}
+    </MovablePanel>
   );
 }
 

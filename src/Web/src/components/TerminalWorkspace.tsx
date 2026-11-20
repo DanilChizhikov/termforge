@@ -11,13 +11,16 @@ import {
 } from '../state/terminalTabs';
 import { getRestoredTerminals, markRestoredTerminalsUsed, publishTerminalTabs } from '../state/workspaceTerminals';
 import { EmptyState } from './EmptyState';
-import { CloseIcon, ListIcon, PlusIcon, RefreshIcon } from './icons/Icons';
+import { CloseIcon, ListIcon, PlusIcon, RefreshIcon, TerminalIcon } from './icons/Icons';
 import { CommandHistoryPanel } from './CommandHistoryPanel';
 import { RegionToggle } from './CollapsibleRegion';
 import { ReconnectBar } from './ReconnectBar';
+import { TerminalCloseDialog } from './TerminalCloseDialog';
 import { TerminalMetaBar } from './TerminalMetaBar';
 import { TerminalReadOnlyBanner } from './TerminalReadOnlyBanner';
 import { TerminalView, type TerminalHandle } from './TerminalView';
+import { MovablePanel } from './workspace/MovablePanel';
+import { useWorkspacePanels } from './workspace/WorkspacePanelProvider';
 
 const STATE_LABELS = {
   connecting: 'connecting',
@@ -61,10 +64,12 @@ function terminalTabClassName(tab: TerminalTab, active: boolean): string {
 }
 
 export function TerminalWorkspace() {
+  const panels = useWorkspacePanels();
   const selectedServerId = useSelectedServerId();
   const [restored] = useState(getRestoredTerminals);
   const [tabs, dispatch] = useReducer(terminalTabsReducer, restored.tabs);
   const [activeKey, setActiveKey] = useState<string | null>(restored.activeKey);
+  const [pendingClose, setPendingClose] = useState<string | null>(null);
   const visibleKey = tabs.some((tab) => tab.key === activeKey) ? activeKey : (tabs[0]?.key ?? null);
   const [historyOpen, setHistoryOpen] = useState(true);
   const [historyVersion, setHistoryVersion] = useState(0);
@@ -73,6 +78,7 @@ export function TerminalWorkspace() {
   const selectedServerName = useConnectionName(selectedServerId);
   const handles = useRef(new Map<string, TerminalHandle>());
   const visibleTab = tabs.find((tab) => tab.key === visibleKey) ?? null;
+  const closingTab = tabs.find((tab) => tab.key === pendingClose) ?? null;
 
   useEffect(() => {
     markRestoredTerminalsUsed();
@@ -145,6 +151,15 @@ export function TerminalWorkspace() {
       closeTerminal(tab.session.id).catch(() => undefined);
     }
     dispatch({ type: 'remove', key: tab.key });
+    setPendingClose((current) => current === tab.key ? null : current);
+  };
+
+  const requestCloseTab = (tab: TerminalTab) => {
+    if (tab.session !== null && tab.state !== 'disconnected') {
+      setPendingClose(tab.key);
+    } else {
+      closeTab(tab);
+    }
   };
 
   return (
@@ -182,7 +197,10 @@ export function TerminalWorkspace() {
                         type="button"
                         className="icon-btn icon-btn-sm"
                         aria-label={`Close ${tabLabel(tab)}`}
-                        onClick={() => closeTab(tab)}
+                        onClick={() => {
+                          if (panels?.placements.get(tab.key)?.mode === 'floating') requestCloseTab(tab);
+                          else closeTab(tab);
+                        }}
                       >
                         <CloseIcon size={12} />
                       </button>
@@ -215,13 +233,14 @@ export function TerminalWorkspace() {
       {tabs.length === 0 ? <EmptyState message="No terminal sessions. Connect to a server to open one." /> : null}
       <div className="terminal-body">
       <div className="terminal-stack">
-      {tabs.map((tab) => (
+      {tabs.map((tab) => {
+        const active = tab.key === visibleKey || panels?.placements.get(tab.key)?.mode === 'floating';
+        const content = (
         <div
-          key={tab.key}
           role="tabpanel"
           id={`panel-${tab.key}`}
           aria-labelledby={`tab-${tab.key}`}
-          hidden={tab.key !== visibleKey}
+          hidden={!active}
           className="terminal-panel"
         >
           <TerminalReadOnlyBanner connectionId={tab.connectionId} />
@@ -261,7 +280,7 @@ export function TerminalWorkspace() {
           {tab.restored ? null : (
           <TerminalView
             connectionId={tab.connectionId}
-            active={tab.key === visibleKey}
+            active={active}
             generation={tab.generation}
             reconnect={tab.reconnecting}
             handleRef={registerHandle(tab.key)}
@@ -272,19 +291,34 @@ export function TerminalWorkspace() {
           />
           )}
         </div>
-      ))}
+        );
+        return (
+          <MovablePanel key={tab.key} id={tab.key} title={tabLabel(tab)} Icon={TerminalIcon} onClose={() => requestCloseTab(tab)}>
+            {content}
+          </MovablePanel>
+        );
+      })}
       </div>
       {historyOpen && visibleTab !== null ? (
-        <CommandHistoryPanel
-          connectionId={visibleTab.connectionId}
-          connectionName={visibleTab.session?.connectionName ?? 'server'}
-          terminalId={visibleTab.state === 'connected' ? visibleTab.session?.id ?? null : null}
-          version={historyVersion}
-          onInsert={insertIntoActiveTerminal}
-          onCollapse={() => setHistoryOpen(false)}
-        />
+        <MovablePanel id="command-history" title="Command history" Icon={ListIcon} onClose={() => setHistoryOpen(false)}>
+          <CommandHistoryPanel
+            connectionId={visibleTab.connectionId}
+            connectionName={visibleTab.session?.connectionName ?? 'server'}
+            terminalId={visibleTab.state === 'connected' ? visibleTab.session?.id ?? null : null}
+            version={historyVersion}
+            onInsert={insertIntoActiveTerminal}
+            onCollapse={() => setHistoryOpen(false)}
+          />
+        </MovablePanel>
       ) : null}
       </div>
+      {closingTab === null ? null : (
+        <TerminalCloseDialog
+          title={tabLabel(closingTab)}
+          onCancel={() => setPendingClose(null)}
+          onConfirm={() => closeTab(closingTab)}
+        />
+      )}
     </div>
   );
 }

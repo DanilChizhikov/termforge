@@ -1,0 +1,160 @@
+.workspace-canvas {
+  position: relative;
+}
+
+.workspace-floating-layer {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  overflow: clip;
+  pointer-events: none;
+}
+
+.workspace-panel-slot,
+.workspace-panel-host,
+.docker-containers-section {
+  display: contents;
+}
+
+.floating-window {
+  position: absolute;
+  top: var(--window-y);
+  left: var(--window-x);
+  display: flex;
+  flex-direction: column;
+  width: var(--window-width);
+  height: var(--window-height);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-panel);
+  background: var(--surface-canvas);
+  box-shadow: var(--shadow-dialog);
+  pointer-events: auto;
+}
+
+.floating-window-header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-default);
+  border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+  background: var(--surface-chrome);
+}
+
+.floating-window-title {
+  display: flex;
+  flex: 1;
+  align-self: stretch;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 4px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.floating-window-title svg {
+  flex: none;
+}
+
+.floating-window-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.floating-window-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  border-radius: 0 0 var(--radius-panel) var(--radius-panel);
+}
+
+.floating-window-body > .workspace-panel-host > .history-panel,
+.floating-window-body > .workspace-panel-host > .transfer-panel {
+  flex: 1;
+  max-height: none;
+}
+
+.floating-window-body > .workspace-panel-host > .docker-panel,
+.floating-window-body > .workspace-panel-host > .docker-panel > .docker-shell-body {
+  min-height: 0;
+}
+
+.floating-window-resize {
+  position: absolute;
+  z-index: 1;
+  touch-action: none;
+}
+
+.floating-window-resize-n,
+.floating-window-resize-s {
+  right: 10px;
+  left: 10px;
+  height: 8px;
+  cursor: ns-resize;
+}
+
+.floating-window-resize-e,
+.floating-window-resize-w {
+  top: 10px;
+  bottom: 10px;
+  width: 8px;
+  cursor: ew-resize;
+}
+
+.floating-window-resize-ne,
+.floating-window-resize-se,
+.floating-window-resize-sw,
+.floating-window-resize-nw {
+  width: 14px;
+  height: 14px;
+}
+
+.floating-window-resize-n,
+.floating-window-resize-ne,
+.floating-window-resize-nw {
+  top: -4px;
+}
+
+.floating-window-resize-e,
+.floating-window-resize-ne,
+.floating-window-resize-se {
+  right: -4px;
+}
+
+.floating-window-resize-s,
+.floating-window-resize-se,
+.floating-window-resize-sw {
+  bottom: -4px;
+}
+
+.floating-window-resize-w,
+.floating-window-resize-sw,
+.floating-window-resize-nw {
+  left: -4px;
+}
+
+.floating-window-resize-ne,
+.floating-window-resize-sw {
+  cursor: nesw-resize;
+}
+
+.floating-window-resize-se,
+.floating-window-resize-nw {
+  cursor: nwse-resize;
+}
+
+.terminal-close-dialog {
+  width: min(460px, calc(100% - 32px));
+  margin: auto;
+  padding: 0;
+}
+
+.terminal-close-dialog::backdrop {
+  background: var(--surface-overlay);
+}

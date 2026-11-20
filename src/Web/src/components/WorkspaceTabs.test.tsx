@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SavedConnection } from '../api/connections';
@@ -6,6 +6,7 @@ import { replaceConnections } from '../state/connections';
 import { openEditorFile, resetEditorFiles, setEditorFileDirty, editorFileKey } from '../state/editorFiles';
 import { selectServer } from '../state/selectedServer';
 import { activateWorkspaceTab } from '../state/workspaceTab';
+import { renderInWorkspace } from '../test/FloatingTestWorkspace';
 import { WorkspaceTabs } from './WorkspaceTabs';
 
 vi.mock('./MainWorkspace', () => ({ MainWorkspace: () => <p>main workspace</p> }));
@@ -61,6 +62,27 @@ afterEach(() => {
 });
 
 describe('WorkspaceTabs', () => {
+  it('keeps a floating tool visible after switching tabs and returns it to its hidden tile when docked', async () => {
+    const user = userEvent.setup();
+    const { detach } = renderInWorkspace(<WorkspaceTabs />);
+    expect(screen.queryByText('server diagnostics panel')).not.toBeInTheDocument();
+    const diagnosticsTab = screen.getByRole('tab', { name: /Diagnostics ·/ });
+    await user.click(diagnosticsTab);
+    const diagnostics = screen.getByText('server diagnostics panel');
+
+    detach('diagnostics');
+    await user.click(screen.getByRole('tab', { name: 'Network diagnostics' }));
+    const floating = screen.getByRole('region', { name: 'Diagnostics' });
+    expect(floating).toContainElement(diagnostics);
+    expect(diagnostics).toBeVisible();
+    await user.click(within(floating).getByRole('button', { name: 'Dock' }));
+
+    expect(diagnostics).toBeInTheDocument();
+    expect(diagnostics).not.toBeVisible();
+    await user.click(diagnosticsTab);
+    expect(diagnostics).toBeVisible();
+  });
+
   it('opens network checks separately from server diagnostics without selecting a server', async () => {
     const user = userEvent.setup();
     selectServer(null);
