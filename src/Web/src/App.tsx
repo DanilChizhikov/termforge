@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Group, Panel, Separator } from 'react-resizable-panels';
+import { installGlobalShortcuts, type GlobalShortcutBinding } from './keyboard/globalShortcuts';
 import { AppHeader } from './components/AppHeader';
 import { CollapsibleRegion } from './components/CollapsibleRegion';
 import { AiApprovalPrompt } from './components/AiApprovalPrompt';
@@ -9,7 +10,6 @@ import { SessionBanner } from './components/SessionBanner';
 import { SettingsView } from './components/settings/SettingsView';
 import { WorkspaceRestoreNotice } from './components/WorkspaceRestoreNotice';
 import { WorkspaceTabs } from './components/WorkspaceTabs';
-import { installGlobalShortcuts, type GlobalShortcutBinding } from './keyboard/globalShortcuts';
 import { useAppView } from './state/appView';
 import { useConnections } from './state/connections';
 import { usePersistentLayout } from './state/workspaceLayout';
