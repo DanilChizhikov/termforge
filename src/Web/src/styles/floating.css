@@ -1,13 +1,25 @@
 .workspace-canvas {
   position: relative;
+  overflow: auto;
+  overflow-anchor: none;
+  scrollbar-gutter: stable;
 }
 
 .workspace-floating-layer {
   position: absolute;
   z-index: 2;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: max(100%, var(--canvas-width));
+  height: max(100%, var(--canvas-height));
   overflow: clip;
   pointer-events: none;
+}
+
+.workspace-floating-windows {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
 }
 
 .workspace-panel-slot,
@@ -100,7 +112,7 @@
 
 .workspace-dock-overlay {
   position: absolute;
-  z-index: 3;
+  z-index: 1;
   border: 1px solid var(--status-info);
   border-radius: var(--radius-panel);
   background: var(--status-info-soft);
@@ -113,6 +125,7 @@
 
 .floating-window {
   position: absolute;
+  z-index: var(--window-z);
   top: var(--window-y);
   left: var(--window-x);
   display: flex;
@@ -124,6 +137,10 @@
   background: var(--surface-canvas);
   box-shadow: var(--shadow-dialog);
   pointer-events: auto;
+}
+
+.floating-window[data-dragging] {
+  opacity: 0.7;
 }
 
 .floating-window-header {

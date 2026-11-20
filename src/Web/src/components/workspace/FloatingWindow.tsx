@@ -8,16 +8,19 @@ interface FloatingWindowProps {
   title: string;
   Icon: ComponentType<IconProps>;
   rect: FloatingRect;
+  zIndex: number;
   bodyRef: (element: HTMLDivElement | null) => void;
   onDock: () => void;
   onClose: () => void;
 }
 
-export function FloatingWindow({ panelId, title, Icon, rect, bodyRef, onDock, onClose }: FloatingWindowProps) {
+export function FloatingWindow({ panelId, title, Icon, rect, zIndex, bodyRef, onDock, onClose }: FloatingWindowProps) {
   const startGesture = useContext(FloatingGestureContext);
   const id = `floating-window-${useId().replace(/[^a-z0-9_-]/gi, '')}`;
+  const windowRef = useRef<HTMLElement>(null);
   const style = useRef<HTMLStyleElement>(null);
-  const preview = useCallback((next: FloatingRect) => {
+  const preview = useCallback((next: FloatingRect, dragging: boolean) => {
+    windowRef.current?.toggleAttribute('data-dragging', dragging);
     const rule = style.current?.sheet?.cssRules[0] as CSSStyleRule | undefined;
     if (rule === undefined) return;
     rule.style.setProperty('--window-x', `${next.x}px`);
@@ -26,14 +29,19 @@ export function FloatingWindow({ panelId, title, Icon, rect, bodyRef, onDock, on
     rule.style.setProperty('--window-height', `${next.height}px`);
   }, []);
 
-  useLayoutEffect(() => preview(rect), [preview, rect]);
+  useLayoutEffect(() => preview(rect, false), [preview, rect]);
+  useLayoutEffect(() => {
+    const rule = style.current?.sheet?.cssRules[0] as CSSStyleRule | undefined;
+    rule?.style.setProperty('--window-z', String(zIndex));
+  }, [zIndex]);
 
   const begin = (event: PointerEvent<HTMLElement>, direction: FloatingDirection) => {
+    if (event.button === 0 && event.isPrimary) windowRef.current?.focus({ preventScroll: true });
     startGesture?.(event, { panelId, direction, rect, preview });
   };
 
   return (
-    <section id={id} aria-label={title} className="floating-window" data-floating-panel={panelId}>
+    <section ref={windowRef} id={id} aria-label={title} className="floating-window" data-floating-panel={panelId} tabIndex={-1}>
       <style ref={style}>{`#${id} {}`}</style>
       <header className="floating-window-header">
         <div className="floating-window-title" onPointerDown={(event) => begin(event, 'move')}>
