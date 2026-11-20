@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useConnectionName } from '../state/connections';
 import type { PendingConflict } from '../state/transfers';
 
@@ -11,7 +12,7 @@ export function TransferConflictDialog({ pending, onOverwrite, onCancel }: Trans
   const count = pending.conflicts.length;
   const serverName = useConnectionName(pending.request.connectionId) ?? 'the server';
   const location = pending.request.direction === 'upload' ? `on ${serverName}` : 'on this computer';
-  return (
+  return createPortal(
     <div className="dialog-backdrop">
       <div role="dialog" aria-modal="true" aria-labelledby="transfer-conflict-title" className="dialog-card">
         <div className="dialog-header">
@@ -41,6 +42,7 @@ export function TransferConflictDialog({ pending, onOverwrite, onCancel }: Trans
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

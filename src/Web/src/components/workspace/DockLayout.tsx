@@ -5,6 +5,7 @@ import { originStack, type DockNode, type DockStack } from '../../state/workspac
 import { useRegionToggleState } from '../CollapsibleRegion';
 import { PanelSlot } from './PanelSlot';
 import { FloatingGestureContext } from './WorkspaceCanvas';
+import { toCanvasPoint } from './workspaceDockGeometry';
 import { useWorkspacePanels } from './WorkspacePanelProvider';
 
 interface DockOrigin {
@@ -115,10 +116,10 @@ function TileStack({ stack, origin }: { stack: DockStack; origin: DockOrigin }) 
             const canvas = tile?.closest<HTMLElement>('.workspace-canvas');
             if (tile === null || tile === undefined || canvas === null || canvas === undefined) return;
             const place = tile.getBoundingClientRect();
-            const bounds = canvas.getBoundingClientRect();
+            const position = toCanvasPoint(canvas, place);
             panels.detachPanel(selected.panelId, {
-              x: place.width > 0 ? place.x - bounds.x + 16 : 16,
-              y: place.height > 0 ? place.y - bounds.y + 16 : 16,
+              x: place.width > 0 ? position.x + 16 : 16,
+              y: place.height > 0 ? position.y + 16 : 16,
               width: place.width > 0 ? Math.min(640, place.width) : 480,
               height: place.height > 0 ? Math.min(480, place.height) : 320,
             });

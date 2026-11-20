@@ -1,5 +1,6 @@
 import { WORKSPACE_ROOT, type DockTarget } from './dockTarget';
 import { normalizeFloatingRect, type FloatingRect } from './floatingGeometry';
+import { placeFloatingRect } from './floatingPlacement';
 
 interface DockTab {
   panelId: string;
@@ -129,18 +130,33 @@ function setPlacement(layout: DockLayout, id: string, placement: PanelPlacement)
   return { ...layout, placements: new Map(layout.placements).set(id, placement) };
 }
 
+export function raiseFloatingPanel(layout: DockLayout, id: string): DockLayout {
+  const placement = layout.placements.get(id);
+  if (placement?.mode !== 'floating') return layout;
+  let front: string | undefined;
+  for (const [panelId, item] of layout.placements) {
+    if (item.mode === 'floating') front = panelId;
+  }
+  if (front === id) return layout;
+  const placements = new Map(layout.placements);
+  placements.delete(id);
+  placements.set(id, placement);
+  return { ...layout, placements };
+}
+
 function floatPanel(layout: DockLayout, id: string, rect: FloatingRect): DockLayout {
   const placement = layout.placements.get(id);
   if (placement === undefined) return layout;
   if (placement.mode === 'floating') return setPlacement(layout, id, { ...placement, rect });
 
   const previous = findInLayout(layout, (stack) => stack.tabs.some((tab) => tab.panelId === id));
-  return setPlacement(removeDockTab(layout, id), id, {
+  const floated = setPlacement(removeDockTab(layout, id), id, {
     mode: 'floating',
     rect,
     returnSlotId: placement.slotId,
     ...(previous === undefined ? {} : { returnStackId: previous.stack.id }),
   });
+  return raiseFloatingPanel(floated, id);
 }
 
 function appendTab(layout: DockLayout, stack: DockStack, tab: DockTab): DockLayout {
@@ -194,11 +210,19 @@ interface PanelDrop {
   target: DockTarget | null;
 }
 
-export function applyPanelDrop(layout: DockLayout, drop: PanelDrop): DockLayout {
+export function applyPanelDrop(layout: DockLayout, drop: PanelDrop, viewport?: FloatingRect): DockLayout {
   const { panelId, mode, target } = drop;
-  const rect = normalizeFloatingRect(drop.rect);
-  if (rect === null || layout.placements.get(panelId)?.mode !== mode) return layout;
-  if (target === null) return floatPanel(layout, panelId, rect);
+  if (layout.placements.get(panelId)?.mode !== mode) return layout;
+  if (target === null) {
+    const preferred = normalizeFloatingRect(drop.rect);
+    if (preferred === null) return layout;
+    const occupied: FloatingRect[] = [];
+    for (const [id, placement] of layout.placements) {
+      if (id !== panelId && placement.mode === 'floating') occupied.push(placement.rect);
+    }
+    const rect = placeFloatingRect({ preferred, viewport, occupied });
+    return rect === null ? layout : floatPanel(layout, panelId, rect);
+  }
 
   const anchorId = target.kind === 'tab' ? target.slotId : target.anchorId;
   if (target.kind === 'tab' && anchorId === WORKSPACE_ROOT) return layout;

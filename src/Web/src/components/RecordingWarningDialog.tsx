@@ -1,3 +1,5 @@
+import { createPortal } from 'react-dom';
+
 export interface RecordingWarningDialogProps {
   title: string;
   confirmLabel: string;
@@ -7,7 +9,7 @@ export interface RecordingWarningDialogProps {
 }
 
 export function RecordingWarningDialog({ title, confirmLabel, busy = false, onConfirm, onCancel }: RecordingWarningDialogProps) {
-  return (
+  return createPortal(
     <div className="dialog-backdrop">
       <div role="dialog" aria-modal="true" aria-labelledby="recording-warning-title" className="dialog-card">
         <div className="dialog-header">
@@ -33,6 +35,7 @@ export function RecordingWarningDialog({ title, confirmLabel, busy = false, onCo
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

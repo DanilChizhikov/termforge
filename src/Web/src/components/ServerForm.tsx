@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type KeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
 import {
   AUTH_METHODS,
   describeError,
@@ -95,7 +96,7 @@ export function ServerForm({
     }
   };
 
-  return (
+  return createPortal(
     <div className="dialog-backdrop">
       <div
         role="dialog"
@@ -330,6 +331,7 @@ export function ServerForm({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

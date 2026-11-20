@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import type { SudoCredentials, SudoPasswordProblem } from '../../api/sudoEditor';
 import { ShieldIcon } from '../icons/Icons';
 import { Switch } from '../Switch';
@@ -24,7 +25,7 @@ export function SudoPasswordDialog({ actionLabel, problem, busy, onSubmit, onCan
     setPassword('');
   }
 
-  return (
+  return createPortal(
     <div className="dialog-backdrop">
       <form
         role="dialog"
@@ -75,6 +76,7 @@ export function SudoPasswordDialog({ actionLabel, problem, busy, onSubmit, onCan
           </button>
         </div>
       </form>
-    </div>
+    </div>,
+    document.body,
   );
 }

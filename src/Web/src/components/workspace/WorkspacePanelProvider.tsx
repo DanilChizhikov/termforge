@@ -1,10 +1,11 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import type { DockTarget } from '../../state/dockTarget';
 import type { FloatingRect } from '../../state/floatingGeometry';
 import {
-  applyPanelDrop, emptyDockLayout, registerDockPanel, resizeDockSplit, returnDockPanel, selectDockTab, unregisterDockPanel,
+  applyPanelDrop, emptyDockLayout, raiseFloatingPanel, registerDockPanel, resizeDockSplit, returnDockPanel, selectDockTab, unregisterDockPanel,
   type DockNode, type PanelPlacement,
 } from '../../state/workspaceDocking';
+import { getVisibleCanvasRect } from './workspaceDockGeometry';
 
 export type { PanelPlacement } from '../../state/workspaceDocking';
 
@@ -14,6 +15,7 @@ interface WorkspacePanels {
   titles: ReadonlyMap<string, string>;
   slots: ReadonlyMap<string, HTMLElement>;
   floatingLayer: HTMLDivElement | null;
+  floatingCanvas: ReturnType<typeof getFloatingCanvas>;
   setFloatingLayer: (layer: HTMLDivElement | null) => void;
   registerPanel: (id: string, slotId: string) => () => void;
   updateTitle: (id: string, title: string) => void;
@@ -22,6 +24,7 @@ interface WorkspacePanels {
   dockPanel: (id: string, slotId?: string) => void;
   commitFloatingRect: (id: string, rect: FloatingRect) => void;
   dropPanel: (drop: { panelId: string; mode: PanelPlacement['mode']; rect: FloatingRect; target: DockTarget | null }) => void;
+  raisePanel: (id: string) => void;
   selectTab: (stackId: string, panelId: string) => void;
   resizeSplit: (id: string, firstSize: number) => void;
 }
@@ -45,6 +48,7 @@ export function WorkspacePanelProvider({ children }: { children: ReactNode }) {
   const [titles, setTitles] = useState<ReadonlyMap<string, string>>(() => new Map());
   const [slots, setSlots] = useState<ReadonlyMap<string, HTMLElement>>(() => new Map());
   const [floatingLayer, setFloatingLayer] = useState<HTMLDivElement | null>(null);
+  const floatingCanvas = useMemo(() => getFloatingCanvas(layout.placements), [layout.placements]);
 
   const registerPanel = useCallback((id: string, slotId: string) => {
     setLayout((current) => registerDockPanel(current, id, slotId));
@@ -64,7 +68,13 @@ export function WorkspacePanelProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const dropPanel: WorkspacePanels['dropPanel'] = useCallback((drop) => {
-    setLayout((current) => applyPanelDrop(current, drop));
+    const canvas = floatingLayer?.closest<HTMLElement>('.workspace-canvas');
+    const viewport = canvas == null || drop.target !== null ? undefined : getVisibleCanvasRect(canvas);
+    setLayout((current) => applyPanelDrop(current, drop, viewport));
+  }, [floatingLayer]);
+
+  const raisePanel = useCallback((id: string) => {
+    setLayout((current) => raiseFloatingPanel(current, id));
   }, []);
 
   const detachPanel = useCallback((id: string, rect: FloatingRect) => {
@@ -93,12 +103,26 @@ export function WorkspacePanelProvider({ children }: { children: ReactNode }) {
 
   return (
     <WorkspacePanelContext.Provider value={{
-      placements: layout.placements, trees: layout.trees, titles, slots, floatingLayer, setFloatingLayer,
-      registerPanel, updateTitle, registerSlot, detachPanel, dockPanel, commitFloatingRect, dropPanel, selectTab, resizeSplit,
+      placements: layout.placements, trees: layout.trees, titles, slots, floatingLayer, floatingCanvas, setFloatingLayer,
+      registerPanel, updateTitle, registerSlot, detachPanel, dockPanel, commitFloatingRect, dropPanel, raisePanel, selectTab, resizeSplit,
     }}>
       {children}
     </WorkspacePanelContext.Provider>
   );
+}
+
+function getFloatingCanvas(placements: ReadonlyMap<string, PanelPlacement>) {
+  let width = 0;
+  let height = 0;
+  const zIndices = new Map<string, number>();
+  for (const [id, placement] of placements) {
+    if (placement.mode !== 'floating') continue;
+    const { x, y, width: windowWidth, height: windowHeight } = placement.rect;
+    width = Math.max(width, x + windowWidth);
+    height = Math.max(height, y + windowHeight);
+    zIndices.set(id, zIndices.size + 1);
+  }
+  return { width, height, zIndices };
 }
 
 function without<K, V>(current: ReadonlyMap<K, V>, key: K): ReadonlyMap<K, V> {

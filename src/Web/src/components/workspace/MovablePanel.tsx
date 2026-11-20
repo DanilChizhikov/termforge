@@ -55,6 +55,7 @@ function RegisteredPanel({ id, slotId = id, title, Icon, active = true, onClose,
           title={title}
           Icon={Icon}
           rect={placement.rect}
+          zIndex={panels?.floatingCanvas.zIndices.get(id) ?? 0}
           bodyRef={attach}
           onDock={dock}
           onClose={onClose ?? dock}
